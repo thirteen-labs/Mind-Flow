@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  typecheck:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run typecheck
+
+  apk:
+    name: Build APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - run: npm ci
+
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android --clean
+
+      - name: Build debug APK
+        run: cd android && ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mindflow-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk

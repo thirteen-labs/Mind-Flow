@@ -1,0 +1,255 @@
+export interface Theme {
+  id: string;
+  name: string;
+  isDark: boolean;
+  text: string;
+  textSecondary: string;
+  textMuted: string;
+  background: string;
+  backgroundElement: string;
+  backgroundSelected: string;
+  surface: string;
+  surfaceVariant: string;
+  primary: string;
+  secondary: string;
+  accent: string;
+  border: string;
+  card: string;
+  error: string;
+  success: string;
+  warning: string;
+  notification: string;
+  tint: string;
+  tabActive: string;
+  tabInactive: string;
+  fontFamily: string;
+}
+
+export const themes: Record<string, Theme> = {
+  midnight: {
+    id: 'midnight',
+    name: 'Midnight',
+    isDark: true,
+    text: '#FFFFFF',
+    textSecondary: '#98989D',
+    textMuted: '#636366',
+    background: '#000000',
+    backgroundElement: '#1C1C1E',
+    backgroundSelected: '#2C2C2E',
+    surface: '#111111',
+    surfaceVariant: '#1C1C1E',
+    primary: '#208AEF',
+    secondary: '#0A84FF',
+    accent: '#64D2FF',
+    border: '#38383A',
+    card: '#1C1C1E',
+    error: '#FF453A',
+    success: '#30D158',
+    warning: '#FF9F0A',
+    notification: '#FF453A',
+    tint: '#208AEF',
+    tabActive: '#208AEF',
+    tabInactive: '#636366',
+    fontFamily: 'Inter',
+  },
+
+  paperJournal: {
+    id: 'paperJournal',
+    name: 'Paper Journal',
+    isDark: false,
+    text: '#3D3028',
+    textSecondary: '#8B7E72',
+    textMuted: '#B8ABA0',
+    background: '#F5F0E8',
+    backgroundElement: '#EDE5D8',
+    backgroundSelected: '#E3D9C8',
+    surface: '#EDE5D8',
+    surfaceVariant: '#E3D9C8',
+    primary: '#8B6914',
+    secondary: '#A67B27',
+    accent: '#C49A3C',
+    border: '#D8CFC0',
+    card: '#EDE5D8',
+    error: '#C41E3A',
+    success: '#2E7D32',
+    warning: '#E65100',
+    notification: '#C41E3A',
+    tint: '#8B6914',
+    tabActive: '#8B6914',
+    tabInactive: '#B8ABA0',
+    fontFamily: 'Playfair Display',
+  },
+
+  aurora: {
+    id: 'aurora',
+    name: 'Aurora',
+    isDark: true,
+    text: '#E8E4F0',
+    textSecondary: '#9B95B0',
+    textMuted: '#6B6580',
+    background: '#0D0A1A',
+    backgroundElement: '#1A1533',
+    backgroundSelected: '#25204A',
+    surface: '#1A1533',
+    surfaceVariant: '#25204A',
+    primary: '#7C3AED',
+    secondary: '#A78BFA',
+    accent: '#6EE7B7',
+    border: '#2D2855',
+    card: '#1A1533',
+    error: '#FCA5A5',
+    success: '#6EE7B7',
+    warning: '#FCD34D',
+    notification: '#FCA5A5',
+    tint: '#7C3AED',
+    tabActive: '#7C3AED',
+    tabInactive: '#6B6580',
+    fontFamily: 'Inter',
+  },
+
+  forest: {
+    id: 'forest',
+    name: 'Forest',
+    isDark: true,
+    text: '#D4E8D4',
+    textSecondary: '#8AA88A',
+    textMuted: '#5A7A5A',
+    background: '#0D1A12',
+    backgroundElement: '#15281C',
+    backgroundSelected: '#1E3828',
+    surface: '#15281C',
+    surfaceVariant: '#1E3828',
+    primary: '#2D8A4E',
+    secondary: '#4CAF50',
+    accent: '#81C784',
+    border: '#2A4030',
+    card: '#15281C',
+    error: '#EF5350',
+    success: '#66BB6A',
+    warning: '#FFA726',
+    notification: '#EF5350',
+    tint: '#2D8A4E',
+    tabActive: '#2D8A4E',
+    tabInactive: '#5A7A5A',
+    fontFamily: 'Inter',
+  },
+
+  ocean: {
+    id: 'ocean',
+    name: 'Ocean',
+    isDark: false,
+    text: '#1A2B3C',
+    textSecondary: '#5A7A94',
+    textMuted: '#9BB5CC',
+    background: '#F0F8FF',
+    backgroundElement: '#E6F2FA',
+    backgroundSelected: '#D0E8F5',
+    surface: '#E6F2FA',
+    surfaceVariant: '#D0E8F5',
+    primary: '#0A84C1',
+    secondary: '#4DB6E8',
+    accent: '#26A69A',
+    border: '#C8DCE8',
+    card: '#E6F2FA',
+    error: '#E53935',
+    success: '#43A047',
+    warning: '#FB8C00',
+    notification: '#E53935',
+    tint: '#0A84C1',
+    tabActive: '#0A84C1',
+    tabInactive: '#9BB5CC',
+    fontFamily: 'Inter',
+  },
+
+  sunset: {
+    id: 'sunset',
+    name: 'Sunset',
+    isDark: false,
+    text: '#3D2A1A',
+    textSecondary: '#8B6F5E',
+    textMuted: '#C4A892',
+    background: '#FFF5EE',
+    backgroundElement: '#FFEEE5',
+    backgroundSelected: '#FFE0D0',
+    surface: '#FFEEE5',
+    surfaceVariant: '#FFE0D0',
+    primary: '#E85D3A',
+    secondary: '#FF8A65',
+    accent: '#FFB74D',
+    border: '#E8D5C8',
+    card: '#FFEEE5',
+    error: '#D32F2F',
+    success: '#388E3C',
+    warning: '#F57C00',
+    notification: '#D32F2F',
+    tint: '#E85D3A',
+    tabActive: '#E85D3A',
+    tabInactive: '#C4A892',
+    fontFamily: 'Inter',
+  },
+
+  cyberpunk: {
+    id: 'cyberpunk',
+    name: 'Cyberpunk',
+    isDark: true,
+    text: '#E0E0FF',
+    textSecondary: '#8888AA',
+    textMuted: '#555577',
+    background: '#0A0A0F',
+    backgroundElement: '#14141F',
+    backgroundSelected: '#1E1E2E',
+    surface: '#14141F',
+    surfaceVariant: '#1E1E2E',
+    primary: '#D946EF',
+    secondary: '#8B5CF6',
+    accent: '#00E5FF',
+    border: '#2A2A3E',
+    card: '#14141F',
+    error: '#FF5555',
+    success: '#50FA7B',
+    warning: '#FFB86C',
+    notification: '#FF5555',
+    tint: '#D946EF',
+    tabActive: '#D946EF',
+    tabInactive: '#555577',
+    fontFamily: 'JetBrains Mono',
+  },
+
+  moonlight: {
+    id: 'moonlight',
+    name: 'Moonlight',
+    isDark: true,
+    text: '#F5F5F5',
+    textSecondary: '#A0A0A5',
+    textMuted: '#636366',
+    background: '#1C1C1E',
+    backgroundElement: '#2C2C2E',
+    backgroundSelected: '#3A3A3C',
+    surface: '#2C2C2E',
+    surfaceVariant: '#3A3A3C',
+    primary: '#A0A0A5',
+    secondary: '#C0C0C5',
+    accent: '#E0E0E5',
+    border: '#38383A',
+    card: '#2C2C2E',
+    error: '#FF453A',
+    success: '#30D158',
+    warning: '#FF9F0A',
+    notification: '#FF453A',
+    tint: '#A0A0A5',
+    tabActive: '#A0A0A5',
+    tabInactive: '#636366',
+    fontFamily: 'Inter',
+  },
+};
+
+export function getThemeById(id: string): Theme {
+  return themes[id] ?? themes.midnight;
+}
+
+export function getThemeByScheme(isDark: boolean): Theme {
+  return isDark ? themes.midnight : themes.paperJournal;
+}
+
+export const themeIds = Object.keys(themes);
+export const themeList = Object.values(themes);

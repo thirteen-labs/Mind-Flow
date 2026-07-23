@@ -12,9 +12,14 @@
     }
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "nativewind-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/tw",
+    "src/components/media/audio-player.tsx",
+    "src/components/animated-icon.web.tsx"
   ]
 }

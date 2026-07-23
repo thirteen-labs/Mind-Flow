@@ -1,18 +1,63 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { useEffect } from 'react';
+import { Stack } from 'expo-router/stack';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { useFonts } from 'expo-font';
+import { SQLiteProvider } from 'expo-sqlite';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { ThemeProvider as MindFlowThemeProvider } from '@/components/theme-provider';
+import { migrateDbIfNeeded } from '@/services/database';
+import { NotificationService } from '@/services/notification-service';
+
+function onDatabaseError(e: Error) {
+  console.warn('Database init failed:', e.message);
+}
 
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    'Inter': require('../../assets/fonts/Inter-VariableFont_opsz,wght.ttf'),
+    'JetBrains Mono': require('../../assets/fonts/JetBrainsMono-VariableFont_wght.ttf'),
+    'Playfair Display': require('../../assets/fonts/PlayfairDisplay-VariableFont_wght.ttf'),
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  useEffect(() => {
+    NotificationService.setup();
+  }, []);
+
+  if (!fontsLoaded) return null;
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <SQLiteProvider databaseName="mindflow.db" onInit={migrateDbIfNeeded} onError={onDatabaseError}>
+      <MindFlowThemeProvider>
+        <AnimatedSplashOverlay />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="onboarding"
+            options={{ animation: 'fade', presentation: 'fullScreenModal' }}
+          />
+          <Stack.Screen
+            name="insights"
+            options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="reading"
+            options={{ animation: 'slide_from_right', presentation: 'card' }}
+          />
+          <Stack.Screen
+            name="export"
+            options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
+          />
+        </Stack>
+      </MindFlowThemeProvider>
+    </SQLiteProvider>
   );
 }

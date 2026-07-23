@@ -1,31 +1,34 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const theme = useTheme();
 
   return (
     <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
-      <NativeTabs.Trigger name="index">
+      backgroundColor={theme.background}
+      indicatorColor={theme.backgroundElement}
+      labelStyle={{ selected: { color: theme.text } }}
+    >
+      <NativeTabs.Trigger name="home">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
-        />
+        <NativeTabs.Trigger.Icon sf="house" md="home" />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
+      <NativeTabs.Trigger name="writer">
+        <NativeTabs.Trigger.Label>Writer</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="square.and.pencil" md="edit" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="planner">
+        <NativeTabs.Trigger.Label>Planner</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="square.grid.2x2" md="dashboard" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="library">
+        <NativeTabs.Trigger.Label>Library</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="books.vertical" md="library_books" />
       </NativeTabs.Trigger>
     </NativeTabs>
   );

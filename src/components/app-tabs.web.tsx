@@ -1,3 +1,6 @@
+import { Image, Pressable, View, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import {
   Tabs,
   TabList,
@@ -6,14 +9,19 @@ import {
   TabTriggerSlotProps,
   TabListProps,
 } from 'expo-router/ui';
-import { SymbolView } from 'expo-symbols';
-import { Pressable, useColorScheme, View, StyleSheet } from 'react-native';
 
-import { ExternalLink } from './external-link';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+
+const tabs = [
+  { name: 'home', label: 'Home', sf: 'house', md: 'home' },
+  { name: 'writer', label: 'Writer', sf: 'square.and.pencil', md: 'edit' },
+  { name: 'planner', label: 'Planner', sf: 'square.grid.2x2', md: 'dashboard' },
+  { name: 'library', label: 'Library', sf: 'books.vertical', md: 'library_books' },
+];
 
 export default function AppTabs() {
   return (
@@ -21,19 +29,18 @@ export default function AppTabs() {
       <TabSlot style={{ height: '100%' }} />
       <TabList asChild>
         <CustomTabList>
-          <TabTrigger name="home" href="/" asChild>
-            <TabButton>Home</TabButton>
-          </TabTrigger>
-          <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>Explore</TabButton>
-          </TabTrigger>
+          {tabs.map((tab) => (
+            <TabTrigger key={tab.name} name={tab.name} href={`/(tabs)/${tab.name}`} asChild>
+              <TabButton>{tab.label}</TabButton>
+            </TabTrigger>
+          ))}
         </CustomTabList>
       </TabList>
     </Tabs>
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
   return (
     <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
       <ThemedView
@@ -47,29 +54,27 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
   );
 }
 
-export function CustomTabList(props: TabListProps) {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+function CustomTabList(props: TabListProps) {
+  const theme = useTheme();
+  const logoSource = theme.isDark
+    ? require('@/assets/images/name-white.png')
+    : require('@/assets/images/name-black.png');
 
   return (
     <View {...props} style={styles.tabListContainer}>
       <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
-          Expo Starter
-        </ThemedText>
+        <Image source={logoSource} style={styles.logo} resizeMode="contain" />
 
         {props.children}
 
-        <ExternalLink href="https://docs.expo.dev" asChild>
-          <Pressable style={styles.externalPressable}>
-            <ThemedText type="link">Docs</ThemedText>
-            <SymbolView
-              tintColor={colors.text}
-              name={{ ios: 'arrow.up.right.square', web: 'link' }}
-              size={12}
-            />
+        <View style={styles.actions}>
+          <Pressable onPress={() => router.push('/(tabs)/search')}>
+            <SymbolView name="magnifyingglass" size={18} tintColor={theme.textSecondary} />
           </Pressable>
-        </ExternalLink>
+          <Pressable onPress={() => router.push('/(tabs)/settings')}>
+            <SymbolView name={{ ios: 'gearshape', android: 'settings', web: 'settings' }} size={18} tintColor={theme.textSecondary} />
+          </Pressable>
+        </View>
       </ThemedView>
     </View>
   );
@@ -94,8 +99,16 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     maxWidth: MaxContentWidth,
   },
-  brandText: {
+  logo: {
+    height: 20,
     marginRight: 'auto',
+    opacity: 0.9,
+  },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginLeft: Spacing.two,
   },
   pressed: {
     opacity: 0.7,
@@ -104,12 +117,5 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.three,
-  },
-  externalPressable: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: Spacing.one,
-    marginLeft: Spacing.three,
   },
 });
