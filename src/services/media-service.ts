@@ -1,6 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { Media, MediaType } from '@/constants/media';
 import { MEDIA_DIRECTORY } from '@/constants/media';
@@ -134,6 +135,48 @@ export const MediaService = {
 
     if (result.canceled || !result.assets?.[0]) return null;
     return this.importMedia(result.assets[0].uri, 'video');
+  },
+
+  async saveMediaRecord(db: SQLiteDatabase, media: Media, journalId?: string): Promise<void> {
+    await db.runAsync(
+      `INSERT OR REPLACE INTO media (id, uri, type, filename, mime_type, file_size, created_at, journal_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      media.id,
+      media.uri,
+      media.type,
+      media.uri.split('/').pop() ?? media.id,
+      media.mimeType,
+      media.sizeBytes,
+      media.createdAt,
+      journalId ?? null
+    );
+  },
+
+  async getJournalMedia(db: SQLiteDatabase, journalId: string): Promise<Media[]> {
+    const rows = await db.getAllAsync<any>(
+      'SELECT * FROM media WHERE journal_id = ? ORDER BY created_at ASC',
+      journalId
+    );
+    return rows.map((r: any) => ({
+      id: r.id,
+      uri: r.uri,
+      type: r.type,
+      mimeType: r.mime_type,
+      sizeBytes: r.file_size,
+      durationSeconds: null,
+      width: null,
+      height: null,
+      thumbnailUri: null,
+      createdAt: r.created_at,
+    }));
+  },
+
+  async deleteMediaRecord(db: SQLiteDatabase, id: string): Promise<void> {
+    const row = await db.getFirstAsync<{ uri: string }>('SELECT uri FROM media WHERE id = ?', id);
+    if (row) {
+      await this.deleteMedia(row.uri);
+    }
+    await db.runAsync('DELETE FROM media WHERE id = ?', id);
   },
 
   getFileSizeLabel(bytes: number | null): string {

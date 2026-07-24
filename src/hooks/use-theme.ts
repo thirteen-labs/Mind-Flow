@@ -16,5 +16,11 @@ export function useThemeManager() {
   if (!ctx) {
     throw new Error('useThemeManager must be used within a ThemeProvider');
   }
-  return { themeId: ctx.themeId, setThemeId: ctx.setThemeId, availableThemes: ctx.availableThemes };
+  return {
+    themeId: ctx.themeId,
+    setThemeId: ctx.setThemeId,
+    availableThemes: ctx.availableThemes,
+    followSystem: ctx.followSystem,
+    setFollowSystem: ctx.setFollowSystem,
+  };
 }

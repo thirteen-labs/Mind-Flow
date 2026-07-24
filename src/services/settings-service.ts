@@ -8,6 +8,7 @@ export interface AppSettings {
   eveningReminderHour: number;
   eveningReminderMinute: number;
   streakReminderEnabled: boolean;
+  appLockEnabled: boolean;
 }
 
 const DEFAULTS: AppSettings = {
@@ -18,6 +19,7 @@ const DEFAULTS: AppSettings = {
   eveningReminderHour: 20,
   eveningReminderMinute: 0,
   streakReminderEnabled: false,
+  appLockEnabled: false,
 };
 
 function encode(val: boolean | number): string {
@@ -48,6 +50,7 @@ export const SettingsService = {
       eveningReminderHour: decodeNum(map.get('eveningReminderHour') ?? null, DEFAULTS.eveningReminderHour),
       eveningReminderMinute: decodeNum(map.get('eveningReminderMinute') ?? null, DEFAULTS.eveningReminderMinute),
       streakReminderEnabled: decodeBool(map.get('streakReminderEnabled') ?? null),
+      appLockEnabled: decodeBool(map.get('appLockEnabled') ?? null),
     };
   },
 

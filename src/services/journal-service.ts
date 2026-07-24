@@ -1,4 +1,4 @@
-import type { SQLiteDatabase } from 'expo-sqlite';
+import type { SQLiteDatabase, SQLiteBindValue } from 'expo-sqlite';
 
 export interface JournalEntry {
   id: string;
@@ -77,6 +77,13 @@ export const JournalService = {
     );
   },
 
+  async updateMood(db: SQLiteDatabase, id: string, mood: string | null): Promise<void> {
+    await db.runAsync(
+      'UPDATE journals SET mood = ?, updated_at = ? WHERE id = ?',
+      mood, nowISO(), id
+    );
+  },
+
   async getJournalByDate(db: SQLiteDatabase, date: string): Promise<JournalEntry | null> {
     return db.getFirstAsync<JournalEntry>('SELECT * FROM journals WHERE date = ?', date);
   },
@@ -97,18 +104,37 @@ export const JournalService = {
     );
   },
 
-  async searchJournals(db: SQLiteDatabase, query: string): Promise<JournalEntry[]> {
+  async searchJournals(db: SQLiteDatabase, query: string, tagIds?: string[], fromDate?: string, toDate?: string): Promise<JournalEntry[]> {
     const trimmed = query.trim();
-    if (!trimmed) return [];
-    const sanitized = trimmed
-      .replace(/[^a-zA-Z0-9\s]/g, '')
-      .split(/\s+/).filter(Boolean)
-      .map((w) => `"${w}"*`).join(' ');
-    if (!sanitized) return [];
+    if (!trimmed && (!tagIds || tagIds.length === 0) && !fromDate && !toDate) return [];
+    const conditions: string[] = [];
+    const params: SQLiteBindValue[] = [];
+    if (trimmed) {
+      const sanitized = trimmed
+        .replace(/[^a-zA-Z0-9\s]/g, '')
+        .split(/\s+/).filter(Boolean)
+        .map((w) => `"${w}"*`).join(' ');
+      if (!sanitized && !tagIds?.length && !fromDate && !toDate) return [];
+      if (sanitized) {
+        conditions.push('j.rowid IN (SELECT rowid FROM journals_fts WHERE journals_fts MATCH ?)');
+        params.push(sanitized);
+      }
+    }
+    if (tagIds && tagIds.length > 0) {
+      conditions.push(`j.id IN (SELECT journal_id FROM journal_tags WHERE tag_id IN (${tagIds.map(() => '?').join(',')}))`);
+      params.push(...tagIds);
+    }
+    if (fromDate) {
+      conditions.push('j.date >= ?');
+      params.push(fromDate);
+    }
+    if (toDate) {
+      conditions.push('j.date <= ?');
+      params.push(toDate);
+    }
+    const where = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
     return db.getAllAsync<JournalEntry>(
-      `SELECT j.* FROM journals j
-       INNER JOIN journals_fts f ON j.rowid = f.rowid
-       WHERE journals_fts MATCH ? ORDER BY rank`, sanitized
+      `SELECT DISTINCT j.* FROM journals j WHERE ${where} ORDER BY j.date DESC`, ...params
     );
   },
 
@@ -208,5 +234,13 @@ export const JournalService = {
        ORDER BY month DESC
        LIMIT 12`
     );
+  },
+
+  async getEntryDatesInRange(db: SQLiteDatabase, from: string, to: string): Promise<string[]> {
+    const rows = await db.getAllAsync<{ date: string }>(
+      "SELECT DISTINCT date FROM journals WHERE date >= ? AND date <= ? AND content != '' ORDER BY date ASC",
+      from, to
+    );
+    return rows.map((r) => r.date);
   },
 };

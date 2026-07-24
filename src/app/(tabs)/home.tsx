@@ -1,8 +1,8 @@
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -10,6 +10,12 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useJournalStats } from '@/hooks/use-journal';
 import { JournalService, type JournalEntry } from '@/services/journal-service';
+
+const MOOD_EMOJIS: Record<string, string> = {
+  happy: '😊', calm: '😌', grateful: '🥰', thoughtful: '🤔',
+  sad: '😢', frustrated: '😤', anxious: '😰', excited: '🤩',
+  tired: '🥱', sick: '🤒',
+};
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -31,12 +37,48 @@ export default function HomeScreen() {
   const db = useSQLiteContext();
   const { stats, loading, error, retry } = useJournalStats();
   const [recentEntries, setRecentEntries] = useState<JournalEntry[]>([]);
+  const [todayEntry, setTodayEntry] = useState<JournalEntry | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    JournalService.getRecentJournals(db, 5).then((entries) => {
-      setRecentEntries(entries.filter((e) => e.content.trim()));
-    }).catch(() => {});
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [entries, today] = await Promise.all([
+          JournalService.getRecentJournals(db, 5),
+          JournalService.getTodayJournal(db),
+        ]);
+        if (!mountedRef.current) return;
+        setRecentEntries(entries.filter((e) => e.content.trim()));
+        setTodayEntry(today);
+      } catch {
+        // silently fail
+      }
+    })();
   }, [db]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      (async () => {
+        try {
+          const [entries, today] = await Promise.all([
+            JournalService.getRecentJournals(db, 5),
+            JournalService.getTodayJournal(db),
+          ]);
+          if (!mountedRef.current) return;
+          setRecentEntries(entries.filter((e) => e.content.trim()));
+          setTodayEntry(today);
+        } catch { /* silently fail */ }
+      })(),
+      retry(),
+    ]);
+    if (mountedRef.current) setRefreshing(false);
+  }, [db, retry]);
 
   const renderEntry = useCallback(({ item }: { item: JournalEntry }) => {
     const date = new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', {
@@ -62,8 +104,16 @@ export default function HomeScreen() {
   }, [theme]);
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedView style={styles.header}>
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={styles.scrollContent}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.textMuted} />
+      }
+      showsVerticalScrollIndicator={false}
+    >
+      <ThemedView style={styles.container}>
+        <ThemedView style={styles.header}>
         <ThemedText type="title">{getGreeting()}</ThemedText>
         <ThemedText type="default" themeColor="textSecondary">{todayDate()}</ThemedText>
       </ThemedView>
@@ -114,6 +164,12 @@ export default function HomeScreen() {
           </ThemedView>
         )}
 
+        {todayEntry?.mood && (
+          <ThemedView type="backgroundElement" style={[styles.moodRow, { borderColor: theme.border }]}>
+            <ThemedText type="default">Today&apos;s mood: {MOOD_EMOJIS[todayEntry.mood] ?? ''} {todayEntry.mood}</ThemedText>
+          </ThemedView>
+        )}
+
         {recentEntries.length > 0 && (
           <ThemedView style={styles.section}>
             <ThemedText type="default" themeColor="textSecondary" style={styles.sectionTitle}>
@@ -157,11 +213,15 @@ export default function HomeScreen() {
           <SymbolView name="chevron.right" size={14} tintColor={theme.textMuted} />
         </Pressable>
       </ThemedView>
-    </ThemedView>
+      </ThemedView>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollContent: {
+    flexGrow: 1,
+  },
   container: {
     flex: 1,
     padding: Spacing.four,
@@ -209,6 +269,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  moodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
   },
   entriesCard: {
     borderRadius: Spacing.three,

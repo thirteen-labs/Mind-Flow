@@ -17,6 +17,9 @@ export default function TopBar() {
     <ThemedView type="background" style={styles.container}>
       <Image source={logoSource} style={styles.logo} resizeMode="contain" />
       <View style={styles.actions}>
+        <Pressable onPress={() => router.push('/calendar')}>
+          <SymbolView name="calendar" size={22} tintColor={theme.textSecondary} />
+        </Pressable>
         <Pressable onPress={() => router.push('/(tabs)/search')}>
           <SymbolView name="magnifyingglass" size={22} tintColor={theme.textSecondary} />
         </Pressable>

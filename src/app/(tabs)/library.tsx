@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   FlatList,
@@ -28,6 +29,8 @@ export default function LibraryScreen() {
   const [items, setItems] = useState<Media[]>([]);
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<Media | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -61,6 +64,19 @@ export default function LibraryScreen() {
         },
       },
     ]);
+  }, []);
+
+  const handleImport = useCallback(async (action: () => Promise<Media | null>) => {
+    setShowImport(false);
+    setImporting(true);
+    try {
+      const media = await action();
+      if (media) {
+        setItems((prev) => [media, ...prev]);
+      }
+    } finally {
+      setImporting(false);
+    }
   }, []);
 
   const renderItem = useCallback(
@@ -101,7 +117,12 @@ export default function LibraryScreen() {
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={styles.header}>
-        <ThemedText type="title">Library</ThemedText>
+        <ThemedView style={styles.headerRow}>
+          <ThemedText type="title">Library</ThemedText>
+          <Pressable onPress={() => setShowImport(true)} style={[styles.importBtn, { backgroundColor: theme.primary }]}>
+            <SymbolView name="plus" size={18} tintColor="#FFFFFF" />
+          </Pressable>
+        </ThemedView>
         <ThemedText type="default" themeColor="textSecondary">
           {items.length} {items.length === 1 ? 'item' : 'items'}
         </ThemedText>
@@ -182,6 +203,51 @@ export default function LibraryScreen() {
           )}
         </View>
       </Modal>
+
+      {importing && (
+        <View style={[styles.importingOverlay, { backgroundColor: 'rgba(0,0,0,0.3)' }]}>
+          <ActivityIndicator size="large" color="#FFFFFF" />
+        </View>
+      )}
+
+      <Modal visible={showImport} transparent animationType="fade">
+        <Pressable style={styles.sheetOverlay} onPress={() => setShowImport(false)}>
+          <Pressable style={[styles.sheet, { backgroundColor: theme.surface }]}>
+            <ThemedText type="default" style={styles.sheetTitle}>Import Media</ThemedText>
+            <Pressable
+              onPress={() => handleImport(() => MediaService.pickImage())}
+              style={[styles.sheetOption, { borderBottomColor: theme.border }]}
+            >
+              <SymbolView name="photo" size={22} tintColor={theme.text} />
+              <ThemedText type="default">Image from Library</ThemedText>
+            </Pressable>
+            <Pressable
+              onPress={() => handleImport(() => MediaService.takePhoto())}
+              style={[styles.sheetOption, { borderBottomColor: theme.border }]}
+            >
+              <SymbolView name="camera" size={22} tintColor={theme.text} />
+              <ThemedText type="default">Take Photo</ThemedText>
+            </Pressable>
+            <Pressable
+              onPress={() => handleImport(() => MediaService.pickVideo())}
+              style={[styles.sheetOption, { borderBottomColor: theme.border }]}
+            >
+              <SymbolView name="video" size={22} tintColor={theme.text} />
+              <ThemedText type="default">Video from Library</ThemedText>
+            </Pressable>
+            <Pressable
+              onPress={() => handleImport(() => MediaService.recordVideo())}
+              style={styles.sheetOption}
+            >
+              <SymbolView name="video.badge.plus" size={22} tintColor={theme.text} />
+              <ThemedText type="default">Record Video</ThemedText>
+            </Pressable>
+            <Pressable onPress={() => setShowImport(false)} style={[styles.sheetCancel, { backgroundColor: theme.backgroundElement }]}>
+              <ThemedText type="default" themeColor="textMuted">Cancel</ThemedText>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ThemedView>
   );
 }
@@ -195,6 +261,18 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.four,
     paddingBottom: Spacing.three,
     gap: Spacing.one,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  importBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   grid: {
     paddingHorizontal: Spacing.four,
@@ -284,5 +362,39 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 15,
+  },
+  importingOverlay: {
+    ...StyleSheet.absoluteFill,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  sheet: {
+    borderTopLeftRadius: Spacing.four,
+    borderTopRightRadius: Spacing.four,
+    padding: Spacing.four,
+    paddingBottom: Spacing.six,
+    gap: Spacing.two,
+  },
+  sheetTitle: {
+    fontWeight: '600',
+    marginBottom: Spacing.two,
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingVertical: Spacing.three,
+    borderBottomWidth: 1,
+  },
+  sheetCancel: {
+    alignItems: 'center',
+    paddingVertical: Spacing.three,
+    borderRadius: Spacing.three,
+    marginTop: Spacing.two,
   },
 });

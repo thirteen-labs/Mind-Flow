@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -8,14 +9,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSQLiteContext } from 'expo-sqlite';
 import { SymbolView } from 'expo-symbols';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 import { ThemePicker } from '@/components/theme-picker';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { useTheme, useThemeManager } from '@/hooks/use-theme';
 import { useSettings } from '@/hooks/use-settings';
+import { BackupService } from '@/services/backup-service';
+import { CloudSyncService, type BackupInterval } from '@/services/sync/cloud-sync-service';
 
 function timeLabel(hour: number, minute: number): string {
   const h = hour % 12 || 12;
@@ -121,7 +126,78 @@ function TimePicker({
 
 export default function SettingsScreen() {
   const theme = useTheme();
+  const { followSystem, setFollowSystem } = useThemeManager();
   const { settings, loading, update } = useSettings();
+  const db = useSQLiteContext();
+  const [backingUp, setBackingUp] = useState(false);
+  const [syncEnabled, setSyncEnabled] = useState(false);
+  const [syncInterval, setSyncInterval] = useState<BackupInterval>('manual');
+  const [syncing, setSyncing] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [recoveryPhrase, setRecoveryPhrase] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      const state = await CloudSyncService.getState(db);
+      setSyncEnabled(state.enabled);
+      setSyncInterval(state.interval);
+    })();
+  }, [db]);
+
+  const handleBackup = async () => {
+    setBackingUp(true);
+    try {
+      await BackupService.backupDatabase();
+    } catch (e) {
+      Alert.alert('Backup failed', e instanceof Error ? e.message : 'Unknown error');
+    }
+    setBackingUp(false);
+  };
+
+  const handleAppLock = async () => {
+    try {
+      const available = await LocalAuthentication.hasHardwareAsync();
+      if (!available) {
+        Alert.alert('Not available', 'Biometric authentication is not available on this device');
+        return;
+      }
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!enrolled) {
+        Alert.alert('Not set up', 'Please enroll in biometric authentication in your device settings first');
+        return;
+      }
+      const newVal = !settings!.appLockEnabled;
+      await update({ appLockEnabled: newVal });
+    } catch {
+      Alert.alert('Error', 'Could not check biometric availability');
+    }
+  };
+
+  const handleToggleSync = async (v: boolean) => {
+    await CloudSyncService.saveState(db, { enabled: v });
+    setSyncEnabled(v);
+    if (v) {
+      const phrase = await CloudSyncService.setupRecoveryPhrase(db);
+      setRecoveryPhrase(phrase);
+      setShowRecovery(true);
+    }
+  };
+
+  const handleSetInterval = async (interval: BackupInterval) => {
+    await CloudSyncService.setBackupInterval(db, interval);
+    setSyncInterval(interval);
+  };
+
+  const handleSyncNow = async () => {
+    setSyncing(true);
+    try {
+      await CloudSyncService.backupToDrive(db);
+      Alert.alert('Backup complete', 'Your data has been backed up to Google Drive');
+    } catch (e) {
+      Alert.alert('Backup failed', e instanceof Error ? e.message : 'Could not complete backup');
+    }
+    setSyncing(false);
+  };
 
   if (loading || !settings) {
     return (
@@ -144,6 +220,18 @@ export default function SettingsScreen() {
         </ThemedText>
 
         <SectionHeader label="Appearance" />
+        <SettingRow
+          icon="circle.righthalf.filled"
+          label="Follow system theme"
+          description="Automatically switch theme with light/dark mode"
+        >
+          <Switch
+            value={followSystem}
+            onValueChange={setFollowSystem}
+            trackColor={{ false: theme.border, true: theme.primary }}
+            thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
+          />
+        </SettingRow>
         <ThemePicker />
 
         <SectionHeader label="Notifications" />
@@ -208,6 +296,106 @@ export default function SettingsScreen() {
             thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
           />
         </SettingRow>
+
+        <SectionHeader label="Security" />
+        <SettingRow
+          icon="faceid"
+          label="App lock"
+          description="Require biometric or passcode to open the app"
+        >
+          <Switch
+            value={settings.appLockEnabled}
+            onValueChange={handleAppLock}
+            trackColor={{ false: theme.border, true: theme.primary }}
+            thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
+          />
+        </SettingRow>
+
+        <SectionHeader label="Data" />
+        <Pressable
+          onPress={handleBackup}
+          disabled={backingUp}
+          style={[styles.actionRow, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+        >
+          <SymbolView name="externaldrive" size={18} tintColor={theme.text} />
+          <ThemedText type="default">{backingUp ? 'Exporting...' : 'Export Database'}</ThemedText>
+          <SymbolView name="chevron.right" size={14} tintColor={theme.textMuted} />
+        </Pressable>
+        <ThemedText type="small" themeColor="textMuted" style={styles.actionHint}>
+          Export your journal database as a SQLite file for safekeeping
+        </ThemedText>
+
+        <SectionHeader label="Cloud Sync" />
+
+        <SettingRow
+          icon="cloud"
+          label="Google Drive backup"
+          description="Automatically back up your journals to Google Drive"
+        >
+          <Switch
+            value={syncEnabled}
+            onValueChange={handleToggleSync}
+            trackColor={{ false: theme.border, true: theme.primary }}
+            thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
+          />
+        </SettingRow>
+
+        {showRecovery && recoveryPhrase && (
+          <ThemedView style={[styles.recoveryCard, { backgroundColor: theme.backgroundSelected, borderColor: theme.primary }]}>
+            <SymbolView name="exclamationmark.shield" size={20} tintColor={theme.primary} />
+            <ThemedView style={{ flex: 1, gap: Spacing.one }}>
+              <ThemedText type="default" style={{ fontWeight: '600' }}>Recovery Phrase</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Write down these words. You need them to restore your data.
+              </ThemedText>
+              <ThemedText type="default" style={[styles.recoveryPhrase, { color: theme.primary }]}>
+                {recoveryPhrase}
+              </ThemedText>
+            </ThemedView>
+          </ThemedView>
+        )}
+
+        {syncEnabled && (
+          <>
+            <SettingRow
+              icon="clock.arrow.circlepath"
+              label="Backup interval"
+              description={`Current: ${syncInterval === 'manual' ? 'Manual only' : syncInterval}`}
+            >
+              <View style={{ flexDirection: 'row', gap: Spacing.one }}>
+                {(['manual', 'daily', 'weekly', 'monthly'] as BackupInterval[]).map((interval) => (
+                  <Pressable
+                    key={interval}
+                    onPress={() => handleSetInterval(interval)}
+                    style={[
+                      styles.intervalChip,
+                      {
+                        backgroundColor: syncInterval === interval ? theme.primary : theme.backgroundElement,
+                        borderColor: syncInterval === interval ? theme.primary : theme.border,
+                      },
+                    ]}
+                  >
+                    <ThemedText
+                      type="small"
+                      style={{ color: syncInterval === interval ? '#FFFFFF' : theme.text, fontWeight: '500' }}
+                    >
+                      {interval === 'manual' ? 'Manual' : interval.charAt(0).toUpperCase() + interval.slice(1)}
+                    </ThemedText>
+                  </Pressable>
+                ))}
+              </View>
+            </SettingRow>
+
+            <Pressable
+              onPress={handleSyncNow}
+              disabled={syncing}
+              style={[styles.actionRow, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+            >
+              <SymbolView name="arrow.up.doc" size={18} tintColor={theme.text} />
+              <ThemedText type="default">{syncing ? 'Backing up...' : 'Back Up Now'}</ThemedText>
+            </Pressable>
+          </>
+        )}
 
         <SectionHeader label="About" />
 
@@ -277,5 +465,37 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 15,
     padding: 0,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    padding: Spacing.four,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+  },
+  actionHint: {
+    paddingHorizontal: Spacing.one,
+    marginTop: -Spacing.two,
+  },
+  recoveryCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.three,
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+  },
+  recoveryPhrase: {
+    fontFamily: 'JetBrains Mono',
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: Spacing.one,
+  },
+  intervalChip: {
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.two,
+    borderRadius: Spacing.two,
+    borderWidth: 1,
   },
 });

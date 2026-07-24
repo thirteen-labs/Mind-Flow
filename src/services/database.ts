@@ -71,5 +71,34 @@ CREATE TABLE IF NOT EXISTS settings (
     currentDbVersion = 4;
   }
 
+  if (currentDbVersion < 5) {
+    await db.execAsync(`
+CREATE TABLE IF NOT EXISTS tags (
+  id TEXT PRIMARY KEY NOT NULL,
+  name TEXT NOT NULL UNIQUE,
+  color TEXT NOT NULL DEFAULT '#208AEF'
+);
+CREATE TABLE IF NOT EXISTS journal_tags (
+  journal_id TEXT NOT NULL REFERENCES journals(id) ON DELETE CASCADE,
+  tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (journal_id, tag_id)
+);
+CREATE INDEX IF NOT EXISTS idx_journal_tags_journal ON journal_tags(journal_id);
+CREATE INDEX IF NOT EXISTS idx_journal_tags_tag ON journal_tags(tag_id);
+CREATE TABLE IF NOT EXISTS media (
+  id TEXT PRIMARY KEY NOT NULL,
+  uri TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'image',
+  filename TEXT,
+  mime_type TEXT,
+  file_size INTEGER,
+  created_at TEXT NOT NULL,
+  journal_id TEXT REFERENCES journals(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_media_journal ON media(journal_id);
+`);
+    currentDbVersion = 5;
+  }
+
   await db.execAsync(`PRAGMA user_version = ${currentDbVersion}`);
 }

@@ -37,7 +37,8 @@
       "expo-image",
       "expo-audio",
       "expo-video",
-      "expo-asset"
+      "expo-asset",
+      "./plugins/with-mindflow-widget"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -21,7 +21,7 @@ import {
   toggleItalic,
   toggleStrikethrough,
 } from './formatting';
-
+import { MarkdownRenderer } from '@/components/markdown-renderer';
 import { MediaService } from '@/services/media-service';
 
 import { Spacing } from '@/constants/theme';
@@ -37,6 +37,7 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
   const [selection, setSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
+  const [preview, setPreview] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const linkInputRef = useRef<TextInput>(null);
   const undoStack = useRef(createUndoStack());
@@ -154,54 +155,86 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
     onChange(text);
   }, [onChange]);
 
+  const togglePreview = useCallback(() => {
+    Keyboard.dismiss();
+    setPreview((p) => !p);
+  }, []);
+
   return (
     <View style={styles.container}>
-      <View style={styles.editorArea}>
-        <TextInput
-          ref={inputRef}
-          value={value}
-          onChangeText={handleTextChange}
-          onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
-          placeholder={placeholder ?? 'Start writing...'}
-          placeholderTextColor={theme.textMuted}
-          multiline
-          textAlignVertical="top"
-          style={[
-            styles.input,
-            { color: theme.text },
-          ]}
-          scrollEnabled={false}
-        />
+      <View style={styles.modeBar}>
+        <Pressable
+          onPress={togglePreview}
+          style={[styles.modeButton, preview && { backgroundColor: theme.primary }]}
+        >
+          <SymbolView name="doc.text.magnifyingglass" size={16} tintColor={preview ? '#FFFFFF' : theme.text} />
+        </Pressable>
+        <Pressable
+          onPress={() => { setPreview(false); inputRef.current?.focus(); }}
+          style={[styles.modeButton, !preview && { backgroundColor: theme.primary }]}
+        >
+          <SymbolView name="pencil" size={16} tintColor={!preview ? '#FFFFFF' : theme.text} />
+        </Pressable>
       </View>
 
-      {showLinkInput && (
-        <View style={[styles.linkBar, { backgroundColor: theme.backgroundElement, borderTopColor: theme.border }]}>
-          <TextInput
-            ref={linkInputRef}
-            value={linkUrl}
-            onChangeText={setLinkUrl}
-            placeholder="Paste link URL..."
-            placeholderTextColor={theme.textMuted}
-            style={[styles.linkInput, { color: theme.text, backgroundColor: theme.surface }]}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="done"
-            onSubmitEditing={handleLinkSubmit}
-          />
-          <Pressable onPress={handleLinkSubmit} style={styles.linkDone}>
-            <SymbolView name="checkmark" tintColor={theme.tint} size={18} />
-          </Pressable>
-          <Pressable onPress={() => { setShowLinkInput(false); setLinkUrl(''); }} style={styles.linkDone}>
-            <SymbolView name="xmark" tintColor={theme.textSecondary} size={18} />
-          </Pressable>
+      {preview ? (
+        <View style={styles.previewArea}>
+          <MarkdownRenderer content={value || ''} />
         </View>
+      ) : (
+        <>
+          <View style={styles.editorArea}>
+            <TextInput
+              ref={inputRef}
+              value={value}
+              onChangeText={handleTextChange}
+              onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+              placeholder={placeholder ?? 'Start writing...'}
+              placeholderTextColor={theme.textMuted}
+              multiline
+              textAlignVertical="top"
+              style={[
+                styles.input,
+                { color: theme.text },
+              ]}
+              scrollEnabled={false}
+            />
+          </View>
+
+          {showLinkInput && (
+            <View style={[styles.linkBar, { backgroundColor: theme.backgroundElement, borderTopColor: theme.border }]}>
+              <TextInput
+                ref={linkInputRef}
+                value={linkUrl}
+                onChangeText={setLinkUrl}
+                placeholder="Paste link URL..."
+                placeholderTextColor={theme.textMuted}
+                style={[styles.linkInput, { color: theme.text, backgroundColor: theme.surface }]}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={handleLinkSubmit}
+              />
+              <Pressable onPress={handleLinkSubmit} style={styles.linkDone}>
+                <SymbolView name="checkmark" tintColor={theme.tint} size={18} />
+              </Pressable>
+              <Pressable onPress={() => { setShowLinkInput(false); setLinkUrl(''); }} style={styles.linkDone}>
+                <SymbolView name="xmark" tintColor={theme.textSecondary} size={18} />
+              </Pressable>
+            </View>
+          )}
+        </>
       )}
 
       <Pressable
-        onPress={openSheet}
+        onPress={preview ? togglePreview : openSheet}
         style={[styles.fab, { backgroundColor: theme.primary }]}
       >
-        <SymbolView name="textformat" tintColor="#FFFFFF" size={22} />
+        <SymbolView
+          name={preview ? 'pencil' : 'textformat'}
+          tintColor="#FFFFFF"
+          size={22}
+        />
       </Pressable>
 
       <FormattingSheet sheetRef={sheetRef} onAction={handleAction} />
@@ -213,7 +246,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  modeBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.one,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.two,
+  },
+  modeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   editorArea: {
+    flex: 1,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.one,
+  },
+  previewArea: {
     flex: 1,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,

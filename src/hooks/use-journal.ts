@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 
 import { JournalService, type JournalEntry } from '@/services/journal-service';
+import { WidgetDataService } from '@/services/widget-data-service';
 
 const AUTOSAVE_DELAY = 800;
 
-export function useTodayJournal() {
+export function useJournal(date?: string) {
   const db = useSQLiteContext();
   const [journal, setJournal] = useState<JournalEntry | null>(null);
   const [content, setContent] = useState('');
@@ -13,22 +14,35 @@ export function useTodayJournal() {
   const [error, setError] = useState<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const journalRef = useRef<JournalEntry | null>(null);
+  const loadVersionRef = useRef(0);
+  const [retryCounter, setRetryCounter] = useState(0);
+
+  const isToday = !date;
 
   useEffect(() => {
+    const version = ++loadVersionRef.current;
     let mounted = true;
-    JournalService.getTodayJournal(db).then((entry) => {
+    (async () => {
       if (!mounted) return;
-      setJournal(entry);
-      journalRef.current = entry;
-      setContent(entry.content);
-      setLoading(false);
-    }).catch((e) => {
-      if (!mounted) return;
-      setError(e instanceof Error ? e.message : 'Failed to load journal');
-      setLoading(false);
-    });
+      setLoading(true);
+      setError(null);
+      try {
+        const entry = isToday
+          ? await JournalService.getTodayJournal(db)
+          : await JournalService.getJournalByDate(db, date!);
+        if (!entry) throw new Error('Journal entry not found');
+        if (!mounted || loadVersionRef.current !== version) return;
+        setJournal(entry);
+        journalRef.current = entry;
+        setContent(entry.content);
+      } catch (e) {
+        if (mounted) setError(e instanceof Error ? e.message : 'Failed to load journal');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
     return () => { mounted = false; };
-  }, [db]);
+  }, [db, date, isToday, retryCounter]);
 
   const save = useCallback(async () => {
     const entry = journalRef.current;
@@ -42,6 +56,7 @@ export function useTodayJournal() {
         word_count: words,
         updated_at: new Date().toISOString(),
       };
+      WidgetDataService.updateFromDb(db).catch(() => {});
     } catch {
       // silently fail — next auto-save will retry
     }
@@ -55,23 +70,26 @@ export function useTodayJournal() {
     };
   }, [save]);
 
-  const retry = useCallback(() => {
-    setError(null);
-    setLoading(true);
-    JournalService.getTodayJournal(db).then((entry) => {
-      setJournal(entry);
-      journalRef.current = entry;
-      setContent(entry.content);
-      setLoading(false);
-    }).catch((e) => {
-      setError(e instanceof Error ? e.message : 'Failed to load journal');
-      setLoading(false);
-    });
+  const setMood = useCallback(async (mood: string | null) => {
+    const entry = journalRef.current;
+    if (!entry) return;
+    try {
+      await JournalService.updateMood(db, entry.id, mood);
+      const updated = { ...entry, mood };
+      journalRef.current = updated;
+      setJournal(updated);
+    } catch {
+      // silently fail
+    }
   }, [db]);
 
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
 
-  return { journal, loading, error, content, setContent, wordCount, save, retry };
+  const retry = useCallback(() => {
+    setRetryCounter((c) => c + 1);
+  }, []);
+
+  return { journal, loading, error, content, setContent, wordCount, save, retry, setMood, isToday };
 }
 
 export function useJournalStats() {
@@ -105,6 +123,7 @@ export function useJournalStats() {
     JournalService.getJournalStats(db).then((result) => {
       setStats(result);
       setLoading(false);
+      WidgetDataService.updateFromDb(db).catch(() => {});
     }).catch((e) => {
       setError(e instanceof Error ? e.message : 'Failed to load stats');
       setLoading(false);

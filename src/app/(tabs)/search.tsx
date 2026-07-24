@@ -16,8 +16,13 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { JournalService, type JournalEntry } from '@/services/journal-service';
+import { TagService, type Tag } from '@/services/tag-service';
 
 const DEBOUNCE_MS = 300;
+
+function dateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -39,7 +44,29 @@ function formatDate(dateStr: string): string {
 function snippet(text: string, maxLen = 120): string {
   const clean = text.replace(/\n{3,}/g, '\n\n').trim();
   if (clean.length <= maxLen) return clean || '(empty)';
-  return clean.slice(0, maxLen).trimEnd() + '…';
+  return clean.slice(0, maxLen).trimEnd() + '\u2026';
+}
+
+type DateRangePreset = 'all' | 'today' | 'week' | 'month' | 'year';
+
+function getDateRange(preset: DateRangePreset): { fromDate?: string; toDate?: string; label: string } {
+  const now = new Date();
+  const today = dateStr(now);
+  if (preset === 'today') return { fromDate: today, toDate: today, label: 'Today' };
+  if (preset === 'week') {
+    const start = new Date(now);
+    start.setDate(start.getDate() - start.getDay());
+    return { fromDate: dateStr(start), toDate: today, label: 'This Week' };
+  }
+  if (preset === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { fromDate: dateStr(start), toDate: today, label: 'This Month' };
+  }
+  if (preset === 'year') {
+    const start = new Date(now.getFullYear(), 0, 1);
+    return { fromDate: dateStr(start), toDate: today, label: 'This Year' };
+  }
+  return { label: 'All Time' };
 }
 
 export default function SearchScreen() {
@@ -49,11 +76,22 @@ export default function SearchScreen() {
   const [results, setResults] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [datePreset, setDatePreset] = useState<DateRangePreset>('all');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    TagService.getAll(db).then(setAllTags).catch(() => {});
+  }, [db]);
+
   const search = useCallback(
-    async (q: string) => {
-      if (!q.trim()) {
+    async (q: string, tagIds: string[], preset: DateRangePreset) => {
+      const range = getDateRange(preset);
+      const hasQuery = q.trim().length > 0;
+      const hasTags = tagIds.length > 0;
+      const hasDate = preset !== 'all';
+      if (!hasQuery && !hasTags && !hasDate) {
         setResults([]);
         setSearched(false);
         setLoading(false);
@@ -62,7 +100,11 @@ export default function SearchScreen() {
       setLoading(true);
       setSearched(true);
       try {
-        const rows = await JournalService.searchJournals(db, q);
+        const rows = await JournalService.searchJournals(
+          db, q,
+          hasTags ? tagIds : undefined,
+          range.fromDate, range.toDate
+        );
         setResults(rows);
       } catch {
         setResults([]);
@@ -75,14 +117,20 @@ export default function SearchScreen() {
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => search(query), DEBOUNCE_MS);
+    timerRef.current = setTimeout(() => search(query, selectedTagIds, datePreset), DEBOUNCE_MS);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [query, search]);
+  }, [query, selectedTagIds, datePreset, search]);
+
+  const toggleTag = useCallback((tagId: string) => {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    );
+  }, []);
 
   const handleResultPress = useCallback((entry: JournalEntry) => {
-    router.push('/(tabs)/writer');
+    router.push(`/reading?date=${entry.date}`);
   }, []);
 
   const renderItem = useCallback(
@@ -106,6 +154,21 @@ export default function SearchScreen() {
     ),
     [theme, handleResultPress]
   );
+
+  const hasFilters = selectedTagIds.length > 0 || datePreset !== 'all';
+
+  const clearAll = useCallback(() => {
+    setSelectedTagIds([]);
+    setDatePreset('all');
+  }, []);
+
+  const presets: { key: DateRangePreset; label: string; icon: string }[] = [
+    { key: 'all', label: 'All', icon: 'tray.full' },
+    { key: 'today', label: 'Today', icon: 'sun.max' },
+    { key: 'week', label: 'Week', icon: 'calendar' },
+    { key: 'month', label: 'Month', icon: 'calendar.badge.clock' },
+    { key: 'year', label: 'Year', icon: 'calendar.badge.year' },
+  ];
 
   return (
     <ThemedView style={styles.container}>
@@ -132,6 +195,68 @@ export default function SearchScreen() {
         )}
       </View>
 
+      <View style={styles.dateRow}>
+        {presets.map((p) => (
+          <Pressable
+            key={p.key}
+            onPress={() => setDatePreset(p.key)}
+            style={[
+              styles.dateChip,
+              {
+                backgroundColor: datePreset === p.key ? theme.primary : theme.backgroundElement,
+                borderColor: datePreset === p.key ? theme.primary : theme.border,
+              },
+            ]}
+          >
+            <ThemedText
+              type="small"
+              style={{ color: datePreset === p.key ? '#FFFFFF' : theme.textSecondary, fontWeight: '500' }}
+            >
+              {p.label}
+            </ThemedText>
+          </Pressable>
+        ))}
+      </View>
+
+      {allTags.length > 0 && (
+        <View style={styles.tagRow}>
+          <FlatList
+            horizontal
+            data={allTags}
+            keyExtractor={(t) => t.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tagList}
+            renderItem={({ item: tag }) => {
+              const active = selectedTagIds.includes(tag.id);
+              return (
+                <Pressable
+                  onPress={() => toggleTag(tag.id)}
+                  style={[
+                    styles.tagChip,
+                    {
+                      backgroundColor: active ? tag.color : theme.backgroundElement,
+                      borderColor: active ? tag.color : theme.border,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    type="small"
+                    style={{ color: active ? '#FFFFFF' : theme.textSecondary, fontWeight: '500' }}
+                  >
+                    {tag.name}
+                  </ThemedText>
+                </Pressable>
+              );
+            }}
+          />
+          {hasFilters && (
+            <Pressable onPress={clearAll} style={styles.clearTags}>
+              <ThemedText type="small" themeColor="textMuted">Clear all</ThemedText>
+            </Pressable>
+          )}
+        </View>
+      )}
+
       {loading ? (
         <ThemedView style={styles.centered}>
           <ActivityIndicator color={theme.textMuted} />
@@ -143,7 +268,7 @@ export default function SearchScreen() {
             Search your journals
           </ThemedText>
           <ThemedText type="small" themeColor="textMuted" style={styles.hint}>
-            Find entries by content, date, or keywords
+            Find entries by content, date, tags, or keywords
           </ThemedText>
         </ThemedView>
       ) : results.length === 0 ? (
@@ -153,7 +278,7 @@ export default function SearchScreen() {
             No results
           </ThemedText>
           <ThemedText type="small" themeColor="textMuted" style={styles.hint}>
-            Try different keywords
+            Try different keywords, date range, or tags
           </ThemedText>
         </ThemedView>
       ) : (
@@ -182,37 +307,70 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
     marginHorizontal: Spacing.four,
     paddingHorizontal: Spacing.three,
-    height: 40,
+    height: 44,
     borderRadius: Spacing.three,
     borderWidth: 1,
+    gap: Spacing.two,
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
+    fontFamily: 'Inter',
+    height: '100%',
+  },
+  dateRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+    gap: Spacing.two,
+  },
+  dateChip: {
+    paddingVertical: Spacing.one + 2,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
+    paddingLeft: Spacing.four,
+  },
+  tagList: {
+    gap: Spacing.two,
+    alignItems: 'center',
+  },
+  tagChip: {
+    paddingVertical: Spacing.one + 2,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+  },
+  clearTags: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one + 2,
   },
   centered: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: Spacing.four,
+    alignItems: 'center',
     gap: Spacing.three,
+    paddingBottom: 100,
   },
   hint: {
     textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: 260,
+    lineHeight: 18,
+    maxWidth: 220,
   },
   list: {
-    paddingTop: Spacing.three,
+    paddingHorizontal: Spacing.four,
     paddingBottom: Spacing.four,
   },
   result: {
-    paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     gap: Spacing.one,
   },
   resultHeader: {

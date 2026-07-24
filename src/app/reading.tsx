@@ -1,8 +1,8 @@
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MarkdownRenderer } from '@/components/markdown-renderer';
@@ -12,11 +12,21 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { JournalService, type JournalEntry } from '@/services/journal-service';
 import { ExportService } from '@/services/export-service';
+import { TagService, type Tag } from '@/services/tag-service';
 
 function estimateReadingTime(text: string): string {
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
   const minutes = Math.max(1, Math.round(words / 200));
   return `${minutes} min read`;
+}
+
+const MOOD_EMOJIS: Record<string, string> = {
+  happy: '😊', calm: '😌', grateful: '🥰', thoughtful: '🤔',
+  sad: '😢', frustrated: '😤', anxious: '😰', excited: '🤩',
+  tired: '🥱', sick: '🤒',
+};
+function moodEmoji(mood: string): string {
+  return MOOD_EMOJIS[mood] ?? '';
 }
 
 type LoadState =
@@ -30,6 +40,7 @@ export default function ReadingScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
+  const [readingTags, setReadingTags] = useState<Tag[]>([]);
 
   useEffect(() => {
     if (!date) return;
@@ -46,6 +57,11 @@ export default function ReadingScreen() {
     })();
     return () => { mounted = false; };
   }, [db, date]);
+
+  useEffect(() => {
+    if (loadState.status !== 'loaded') return;
+    TagService.getJournalTags(db, loadState.entry.id).then(setReadingTags).catch(() => {});
+  }, [db, loadState]);
 
   const handleExport = async (format: 'markdown' | 'html' | 'json' | 'pdf') => {
     if (loadState.status !== 'loaded') return;
@@ -107,10 +123,16 @@ export default function ReadingScreen() {
           <SymbolView name="chevron.left" size={20} tintColor={theme.tint} />
           <ThemedText type="default" themeColor="tint">Back</ThemedText>
         </Pressable>
-        <Pressable onPress={handleExportMenu} style={styles.headerAction}>
-          <SymbolView name="square.and.arrow.up" size={18} tintColor={theme.tint} />
-          <ThemedText type="default" themeColor="tint">Export</ThemedText>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable onPress={() => router.push(`/(tabs)/writer?date=${entry.date}`)} style={styles.headerAction}>
+            <SymbolView name="square.and.pencil" size={18} tintColor={theme.tint} />
+            <ThemedText type="default" themeColor="tint">Edit</ThemedText>
+          </Pressable>
+          <Pressable onPress={handleExportMenu} style={styles.headerAction}>
+            <SymbolView name="square.and.arrow.up" size={18} tintColor={theme.tint} />
+            <ThemedText type="default" themeColor="tint">Export</ThemedText>
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView
@@ -134,9 +156,19 @@ export default function ReadingScreen() {
 
         {entry.mood ? (
           <View style={[styles.moodBadge, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <ThemedText type="small" themeColor="textSecondary">Mood: {entry.mood}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">{moodEmoji(entry.mood)} {entry.mood}</ThemedText>
           </View>
         ) : null}
+
+        {readingTags.length > 0 && (
+          <View style={styles.tagRow}>
+            {readingTags.map((tag) => (
+              <View key={tag.id} style={[styles.tagChip, { backgroundColor: tag.color }]}>
+                <ThemedText type="small" style={{ color: '#FFFFFF' }}>{tag.name}</ThemedText>
+              </View>
+            ))}
+          </View>
+        )}
 
         {entry.content.trim() ? (
           <View style={styles.content}>
@@ -177,6 +209,10 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
     paddingVertical: Spacing.half,
   },
+  headerActions: {
+    flexDirection: 'row',
+    gap: Spacing.three,
+  },
   scroll: {
     flex: 1,
   },
@@ -209,6 +245,17 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
     borderWidth: 1,
     marginBottom: Spacing.four,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.one,
+    marginBottom: Spacing.four,
+  },
+  tagChip: {
+    paddingVertical: Spacing.half,
+    paddingHorizontal: Spacing.two,
+    borderRadius: Spacing.two,
   },
   content: {
     marginTop: Spacing.two,
