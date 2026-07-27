@@ -126,6 +126,14 @@ function withAndroidWidgetFiles(config) {
         fs.copyFileSync(infoSrc, path.join(xmlDir, 'mindflow_widget_info.xml'));
       }
 
+      // Copy string resources
+      const valuesDir = path.join(androidPath, 'res/values');
+      fs.mkdirSync(valuesDir, { recursive: true });
+      const stringsSrc = path.join(widgetSrc, 'res/values/strings.xml');
+      if (fs.existsSync(stringsSrc)) {
+        fs.copyFileSync(stringsSrc, path.join(valuesDir, 'strings.xml'));
+      }
+
       return cfg;
     },
   ]);

@@ -22,5 +22,7 @@ export function useThemeManager() {
     availableThemes: ctx.availableThemes,
     followSystem: ctx.followSystem,
     setFollowSystem: ctx.setFollowSystem,
+    fontOverride: ctx.fontOverride,
+    setFontOverride: ctx.setFontOverride,
   };
 }

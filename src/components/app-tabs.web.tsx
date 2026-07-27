@@ -21,7 +21,7 @@ const tabs = [
   { name: 'writer', label: 'Writer', sf: 'square.and.pencil', md: 'edit' },
   { name: 'planner', label: 'Planner', sf: 'square.grid.2x2', md: 'dashboard' },
   { name: 'library', label: 'Library', sf: 'books.vertical', md: 'library_books' },
-];
+] as const;
 
 export default function AppTabs() {
   return (

@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SymbolView } from 'expo-symbols';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -234,6 +235,15 @@ export default function SettingsScreen() {
         </SettingRow>
         <ThemePicker />
 
+        <Pressable
+          onPress={() => router.push('/settings/fonts' as any)}
+          style={[styles.actionRow, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+        >
+          <SymbolView name="textformat" size={18} tintColor={theme.text} />
+          <ThemedText type="default">Fonts</ThemedText>
+          <SymbolView name="chevron.right" size={14} tintColor={theme.textMuted} />
+        </Pressable>
+
         <SectionHeader label="Notifications" />
 
         <SettingRow
@@ -397,11 +407,14 @@ export default function SettingsScreen() {
           </>
         )}
 
-        <SectionHeader label="About" />
-
-        <SettingRow icon="info.circle" label="Version">
-          <ThemedText type="default" themeColor="textSecondary">1.0.0</ThemedText>
-        </SettingRow>
+        <Pressable
+          onPress={() => router.push('/settings/about' as any)}
+          style={[styles.actionRow, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+        >
+          <SymbolView name="info.circle" size={18} tintColor={theme.text} />
+          <ThemedText type="default">About MindFlow</ThemedText>
+          <SymbolView name="chevron.right" size={14} tintColor={theme.textMuted} />
+        </Pressable>
 
         <SettingRow icon="character.book.closed" label="Writing">
           <ThemedText type="small" themeColor="textSecondary">

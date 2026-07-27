@@ -49,6 +49,18 @@ function AppContent() {
             name="calendar/index"
             options={{ animation: 'slide_from_right', presentation: 'card' }}
           />
+          <Stack.Screen
+            name="calendar/[date]"
+            options={{ animation: 'slide_from_right', presentation: 'card' }}
+          />
+          <Stack.Screen
+            name="settings/fonts"
+            options={{ animation: 'slide_from_right', presentation: 'card' }}
+          />
+          <Stack.Screen
+            name="settings/about"
+            options={{ animation: 'slide_from_right', presentation: 'card' }}
+          />
         </Stack>
       </MindFlowThemeProvider>
     </AppLockGate>

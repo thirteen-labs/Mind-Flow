@@ -236,6 +236,20 @@ export const JournalService = {
     );
   },
 
+  async getYearHeatmap(db: SQLiteDatabase, year: number): Promise<Record<string, number>> {
+    const start = `${year}-01-01`;
+    const end = `${year}-12-31`;
+    const rows = await db.getAllAsync<{ date: string; count: number }>(
+      "SELECT date, CASE WHEN content != '' THEN 1 ELSE 0 END as count FROM journals WHERE date >= ? AND date <= ? ORDER BY date ASC",
+      start, end
+    );
+    const map: Record<string, number> = {};
+    for (const r of rows) {
+      if (r.count > 0) map[r.date] = (map[r.date] ?? 0) + 1;
+    }
+    return map;
+  },
+
   async getEntryDatesInRange(db: SQLiteDatabase, from: string, to: string): Promise<string[]> {
     const rows = await db.getAllAsync<{ date: string }>(
       "SELECT DISTINCT date FROM journals WHERE date >= ? AND date <= ? AND content != '' ORDER BY date ASC",

@@ -13,10 +13,20 @@ import { JournalService } from '@/services/journal-service';
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
+const HEAT_WEEKDAYS = ['Mon', '', 'Wed', '', 'Fri', '', ''];
 
 function todayDate(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function heatColor(count: number, max: number, isDark: boolean): string {
+  if (count === 0) return isDark ? '#1C1C1E' : '#E8E8E8';
+  const intensity = count / Math.max(max, 1);
+  if (intensity < 0.25) return isDark ? '#0D4429' : '#B7E4C7';
+  if (intensity < 0.5) return isDark ? '#1B6B3A' : '#74C69D';
+  if (intensity < 0.75) return isDark ? '#2E8B4E' : '#40916C';
+  return isDark ? '#4ADE80' : '#1B4332';
 }
 
 export default function CalendarScreen() {
@@ -26,6 +36,7 @@ export default function CalendarScreen() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [entryDates, setEntryDates] = useState<Set<string>>(new Set());
+  const [heatmap, setHeatmap] = useState<Record<string, number>>({});
   const [stats, setStats] = useState<{ entries: number; streak: number; totalWords: number } | null>(null);
 
   const monthStart = useMemo(() => {
@@ -48,6 +59,10 @@ export default function CalendarScreen() {
       setStats(s);
     }).catch(() => {});
   }, [db]);
+
+  useEffect(() => {
+    JournalService.getYearHeatmap(db, year).then(setHeatmap).catch(() => {});
+  }, [db, year]);
 
   const goBack = useCallback(() => {
     if (month === 0) { setYear((y) => y - 1); setMonth(11); }
@@ -80,12 +95,42 @@ export default function CalendarScreen() {
 
   const handleDayPress = useCallback((day: number) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    if (entryDates.has(dateStr) || dateStr === today) {
-      router.push(`/reading?date=${dateStr}`);
-    } else {
-      router.push(`/(tabs)/writer?date=${dateStr}`);
+    router.push(`/calendar/${dateStr}` as any);
+  }, [year, month]);
+
+  const heatmapDates = useMemo(() => {
+    const dates: { date: string; day: number }[] = [];
+    const start = new Date(year, 0, 1);
+    const end = new Date(year, 11, 31);
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      dates.push({ date: ds, day: d.getDay() });
     }
-  }, [year, month, entryDates]);
+    return dates;
+  }, [year]);
+
+  const heatmapMax = Math.max(...Object.values(heatmap), 1);
+
+  const heatmapWeeks: { date: string; count: number }[][] = useMemo(() => {
+    const weeks: { date: string; count: number }[][] = [];
+    let week: { date: string; count: number }[] = [];
+    const firstDay = new Date(year, 0, 1).getDay();
+    for (let i = 0; i < ((firstDay + 6) % 7); i++) week.push({ date: '', count: 0 });
+    for (const hd of heatmapDates) {
+      week.push({ date: hd.date, count: heatmap[hd.date] ?? 0 });
+      if (week.length === 7) {
+        weeks.push(week);
+        week = [];
+      }
+    }
+    if (week.length > 0) {
+      while (week.length < 7) week.push({ date: '', count: 0 });
+      weeks.push(week);
+    }
+    return weeks;
+  }, [heatmap, heatmapDates, year]);
+
+  const streakCount = stats?.streak ?? 0;
 
   return (
     <ScrollView
@@ -182,13 +227,54 @@ export default function CalendarScreen() {
           </View>
         </ThemedView>
 
-        <ThemedView style={[styles.tipCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-          <SymbolView name="lightbulb" size={18} tintColor={theme.tint} />
-          <View style={styles.tipText}>
-            <ThemedText type="default" style={{ fontWeight: '500' }}>Streak Tracker</ThemedText>
-            <ThemedText type="small" themeColor="textMuted">
-              Tap a day to read or write. Green dots show days with entries.
+        <ThemedView style={[styles.heatmapCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+          <View style={styles.heatmapHeader}>
+            <SymbolView name="flame.fill" size={16} tintColor={theme.notification} />
+            <ThemedText type="default" style={{ fontWeight: '600' }}>
+              {streakCount > 0 ? `${streakCount}-day streak` : 'No active streak'}
             </ThemedText>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.heatmapScroll}>
+            <View style={styles.heatmapContent}>
+              <View style={styles.heatmapLabels}>
+                {HEAT_WEEKDAYS.map((d, i) => (
+                  <ThemedText key={i} type="small" themeColor="textMuted" style={styles.heatmapLabel}>
+                    {d}
+                  </ThemedText>
+                ))}
+              </View>
+              <View style={styles.heatmapGrid}>
+                {heatmapWeeks.map((week, wi) => (
+                  <View key={wi} style={styles.heatmapWeek}>
+                    {week.map((cell, ci) => {
+                      if (!cell.date) return <View key={ci} style={styles.heatmapCell} />;
+                      return (
+                        <Pressable
+                          key={ci}
+                          onPress={() => router.push(`/calendar/${cell.date}` as any)}
+                          style={[
+                            styles.heatmapCell,
+                            {
+                              backgroundColor: heatColor(cell.count, heatmapMax, theme.isDark),
+                              borderRadius: 3,
+                            },
+                          ]}
+                        />
+                      );
+                    })}
+                  </View>
+                ))}
+              </View>
+            </View>
+          </ScrollView>
+          <View style={styles.heatmapFooter}>
+            <ThemedText type="small" themeColor="textMuted">Less</ThemedText>
+            <View style={[styles.heatmapDot, { backgroundColor: heatColor(0, 1, theme.isDark) }]} />
+            <View style={[styles.heatmapDot, { backgroundColor: heatColor(1, 5, theme.isDark) }]} />
+            <View style={[styles.heatmapDot, { backgroundColor: heatColor(2, 5, theme.isDark) }]} />
+            <View style={[styles.heatmapDot, { backgroundColor: heatColor(4, 5, theme.isDark) }]} />
+            <View style={[styles.heatmapDot, { backgroundColor: heatColor(5, 5, theme.isDark) }]} />
+            <ThemedText type="small" themeColor="textMuted">More</ThemedText>
           </View>
         </ThemedView>
       </ThemedView>
@@ -297,16 +383,54 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 2,
   },
-  tipCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.three,
+  heatmapCard: {
     padding: Spacing.three,
     borderRadius: Spacing.three,
     borderWidth: 1,
+    gap: Spacing.two,
   },
-  tipText: {
-    flex: 1,
-    gap: Spacing.half,
+  heatmapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  heatmapScroll: {
+    marginLeft: -Spacing.two,
+  },
+  heatmapContent: {
+    flexDirection: 'row',
+    gap: Spacing.one,
+  },
+  heatmapLabels: {
+    width: 24,
+    justifyContent: 'flex-start',
+    gap: 4,
+    paddingTop: 2,
+  },
+  heatmapLabel: {
+    height: 12,
+    fontSize: 9,
+    lineHeight: 12,
+  },
+  heatmapGrid: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  heatmapWeek: {
+    gap: 3,
+  },
+  heatmapCell: {
+    width: 12,
+    height: 12,
+  },
+  heatmapFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  heatmapDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 2,
   },
 });

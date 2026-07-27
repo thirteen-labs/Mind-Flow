@@ -14,12 +14,13 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "nativewind-env.d.ts"
+    "nativewind-env.d.ts",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
   ],
   "exclude": [
     "node_modules",
     "src/tw",
-    "src/components/media/audio-player.tsx",
-    "src/components/animated-icon.web.tsx"
+    "src/components/media/audio-player.tsx"
   ]
 }

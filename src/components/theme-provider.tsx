@@ -11,6 +11,8 @@ export type ThemeContextType = {
   themeId: string;
   followSystem: boolean;
   setFollowSystem: (v: boolean) => void;
+  fontOverride: string | null;
+  setFontOverride: (font: string | null) => void;
 };
 
 export const ThemeContext = createContext<ThemeContextType | null>(null);
@@ -21,11 +23,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const isDark = systemScheme === 'dark';
   const [themeId, setThemeIdState] = useState<string>(getThemeByScheme(isDark).id);
   const [followSystem, setFollowSystemState] = useState(true);
+  const [fontOverride, setFontOverrideState] = useState<string | null>(null);
 
   useEffect(() => {
-    db?.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'followSystemTheme').then((row) => {
-      if (row?.value === 'false') {
+    Promise.all([
+      db?.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'followSystemTheme'),
+      db?.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'fontOverride'),
+    ]).then(([themeRow, fontRow]) => {
+      if (themeRow?.value === 'false') {
         setFollowSystemState(false);
+      }
+      if (fontRow?.value) {
+        setFontOverrideState(fontRow.value);
       }
     }).catch(() => {});
   }, [db]);
@@ -34,6 +43,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (followSystem) return getThemeByScheme(isDark).id;
     return themeId;
   }, [followSystem, isDark, themeId]);
+
+  const theme = useMemo(() => {
+    const base = getThemeById(effectiveThemeId);
+    if (!fontOverride) return base;
+    return { ...base, fontFamily: fontOverride };
+  }, [effectiveThemeId, fontOverride]);
 
   const setThemeId = useCallback((id: string) => {
     setThemeIdState(id);
@@ -46,11 +61,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     db?.runAsync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', 'followSystemTheme', String(v)).catch(() => {});
   }, [db]);
 
-  const theme = getThemeById(effectiveThemeId);
+  const setFontOverride = useCallback((font: string | null) => {
+    setFontOverrideState(font);
+    if (font) {
+      db?.runAsync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', 'fontOverride', font).catch(() => {});
+    } else {
+      db?.runAsync('DELETE FROM settings WHERE key = ?', 'fontOverride').catch(() => {});
+    }
+  }, [db]);
 
   return (
     <ThemeContext.Provider
-      value={{ theme, setThemeId, availableThemes: themeList, themeId: effectiveThemeId, followSystem, setFollowSystem }}
+      value={{ theme, setThemeId, availableThemes: themeList, themeId: effectiveThemeId, followSystem, setFollowSystem, fontOverride, setFontOverride }}
     >
       {children}
     </ThemeContext.Provider>
