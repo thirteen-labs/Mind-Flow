@@ -1,4 +1,4 @@
-package com.mindflow.widget
+package com.mindflow.app
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager

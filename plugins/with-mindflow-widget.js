@@ -103,7 +103,7 @@ function withAndroidWidgetFiles(config) {
       const widgetSrc = path.join(cfg.modRequest.projectRoot, 'widgets/MindFlowWidget');
 
       // Copy Kotlin source
-      const kotlinDir = path.join(androidPath, 'java/com/mindflow/widget');
+      const kotlinDir = path.join(androidPath, 'java/com/mindflow/app');
       fs.mkdirSync(kotlinDir, { recursive: true });
       const ktSrc = path.join(widgetSrc, 'MindFlowWidget.kt');
       if (fs.existsSync(ktSrc)) {
@@ -129,9 +129,9 @@ function withAndroidWidgetFiles(config) {
       // Copy string resources
       const valuesDir = path.join(androidPath, 'res/values');
       fs.mkdirSync(valuesDir, { recursive: true });
-      const stringsSrc = path.join(widgetSrc, 'res/values/strings.xml');
+      const stringsSrc = path.join(widgetSrc, 'res/values/widget_strings.xml');
       if (fs.existsSync(stringsSrc)) {
-        fs.copyFileSync(stringsSrc, path.join(valuesDir, 'strings.xml'));
+        fs.copyFileSync(stringsSrc, path.join(valuesDir, 'widget_strings.xml'));
       }
 
       return cfg;
