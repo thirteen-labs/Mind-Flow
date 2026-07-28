@@ -35,15 +35,16 @@ export function AnimatedSplashOverlay() {
 
   const image = <Image style={styles.image} source={require('@/assets/images/expo-logo.png')} />;
 
+  const overlayProps = { pointerEvents: 'none' as const };
+
   return animate ? (
     <Animated.View
       entering={splashKeyframe.duration(DURATION).withCallback((finished) => {
         'worklet';
-        if (finished) {
-          scheduleOnRN(setVisible, false);
-        }
+        scheduleOnRN(setVisible, false);
       })}
-      style={styles.splashOverlay}>
+      style={styles.splashOverlay}
+      {...overlayProps}>
       {image}
     </Animated.View>
   ) : (
@@ -53,7 +54,8 @@ export function AnimatedSplashOverlay() {
           setAnimate(true);
         });
       }}
-      style={styles.splashOverlay}>
+      style={styles.splashOverlay}
+      {...overlayProps}>
       {image}
     </View>
   );

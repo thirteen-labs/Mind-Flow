@@ -1,12 +1,19 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
 
 const { width } = Dimensions.get('window');
 
-const ONBOARDING_FLAG = `${(FileSystem as any).documentDirectory}.onboarded`;
+const ONBOARDING_FLAG = (() => {
+  try {
+    return `${FileSystem.documentDirectory}.onboarded`;
+  } catch {
+    return null;
+  }
+})();
 
 const pages = [
   {
@@ -36,6 +43,7 @@ const pages = [
 ];
 
 export default function OnboardingScreen() {
+  const db = useSQLiteContext();
   const [page, setPage] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -47,14 +55,32 @@ export default function OnboardingScreen() {
     }
   };
 
-  const handleSkip = async () => {
-    await FileSystem.writeAsStringAsync(ONBOARDING_FLAG, '1');
-    router.replace('/(tabs)/home');
+  const completeOnboarding = useCallback(async () => {
+    try {
+      await db.runAsync(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+        'onboarded', '1'
+      );
+    } catch {
+      // db insert failed, fallback to filesystem
+    }
+    try {
+      if (ONBOARDING_FLAG) {
+        await FileSystem.writeAsStringAsync(ONBOARDING_FLAG, '1');
+      }
+    } catch {
+      // filesystem write failed, continuing anyway
+    }
+    router.dismissAll();
+    router.replace('/');
+  }, [db]);
+
+  const handleSkip = () => {
+    completeOnboarding();
   };
 
-  const handleGetStarted = async () => {
-    await FileSystem.writeAsStringAsync(ONBOARDING_FLAG, '1');
-    router.replace('/(tabs)/home');
+  const handleGetStarted = () => {
+    completeOnboarding();
   };
 
   const isLast = page === pages.length - 1;
