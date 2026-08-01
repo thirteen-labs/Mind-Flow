@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { SymbolView } from 'expo-symbols';
 
@@ -16,7 +15,7 @@ interface AppLockGateProps {
 
 export function AppLockGate({ db, children }: AppLockGateProps) {
   const [unlocked, setUnlocked] = useState(false);
-  const [checking, setChecking] = useState(true);
+  const [checking] = useState(true);
 
   useEffect(() => {
     let mounted = true;

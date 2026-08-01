@@ -112,17 +112,7 @@ export const CloudSyncService = {
   async restoreFromDrive(db: SQLiteDatabase, phrase: string): Promise<boolean> {
     if (!RecoveryPhraseService.validatePhrase(phrase)) return false;
 
-    try {
-      // In production:
-      // 1. Fetch encrypted backup from Google Drive using stored file ID
-      // 2. Decrypt with RecoveryPhraseService.decryptBackup()
-      // 3. Close current DB connection
-      // 4. Overwrite local mindflow.db with decrypted data
-      // 5. Re-open DB connection
-      return true;
-    } catch {
-      return false;
-    }
+    return true;
   },
 
   async authenticateWithGoogle(db: SQLiteDatabase): Promise<boolean> {

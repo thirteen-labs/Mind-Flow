@@ -10,6 +10,8 @@ import {
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SymbolView } from 'expo-symbols';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -48,6 +50,8 @@ function snippet(text: string, maxLen = 120): string {
 }
 
 type DateRangePreset = 'all' | 'today' | 'week' | 'month' | 'year';
+type SortOption = 'newest' | 'oldest' | 'az' | 'za';
+type FilterType = 'note' | 'plan' | 'idea';
 
 function getDateRange(preset: DateRangePreset): { fromDate?: string; toDate?: string; label: string } {
   const now = new Date();
@@ -79,6 +83,9 @@ export default function SearchScreen() {
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [datePreset, setDatePreset] = useState<DateRangePreset>('all');
+  const [selectedTypes, setSelectedTypes] = useState<FilterType[]>([]);
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [showFilters, setShowFilters] = useState(true);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -86,17 +93,20 @@ export default function SearchScreen() {
   }, [db]);
 
   const search = useCallback(
-    async (q: string, tagIds: string[], preset: DateRangePreset) => {
+    async (q: string, tagIds: string[], preset: DateRangePreset, types: FilterType[], sort: SortOption) => {
       const range = getDateRange(preset);
       const hasQuery = q.trim().length > 0;
       const hasTags = tagIds.length > 0;
       const hasDate = preset !== 'all';
-      if (!hasQuery && !hasTags && !hasDate) {
+      const hasTypes = types.length > 0;
+      
+      if (!hasQuery && !hasTags && !hasDate && !hasTypes) {
         setResults([]);
         setSearched(false);
         setLoading(false);
         return;
       }
+      
       setLoading(true);
       setSearched(true);
       try {
@@ -105,7 +115,25 @@ export default function SearchScreen() {
           hasTags ? tagIds : undefined,
           range.fromDate, range.toDate
         );
-        setResults(rows);
+        
+        let filteredRows = rows;
+        
+        filteredRows.sort((a, b) => {
+          switch (sort) {
+            case 'newest':
+              return new Date(b.date).getTime() - new Date(a.date).getTime();
+            case 'oldest':
+              return new Date(a.date).getTime() - new Date(b.date).getTime();
+            case 'az':
+              return a.content.localeCompare(b.content);
+            case 'za':
+              return b.content.localeCompare(a.content);
+            default:
+              return 0;
+          }
+        });
+        
+        setResults(filteredRows);
       } catch {
         setResults([]);
       } finally {
@@ -117,152 +145,270 @@ export default function SearchScreen() {
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => search(query, selectedTagIds, datePreset), DEBOUNCE_MS);
+    timerRef.current = setTimeout(() => search(query, selectedTagIds, datePreset, selectedTypes, sortBy), DEBOUNCE_MS);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [query, selectedTagIds, datePreset, search]);
+  }, [query, selectedTagIds, datePreset, selectedTypes, sortBy, search]);
 
   const toggleTag = useCallback((tagId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedTagIds((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
     );
   }, []);
 
+  const toggleType = useCallback((type: FilterType) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedTypes((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    );
+  }, []);
+
   const handleResultPress = useCallback((entry: JournalEntry) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/reading?date=${entry.date}`);
   }, []);
 
+  const clearAll = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelectedTagIds([]);
+    setDatePreset('all');
+    setSelectedTypes([]);
+    setSortBy('newest');
+    setQuery('');
+  }, []);
+
   const renderItem = useCallback(
-    ({ item }: { item: JournalEntry }) => (
-      <Pressable
-        onPress={() => handleResultPress(item)}
-        style={[styles.result, { borderBottomColor: theme.border }]}
-      >
-        <ThemedView style={styles.resultHeader}>
-          <ThemedText type="small" themeColor="tint">
-            {formatDate(item.date)}
+    ({ item, index }: { item: JournalEntry; index: number }) => (
+      <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+        <Pressable
+          onPress={() => handleResultPress(item)}
+          style={[styles.result, { borderBottomColor: theme.border }]}
+        >
+          <ThemedView style={styles.resultHeader}>
+            <ThemedText type="small" themeColor="tint">
+              {formatDate(item.date)}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textMuted">
+              {item.word_count} words
+            </ThemedText>
+          </ThemedView>
+          <ThemedText type="default" numberOfLines={3}>
+            {snippet(item.content)}
           </ThemedText>
-          <ThemedText type="small" themeColor="textMuted">
-            {item.word_count} words
-          </ThemedText>
-        </ThemedView>
-        <ThemedText type="default" numberOfLines={3}>
-          {snippet(item.content)}
-        </ThemedText>
-      </Pressable>
+        </Pressable>
+      </Animated.View>
     ),
     [theme, handleResultPress]
   );
 
-  const hasFilters = selectedTagIds.length > 0 || datePreset !== 'all';
+  const hasFilters = selectedTagIds.length > 0 || datePreset !== 'all' || selectedTypes.length > 0 || sortBy !== 'newest';
 
-  const clearAll = useCallback(() => {
-    setSelectedTagIds([]);
-    setDatePreset('all');
-  }, []);
+  const datePresets: { key: DateRangePreset; label: string }[] = [
+    { key: 'all', label: 'Anytime' },
+    { key: 'today', label: 'Today' },
+    { key: 'week', label: 'This Week' },
+    { key: 'month', label: 'This Month' },
+    { key: 'year', label: 'This Year' },
+  ];
 
-  const presets: { key: DateRangePreset; label: string; icon: string }[] = [
-    { key: 'all', label: 'All', icon: 'tray.full' },
-    { key: 'today', label: 'Today', icon: 'sun.max' },
-    { key: 'week', label: 'Week', icon: 'calendar' },
-    { key: 'month', label: 'Month', icon: 'calendar.badge.clock' },
-    { key: 'year', label: 'Year', icon: 'calendar.badge.year' },
+  const typeFilters: { key: FilterType; label: string; icon: string }[] = [
+    { key: 'note', label: 'Notes', icon: 'doc.text' },
+    { key: 'plan', label: 'Plans', icon: 'calendar' },
+    { key: 'idea', label: 'Ideas', icon: 'lightbulb' },
+  ];
+
+  const sortOptions: { key: SortOption; label: string }[] = [
+    { key: 'newest', label: 'Newest First' },
+    { key: 'oldest', label: 'Oldest First' },
+    { key: 'az', label: 'A-Z' },
+    { key: 'za', label: 'Z-A' },
   ];
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedView style={styles.header}>
-        <ThemedText type="title">Search</ThemedText>
-      </ThemedView>
+      {/* Header */}
+      <Animated.View entering={FadeInDown.springify()}>
+        <ThemedView style={styles.header}>
+          <ThemedText type="title">Search</ThemedText>
+        </ThemedView>
+      </Animated.View>
 
-      <View style={[styles.searchBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <SymbolView name="magnifyingglass" size={16} tintColor={theme.textMuted} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search journals..."
-          placeholderTextColor={theme.textMuted}
-          style={[styles.searchInput, { color: theme.text }]}
-          returnKeyType="search"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {query.length > 0 && (
-          <Pressable onPress={() => setQuery('')}>
-            <SymbolView name="xmark.circle.fill" size={16} tintColor={theme.textMuted} />
-          </Pressable>
-        )}
-      </View>
+      {/* Search Bar */}
+      <Animated.View entering={FadeInDown.delay(100).springify()}>
+        <View style={[styles.searchBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <SymbolView name="magnifyingglass" size={16} tintColor={theme.textMuted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search notes, plans, ideas..."
+            placeholderTextColor={theme.textMuted}
+            style={[styles.searchInput, { color: theme.text }]}
+            returnKeyType="search"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery('')}>
+              <SymbolView name="xmark.circle.fill" size={16} tintColor={theme.textMuted} />
+            </Pressable>
+          )}
+        </View>
+      </Animated.View>
 
-      <View style={styles.dateRow}>
-        {presets.map((p) => (
-          <Pressable
-            key={p.key}
-            onPress={() => setDatePreset(p.key)}
-            style={[
-              styles.dateChip,
-              {
-                backgroundColor: datePreset === p.key ? theme.primary : theme.backgroundElement,
-                borderColor: datePreset === p.key ? theme.primary : theme.border,
-              },
-            ]}
-          >
-            <ThemedText
-              type="small"
-              style={{ color: datePreset === p.key ? '#FFFFFF' : theme.textSecondary, fontWeight: '500' }}
-            >
-              {p.label}
-            </ThemedText>
-          </Pressable>
-        ))}
-      </View>
+      {/* Filters Toggle */}
+      <Animated.View entering={FadeInDown.delay(200).springify()}>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowFilters(!showFilters);
+          }}
+          style={[styles.filterToggle, { backgroundColor: theme.surface, borderColor: theme.border }]}
+        >
+          <SymbolView name="line.3.horizontal.decrease.circle" size={16} tintColor={theme.tint} />
+          <ThemedText type="small" themeColor="tint">Filters</ThemedText>
+          <SymbolView name={showFilters ? "chevron.up" : "chevron.down"} size={12} tintColor={theme.tint} />
+        </Pressable>
+      </Animated.View>
 
-      {allTags.length > 0 && (
-        <View style={styles.tagRow}>
-          <FlatList
-            horizontal
-            data={allTags}
-            keyExtractor={(t) => t.id}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tagList}
-            renderItem={({ item: tag }) => {
-              const active = selectedTagIds.includes(tag.id);
-              return (
+      {/* Filters Section */}
+      {showFilters && (
+        <Animated.View entering={FadeInDown.delay(300).springify()} style={[styles.filtersContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          {/* Type Filter */}
+          <View style={styles.filterSection}>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.filterLabel}>Type</ThemedText>
+            <View style={styles.filterChips}>
+              {typeFilters.map((type) => (
                 <Pressable
-                  onPress={() => toggleTag(tag.id)}
+                  key={type.key}
+                  onPress={() => toggleType(type.key)}
                   style={[
-                    styles.tagChip,
+                    styles.filterChip,
                     {
-                      backgroundColor: active ? tag.color : theme.backgroundElement,
-                      borderColor: active ? tag.color : theme.border,
+                      backgroundColor: selectedTypes.includes(type.key) ? theme.primary : theme.backgroundElement,
+                      borderColor: selectedTypes.includes(type.key) ? theme.primary : theme.border,
+                    },
+                  ]}
+                >
+                  <SymbolView name={type.icon as any} size={14} tintColor={selectedTypes.includes(type.key) ? '#FFFFFF' : theme.textSecondary} />
+                  <ThemedText
+                    type="small"
+                    style={{ color: selectedTypes.includes(type.key) ? '#FFFFFF' : theme.textSecondary, fontWeight: '500' }}
+                  >
+                    {type.label}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {/* Tags Filter */}
+          {allTags.length > 0 && (
+            <View style={styles.filterSection}>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.filterLabel}>Tags</ThemedText>
+              <FlatList
+                horizontal
+                data={allTags}
+                keyExtractor={(t) => t.id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tagList}
+                renderItem={({ item: tag }) => {
+                  const active = selectedTagIds.includes(tag.id);
+                  return (
+                    <Pressable
+                      onPress={() => toggleTag(tag.id)}
+                      style={[
+                        styles.tagChip,
+                        {
+                          backgroundColor: active ? tag.color : theme.backgroundElement,
+                          borderColor: active ? tag.color : theme.border,
+                        },
+                      ]}
+                    >
+                      <ThemedText
+                        type="small"
+                        style={{ color: active ? '#FFFFFF' : theme.textSecondary, fontWeight: '500' }}
+                      >
+                        {tag.name}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                }}
+              />
+            </View>
+          )}
+
+          {/* Date Filter */}
+          <View style={styles.filterSection}>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.filterLabel}>Date</ThemedText>
+            <View style={styles.filterChips}>
+              {datePresets.map((preset) => (
+                <Pressable
+                  key={preset.key}
+                  onPress={() => setDatePreset(preset.key)}
+                  style={[
+                    styles.filterChip,
+                    {
+                      backgroundColor: datePreset === preset.key ? theme.primary : theme.backgroundElement,
+                      borderColor: datePreset === preset.key ? theme.primary : theme.border,
                     },
                   ]}
                 >
                   <ThemedText
                     type="small"
-                    style={{ color: active ? '#FFFFFF' : theme.textSecondary, fontWeight: '500' }}
+                    style={{ color: datePreset === preset.key ? '#FFFFFF' : theme.textSecondary, fontWeight: '500' }}
                   >
-                    {tag.name}
+                    {preset.label}
                   </ThemedText>
                 </Pressable>
-              );
-            }}
-          />
+              ))}
+            </View>
+          </View>
+
+          {/* Sort Filter */}
+          <View style={styles.filterSection}>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.filterLabel}>Sort By</ThemedText>
+            <View style={styles.filterChips}>
+              {sortOptions.map((option) => (
+                <Pressable
+                  key={option.key}
+                  onPress={() => setSortBy(option.key)}
+                  style={[
+                    styles.filterChip,
+                    {
+                      backgroundColor: sortBy === option.key ? theme.primary : theme.backgroundElement,
+                      borderColor: sortBy === option.key ? theme.primary : theme.border,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    type="small"
+                    style={{ color: sortBy === option.key ? '#FFFFFF' : theme.textSecondary, fontWeight: '500' }}
+                  >
+                    {option.label}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {/* Clear Filters */}
           {hasFilters && (
-            <Pressable onPress={clearAll} style={styles.clearTags}>
-              <ThemedText type="small" themeColor="textMuted">Clear all</ThemedText>
+            <Pressable onPress={clearAll} style={styles.clearFilters}>
+              <ThemedText type="small" themeColor="textMuted">Clear all filters</ThemedText>
             </Pressable>
           )}
-        </View>
+        </Animated.View>
       )}
 
+      {/* Results */}
       {loading ? (
         <ThemedView style={styles.centered}>
           <ActivityIndicator color={theme.textMuted} />
         </ThemedView>
       ) : !searched ? (
-        <ThemedView style={styles.centered}>
+        <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.centered}>
           <SymbolView name="text.magnifyingglass" size={48} tintColor={theme.textMuted} />
           <ThemedText type="default" themeColor="textSecondary">
             Search your journals
@@ -270,9 +416,9 @@ export default function SearchScreen() {
           <ThemedText type="small" themeColor="textMuted" style={styles.hint}>
             Find entries by content, date, tags, or keywords
           </ThemedText>
-        </ThemedView>
+        </Animated.View>
       ) : results.length === 0 ? (
-        <ThemedView style={styles.centered}>
+        <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.centered}>
           <SymbolView name="questionmark" size={48} tintColor={theme.textMuted} />
           <ThemedText type="default" themeColor="textSecondary">
             No results
@@ -280,7 +426,10 @@ export default function SearchScreen() {
           <ThemedText type="small" themeColor="textMuted" style={styles.hint}>
             Try different keywords, date range, or tags
           </ThemedText>
-        </ThemedView>
+          <Pressable onPress={clearAll} style={[styles.clearButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+            <ThemedText type="small" themeColor="tint">Clear Filters</ThemedText>
+          </Pressable>
+        </Animated.View>
       ) : (
         <FlatList
           data={results}
@@ -313,6 +462,7 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     borderWidth: 1,
     gap: Spacing.two,
+    borderCurve: 'continuous',
   },
   searchInput: {
     flex: 1,
@@ -320,23 +470,49 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
     height: '100%',
   },
-  dateRow: {
+  filterToggle: {
     flexDirection: 'row',
-    paddingHorizontal: Spacing.four,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    marginHorizontal: Spacing.four,
+    marginTop: Spacing.two,
     paddingVertical: Spacing.two,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+    borderCurve: 'continuous',
+  },
+  filtersContainer: {
+    marginHorizontal: Spacing.four,
+    marginTop: Spacing.two,
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+    gap: Spacing.three,
+    borderCurve: 'continuous',
+  },
+  filterSection: {
     gap: Spacing.two,
   },
-  dateChip: {
+  filterLabel: {
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  filterChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
     paddingVertical: Spacing.one + 2,
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.three,
     borderWidth: 1,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.two,
-    paddingLeft: Spacing.four,
+    borderCurve: 'continuous',
   },
   tagList: {
     gap: Spacing.two,
@@ -347,10 +523,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.three,
     borderWidth: 1,
+    borderCurve: 'continuous',
   },
-  clearTags: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one + 2,
+  clearFilters: {
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
   },
   centered: {
     flex: 1,
@@ -363,6 +540,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     maxWidth: 220,
+  },
+  clearButton: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    borderCurve: 'continuous',
   },
   list: {
     paddingHorizontal: Spacing.four,

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Redirect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import * as FileSystem from 'expo-file-system';
+import { documentDirectory, getInfoAsync } from 'expo-file-system';
 
 const ONBOARDING_FLAG = (() => {
   try {
-    return `${FileSystem.documentDirectory}.onboarded`;
+    return `${documentDirectory}.onboarded`;
   } catch {
     return null;
   }
@@ -25,7 +25,7 @@ export default function Index() {
         if (row?.value === '1') {
           setOnboarded(true);
         } else if (ONBOARDING_FLAG) {
-          const info = await FileSystem.getInfoAsync(ONBOARDING_FLAG);
+          const info = await getInfoAsync(ONBOARDING_FLAG);
           setOnboarded(info.exists);
         }
       } catch {

@@ -2,25 +2,43 @@
 
 # dependencies
 node_modules/
+.claude
+.agents
+agents/
+skills/
+designs
+markdown
+plan/
+lumora_future_assets
+not-used
+.agents
+assets/discs/
+features.md
 
 # Expo
+.agents
 .expo/
 dist/
 web-build/
 expo-env.d.ts
+Unconfirmed*
+lumora.apk*
 
 # Native
 .kotlin/
 *.orig.*
+*.apk
+*aab
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
-
+CLAUDE.md
+.claude
 # Metro
 .metro-health-check*
-
+.zed*
 # debug
 npm-debug.*
 yarn-debug.*
@@ -33,11 +51,27 @@ yarn-error.*
 # local env files
 .env*.local
 
+# markdown files (except README)
+*.md
+!README.md
+!README
+
 # typescript
 *.tsbuildinfo
-
+*.af
+*.rar
+*.zip
 example
 
 # generated native folders
 /ios
 /android
+
+# EAS
+ eas-build-*.json
+
+# build artifacts
+*.apk
+*.aab
+*.jks
+google-service-account.json

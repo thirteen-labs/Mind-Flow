@@ -17,9 +17,9 @@
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#202020",
-        "foregroundImage": "./assets/images/icon.png",
-        "backgroundImage": "./assets/images/icon.png",
-        "monochromeImage": "./assets/images/icon.png"
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundImage": "./assets/images/adaptive-icon.png",
+        "monochromeImage": "./assets/images/adaptive-icon.png"
       },
       "permissions": [
         "android.permission.CAMERA",
@@ -30,7 +30,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/icon.png",
+      "favicon": "./assets/images/web.png",
       "bundler": "metro"
     },
     "plugins": [
@@ -38,9 +38,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#202020",
           "image": "./assets/images/splash.png",
-          "imageWidth": 76
+          "imageWidth": 96
         }
       ],
       "expo-sqlite",

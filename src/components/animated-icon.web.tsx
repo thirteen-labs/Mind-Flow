@@ -62,7 +62,7 @@ export function AnimatedIcon() {
       >
         <Image
           style={styles.glow}
-          source={require("./../../assets/images/icon@2x.png")}
+          source={require("./../../assets/images/web.png")}
         />
       </Animated.View>
 

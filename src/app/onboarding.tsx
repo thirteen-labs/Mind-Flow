@@ -3,13 +3,13 @@ import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import * as FileSystem from 'expo-file-system';
+import { documentDirectory, writeAsStringAsync } from 'expo-file-system';
 
 const { width } = Dimensions.get('window');
 
 const ONBOARDING_FLAG = (() => {
   try {
-    return `${FileSystem.documentDirectory}.onboarded`;
+    return `${documentDirectory}.onboarded`;
   } catch {
     return null;
   }
@@ -66,7 +66,7 @@ export default function OnboardingScreen() {
     }
     try {
       if (ONBOARDING_FLAG) {
-        await FileSystem.writeAsStringAsync(ONBOARDING_FLAG, '1');
+        await writeAsStringAsync(ONBOARDING_FLAG, '1');
       }
     } catch {
       // filesystem write failed, continuing anyway

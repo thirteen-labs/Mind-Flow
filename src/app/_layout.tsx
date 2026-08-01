@@ -34,6 +34,18 @@ function AppContent() {
             options={{ animation: 'fade', presentation: 'fullScreenModal' }}
           />
           <Stack.Screen
+            name="daily-notes"
+            options={{ animation: 'slide_from_right', presentation: 'card' }}
+          />
+          <Stack.Screen
+            name="note-viewer"
+            options={{ animation: 'slide_from_right', presentation: 'card' }}
+          />
+          <Stack.Screen
+            name="backup-restore"
+            options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
+          />
+          <Stack.Screen
             name="insights"
             options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
           />

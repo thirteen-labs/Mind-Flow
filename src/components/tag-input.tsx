@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 
@@ -26,7 +26,7 @@ export function TagInput({ journalId, selectedTags, onTagsChange }: TagInputProp
     TagService.getAll(db).then(setAllTags).catch(() => {});
   }, [db]);
 
-  const selectedIds = new Set(selectedTags.map((t) => t.id));
+  const selectedIds = useMemo(() => new Set(selectedTags.map((t) => t.id)), [selectedTags]);
 
   const toggleTag = useCallback(async (tag: Tag) => {
     const next = selectedIds.has(tag.id)

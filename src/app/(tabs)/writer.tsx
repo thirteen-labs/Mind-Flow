@@ -1,269 +1,282 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SymbolView } from 'expo-symbols';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
-import { EmbedList } from '@/components/embed-list';
-import { MarkdownEditor } from '@/components/editor/markdown-editor';
-import { MoodPicker } from '@/components/mood-picker';
-import { TagInput } from '@/components/tag-input';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useJournal } from '@/hooks/use-journal';
-import { TagService, type Tag } from '@/services/tag-service';
-import { MediaService } from '@/services/media-service';
+import { JournalService } from '@/services/journal-service';
+
+type TabType = 'all' | 'drafts' | 'published' | 'ideas';
+
+interface Document {
+  id: string;
+  title: string;
+  content: string;
+  status: 'draft' | 'published' | 'idea';
+  wordCount: number;
+  date: string;
+}
+
+function getStatusColor(status: string, theme: any): string {
+  switch (status) {
+    case 'draft': return theme.warning;
+    case 'published': return theme.success;
+    case 'idea': return theme.tint;
+    default: return theme.textMuted;
+  }
+}
 
 export default function WriterScreen() {
   const theme = useTheme();
-  const { date: dateParam } = useLocalSearchParams<{ date?: string }>();
-  const { content, setContent, wordCount, loading, error, retry, journal, setMood, isToday } = useJournal(dateParam);
   const db = useSQLiteContext();
-  const [journalTags, setJournalTags] = useState<Tag[]>([]);
-  const [showMediaSheet, setShowMediaSheet] = useState(false);
-  const [mediaLoading, setMediaLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadDocuments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const entries = await JournalService.getRecentJournals(db, 50);
+      const docs: Document[] = entries.map(entry => ({
+        id: entry.id,
+        title: entry.content.split('\n')[0] || 'Untitled',
+        content: entry.content,
+        status: 'draft' as const,
+        wordCount: entry.word_count,
+        date: entry.date,
+      }));
+      
+      let filteredDocs = docs;
+      if (activeTab === 'drafts') {
+        filteredDocs = docs.filter(d => d.status === 'draft');
+      } else if (activeTab === 'published') {
+        filteredDocs = docs.filter(d => d.status === 'published');
+      } else if (activeTab === 'ideas') {
+        filteredDocs = docs.filter(d => d.status === 'idea');
+      }
+      
+      setDocuments(filteredDocs);
+    } catch {
+      setDocuments([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [db, activeTab]);
 
   useEffect(() => {
-    if (journal) {
-      TagService.getJournalTags(db, journal.id).then(setJournalTags).catch(() => {});
-    }
-  }, [db, journal]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadDocuments();
+  }, [activeTab, loadDocuments]);
 
-  const handleTagsChange = useCallback((tags: Tag[]) => {
-    setJournalTags(tags);
-  }, []);
-
-  const insertIntoContent = useCallback((insertText: string) => {
-    setContent((prev) => prev + (prev ? '\n\n' : '') + insertText);
-  }, [setContent]);
-
-  const handlePickImage = useCallback(async () => {
-    setShowMediaSheet(false);
-    if (!journal) return;
-    setMediaLoading(true);
-    try {
-      const media = await MediaService.pickImage();
-      if (media) {
-        await MediaService.saveMediaRecord(db, media, journal.id);
-        insertIntoContent(`![Image](${media.uri})`);
-      }
-    } finally {
-      setMediaLoading(false);
-    }
-  }, [db, journal, insertIntoContent]);
-
-  const handleTakePhoto = useCallback(async () => {
-    setShowMediaSheet(false);
-    if (!journal) return;
-    setMediaLoading(true);
-    try {
-      const media = await MediaService.takePhoto();
-      if (media) {
-        await MediaService.saveMediaRecord(db, media, journal.id);
-        insertIntoContent(`![Photo](${media.uri})`);
-      }
-    } finally {
-      setMediaLoading(false);
-    }
-  }, [db, journal, insertIntoContent]);
-
-  const handlePickVideo = useCallback(async () => {
-    setShowMediaSheet(false);
-    if (!journal) return;
-    setMediaLoading(true);
-    try {
-      const media = await MediaService.pickVideo();
-      if (media) {
-        await MediaService.saveMediaRecord(db, media, journal.id);
-        insertIntoContent(`[Video](${media.uri})`);
-      }
-    } finally {
-      setMediaLoading(false);
-    }
-  }, [db, journal, insertIntoContent]);
-
-  const entryDate = dateParam ? new Date(dateParam + 'T00:00:00') : new Date();
-  const displayDate = entryDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-
-  const todayISO = new Date().toISOString().split('T')[0];
-
-  if (loading) {
+  const renderDocument = useCallback(({ item, index }: { item: Document; index: number }) => {
+    const date = new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+    
     return (
-      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator color={theme.textMuted} />
-      </ThemedView>
-    );
-  }
-
-  if (error) {
-    return (
-      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.three }}>
-        <ThemedText type="default" themeColor="error">Failed to load journal</ThemedText>
+      <Animated.View
+        entering={FadeInDown.delay(index * 50).springify()}
+      >
         <Pressable
-          onPress={retry}
-          style={[styles.retryButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push(`/reading?date=${item.date}`);
+          }}
+          style={[styles.documentCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
         >
-          <ThemedText type="default" themeColor="tint">Retry</ThemedText>
+          <View style={styles.documentHeader}>
+            <ThemedText type="default" numberOfLines={1} style={styles.documentTitle}>
+              {item.title}
+            </ThemedText>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status, theme) }]}>
+              <ThemedText type="small" style={styles.statusText}>
+                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+              </ThemedText>
+            </View>
+          </View>
+          <ThemedText type="small" themeColor="textMuted">
+            {date} · {item.wordCount} words
+          </ThemedText>
         </Pressable>
-      </ThemedView>
+      </Animated.View>
     );
-  }
+  }, [theme]);
+
+  const tabs: { key: TabType; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'drafts', label: 'Drafts' },
+    { key: 'published', label: 'Published' },
+    { key: 'ideas', label: 'Ideas' },
+  ];
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      <ThemedView style={styles.header}>
-        <ThemedView style={styles.headerRow}>
-          <ThemedText type="title">{isToday ? 'Today' : displayDate}</ThemedText>
-          <View style={styles.headerActions}>
-            <Pressable
-              onPress={() => setShowMediaSheet(true)}
-              style={[styles.iconButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-            >
-              <SymbolView name="paperclip" size={18} tintColor={theme.text} />
-            </Pressable>
-            <Pressable
-              onPress={() => router.push(`/reading?date=${dateParam ?? todayISO}`)}
-              style={[styles.iconButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-            >
-              <SymbolView name="book" size={18} tintColor={theme.text} />
-            </Pressable>
-            <Pressable
-              onPress={() => router.push('/export')}
-              style={[styles.iconButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-            >
-              <SymbolView name="square.and.arrow.up" size={18} tintColor={theme.text} />
-            </Pressable>
-          </View>
+    <ThemedView style={styles.container}>
+      {/* Header */}
+      <Animated.View entering={FadeInDown.springify()}>
+        <ThemedView style={styles.header}>
+          <ThemedText type="title">Writer</ThemedText>
         </ThemedView>
-        <ThemedText type="small" themeColor="textSecondary">{displayDate}</ThemedText>
-        <ThemedText type="small" themeColor="textMuted">{wordCount} words</ThemedText>
-      </ThemedView>
+      </Animated.View>
 
-      <MoodPicker selected={journal?.mood ?? null} onSelect={setMood} />
+      {/* Tabs */}
+      <Animated.View entering={FadeInDown.delay(100).springify()}>
+        <View style={[styles.tabBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          {tabs.map((tab) => (
+            <Pressable
+              key={tab.key}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setActiveTab(tab.key);
+              }}
+              style={[
+                styles.tab,
+                activeTab === tab.key && { backgroundColor: theme.primary },
+              ]}
+            >
+              <ThemedText
+                type="small"
+                style={[
+                  styles.tabText,
+                  activeTab === tab.key && { color: '#FFFFFF' },
+                ]}
+              >
+                {tab.label}
+              </ThemedText>
+            </Pressable>
+          ))}
+        </View>
+      </Animated.View>
 
-      {journal && (
-        <TagInput
-          journalId={journal.id}
-          selectedTags={journalTags}
-          onTagsChange={handleTagsChange}
+      {/* Documents List */}
+      {loading ? (
+        <ThemedView style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.textMuted} />
+        </ThemedView>
+      ) : (
+        <FlatList
+          data={documents}
+          renderItem={renderDocument}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.documentsList}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.emptyState}>
+              <SymbolView name="doc.text" size={48} tintColor={theme.textMuted} />
+              <ThemedText type="default" themeColor="textSecondary">
+                No documents yet
+              </ThemedText>
+              <ThemedText type="small" themeColor="textMuted">
+                Tap the + button to create one
+              </ThemedText>
+            </Animated.View>
+          }
         />
       )}
 
-      <ScrollView
-        style={{ flex: 1 }}
-        keyboardShouldPersistTaps="always"
-        showsVerticalScrollIndicator={false}
-      >
-        <MarkdownEditor value={content} onChange={setContent} placeholder="Start writing..." />
-        <EmbedList content={content} />
-      </ScrollView>
-
-      {mediaLoading && (
-        <View style={styles.mediaLoadingOverlay}>
-          <ActivityIndicator color={theme.text} />
-        </View>
-      )}
-
-      <Modal visible={showMediaSheet} transparent animationType="fade">
-        <Pressable style={styles.sheetOverlay} onPress={() => setShowMediaSheet(false)}>
-          <Pressable style={[styles.sheet, { backgroundColor: theme.surface }]}>
-            <ThemedText type="default" style={styles.sheetTitle}>Attach Media</ThemedText>
-            <Pressable onPress={handlePickImage} style={[styles.sheetOption, { borderBottomColor: theme.border }]}>
-              <SymbolView name="photo" size={22} tintColor={theme.text} />
-              <ThemedText type="default">Image from Library</ThemedText>
-            </Pressable>
-            <Pressable onPress={handleTakePhoto} style={[styles.sheetOption, { borderBottomColor: theme.border }]}>
-              <SymbolView name="camera" size={22} tintColor={theme.text} />
-              <ThemedText type="default">Take Photo</ThemedText>
-            </Pressable>
-            <Pressable onPress={handlePickVideo} style={styles.sheetOption}>
-              <SymbolView name="video" size={22} tintColor={theme.text} />
-              <ThemedText type="default">Video from Library</ThemedText>
-            </Pressable>
-            <Pressable onPress={() => setShowMediaSheet(false)} style={[styles.sheetCancel, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText type="default" themeColor="textMuted">Cancel</ThemedText>
-            </Pressable>
-          </Pressable>
+      {/* FAB */}
+      <Animated.View entering={FadeInRight.delay(300).springify()}>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            router.push('/reading');
+          }}
+          style={[styles.fab, { backgroundColor: theme.primary }]}
+        >
+          <SymbolView name="plus" size={24} tintColor="#FFFFFF" />
         </Pressable>
-      </Modal>
-    </KeyboardAvoidingView>
+      </Animated.View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   header: {
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.two,
-    gap: Spacing.half,
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.three,
   },
-  headerRow: {
+  tabBar: {
+    flexDirection: 'row',
+    marginHorizontal: Spacing.four,
+    padding: Spacing.one,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+    borderCurve: 'continuous',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: Spacing.two,
+    alignItems: 'center',
+    borderRadius: Spacing.two,
+    borderCurve: 'continuous',
+  },
+  tabText: {
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  documentsList: {
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.four,
+  },
+  documentCard: {
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+    marginBottom: Spacing.two,
+    gap: Spacing.two,
+    borderCurve: 'continuous',
+  },
+  documentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  headerActions: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: Spacing.two,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  retryButton: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.three,
-    borderWidth: 1,
-  },
-  mediaLoadingOverlay: {
-    ...StyleSheet.absoluteFill,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  sheetOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheet: {
-    borderTopLeftRadius: Spacing.four,
-    borderTopRightRadius: Spacing.four,
-    padding: Spacing.four,
-    paddingBottom: Spacing.six,
-    gap: Spacing.two,
-  },
-  sheetTitle: {
+  documentTitle: {
     fontWeight: '600',
-    marginBottom: Spacing.two,
+    flex: 1,
+    marginRight: Spacing.two,
   },
-  sheetOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingVertical: Spacing.three,
-    borderBottomWidth: 1,
+  statusBadge: {
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    borderRadius: Spacing.two,
+    borderCurve: 'continuous',
   },
-  sheetCancel: {
+  statusText: {
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  emptyState: {
     alignItems: 'center',
-    paddingVertical: Spacing.three,
-    borderRadius: Spacing.three,
-    marginTop: Spacing.two,
+    justifyContent: 'center',
+    paddingVertical: Spacing.six,
+    gap: Spacing.two,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: Spacing.four,
+    right: Spacing.four,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderCurve: 'continuous',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
   },
 });
