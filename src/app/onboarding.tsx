@@ -3,7 +3,7 @@ import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { documentDirectory, writeAsStringAsync } from 'expo-file-system';
+import { documentDirectory, writeAsStringAsync } from 'expo-file-system/legacy';
 
 const { width } = Dimensions.get('window');
 

@@ -77,6 +77,22 @@ export const JournalService = {
     );
   },
 
+  async createJournal(db: SQLiteDatabase, content: string): Promise<JournalEntry> {
+    const id = generateId();
+    const date = todayDate();
+    const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
+    const now = nowISO();
+    await db.runAsync(
+      'INSERT INTO journals (id, date, content, word_count, mood, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      id, date, content, wordCount, null, now, now
+    );
+    return { id, date, content, word_count: wordCount, mood: null, created_at: now, updated_at: now };
+  },
+
+  async deleteJournal(db: SQLiteDatabase, id: string): Promise<void> {
+    await db.runAsync('DELETE FROM journals WHERE id = ?', id);
+  },
+
   async updateMood(db: SQLiteDatabase, id: string, mood: string | null): Promise<void> {
     await db.runAsync(
       'UPDATE journals SET mood = ?, updated_at = ? WHERE id = ?',

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { FlatList, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 import { ThemedText } from '@/components/themed-text';
@@ -45,6 +45,18 @@ export default function PlannerScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('day');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showNewEventModal, setShowNewEventModal] = useState(false);
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    location: '',
+    isAllDay: false,
+    date: formatDate(new Date()),
+    startTime: '10:00',
+    endTime: '11:00',
+    repeat: 'never',
+    reminder: '15',
+    notes: '',
+  });
   const [events, setEvents] = useState<PlannerEvent[]>(() => [
     {
       id: '1',

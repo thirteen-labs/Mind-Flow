@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Redirect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { documentDirectory, getInfoAsync } from 'expo-file-system';
+import { documentDirectory, getInfoAsync } from 'expo-file-system/legacy';
 
 const ONBOARDING_FLAG = (() => {
   try {
