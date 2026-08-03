@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { SymbolView } from 'expo-symbols';
+import { IconChevronLeft, IconStar, IconFlame } from '@tabler/icons-react-native';
 
 import { BarChart, StatCard } from '@/components/insights/bar-chart';
 import { ThemedText } from '@/components/themed-text';
@@ -80,7 +80,7 @@ export default function InsightsScreen() {
     <ThemedView style={{ flex: 1 }}>
       <ThemedView style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.back}>
-          <SymbolView name="chevron.left" size={18} tintColor={theme.text} />
+          <IconChevronLeft size={18} color={theme.text} />
         </Pressable>
         <ThemedText type="title">Insights</ThemedText>
       </ThemedView>
@@ -139,13 +139,13 @@ export default function InsightsScreen() {
           <ThemedView style={styles.section}>
             <ThemedText type="subtitle">Writing Habits</ThemedText>
             <ThemedView type="backgroundElement" style={styles.habitCard}>
-              <SymbolView name="star.fill" size={24} tintColor={theme.accent} />
+              <IconStar size={24} color={theme.accent} />
               <ThemedText type="default">
                 Most productive on <ThemedText type="default" style={{ fontWeight: '600' }}>{insights.bestDayOfWeek}</ThemedText>
               </ThemedText>
             </ThemedView>
             <ThemedView type="backgroundElement" style={styles.habitCard}>
-              <SymbolView name="flame.fill" size={24} tintColor={theme.notification} />
+              <IconFlame size={24} color={theme.notification} />
               <ThemedText type="default">
                 Longest streak: <ThemedText type="default" style={{ fontWeight: '600' }}>{insights.longestStreak} days</ThemedText>
               </ThemedText>
@@ -180,6 +180,7 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.two,
   },
   section: {

@@ -1,7 +1,10 @@
-import { Image, Linking, StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { ImageViewer } from '@/components/media/image-viewer';
+import { VideoPlayer } from '@/components/media/video-player';
+import { AudioPlayer } from '@/components/media/audio-player';
 
 interface MarkdownRendererProps {
   content: string;
@@ -9,11 +12,14 @@ interface MarkdownRendererProps {
 
 interface Block {
   type: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
-    | 'codeblock' | 'blockquote' | 'ul' | 'ol' | 'hr'
+    | 'codeblock' | 'blockquote' | 'audio_block'
+    | 'ul' | 'ol' | 'hr'
     | 'paragraph' | 'empty';
   text: string;
   items?: string[];
   lang?: string;
+  audioSrc?: string;
+  audioTitle?: string;
 }
 
 function parseBlocks(text: string): Block[] {
@@ -69,7 +75,20 @@ function parseBlocks(text: string): Block[] {
         quoteLines.push(lines[i].replace(/^>\s?/, ''));
         i++;
       }
-      blocks.push({ type: 'blockquote', text: quoteLines.join('\n') });
+      const quoteText = quoteLines.join('\n');
+      // Check if blockquote contains audio
+      const audioInQuote = quoteText.match(/<audio\s+src="([^"]+)"[^>]*><\/audio>/);
+      if (audioInQuote) {
+        const titleMatch = quoteText.match(/^\*\*(.+?)\*\*/);
+        blocks.push({
+          type: 'audio_block',
+          text: quoteText,
+          audioSrc: audioInQuote[1],
+          audioTitle: titleMatch?.[1] || '',
+        });
+      } else {
+        blocks.push({ type: 'blockquote', text: quoteText });
+      }
       continue;
     }
 
@@ -112,6 +131,38 @@ function parseInline(text: string): InlineNode[] {
   let remaining = text;
 
   while (remaining.length > 0) {
+    // underline <u>text</u>
+    const underlineMatch = remaining.match(/^<u>(.+?)<\/u>/);
+    if (underlineMatch) {
+      nodes.push({ type: 'underline', text: underlineMatch[1] });
+      remaining = remaining.slice(underlineMatch[0].length);
+      continue;
+    }
+
+    // highlight ==text==
+    const highlightMatch = remaining.match(/^==(.+?)==/);
+    if (highlightMatch) {
+      nodes.push({ type: 'highlight', text: highlightMatch[1] });
+      remaining = remaining.slice(highlightMatch[0].length);
+      continue;
+    }
+
+    // video <video src="..." controls></video>
+    const videoMatch = remaining.match(/^<video\s+src="([^"]+)"[^>]*><\/video>/);
+    if (videoMatch) {
+      nodes.push({ type: 'video', src: videoMatch[1] });
+      remaining = remaining.slice(videoMatch[0].length);
+      continue;
+    }
+
+    // audio <audio src="..." controls></audio>
+    const audioMatch = remaining.match(/^<audio\s+src="([^"]+)"[^>]*><\/audio>/);
+    if (audioMatch) {
+      nodes.push({ type: 'audio', src: audioMatch[1], title: '' });
+      remaining = remaining.slice(audioMatch[0].length);
+      continue;
+    }
+
     // image ![alt](url)
     const imgMatch = remaining.match(/^!\[([^\]]*)\]\(([^)]+)\)/);
     if (imgMatch) {
@@ -161,7 +212,7 @@ function parseInline(text: string): InlineNode[] {
     }
 
     // plain text up to next special char
-    const nextSpecial = remaining.search(/[\[!*_~`]/);
+    const nextSpecial = remaining.search(/[\[!*_~`<]/);
     if (nextSpecial === 0) {
       // special char that didn't match anything — consume it
       nodes.push({ type: 'text', text: remaining[0] });
@@ -182,10 +233,14 @@ type InlineNode =
   | { type: 'text'; text: string }
   | { type: 'bold'; text: string }
   | { type: 'italic'; text: string }
+  | { type: 'underline'; text: string }
   | { type: 'strikethrough'; text: string }
+  | { type: 'highlight'; text: string }
   | { type: 'code'; text: string }
   | { type: 'link'; text: string; url: string }
-  | { type: 'image'; alt: string; url: string };
+  | { type: 'image'; alt: string; url: string }
+  | { type: 'video'; src: string }
+  | { type: 'audio'; src: string; title: string };
 
 function InlineContent({ nodes, theme }: { nodes: InlineNode[]; theme: any }) {
   return (
@@ -198,8 +253,12 @@ function InlineContent({ nodes, theme }: { nodes: InlineNode[]; theme: any }) {
             return <Text key={i} style={{ fontWeight: '700' }}>{node.text}</Text>;
           case 'italic':
             return <Text key={i} style={{ fontStyle: 'italic' }}>{node.text}</Text>;
+          case 'underline':
+            return <Text key={i} style={{ textDecorationLine: 'underline' }}>{node.text}</Text>;
           case 'strikethrough':
             return <Text key={i} style={{ textDecorationLine: 'line-through' }}>{node.text}</Text>;
+          case 'highlight':
+            return <Text key={i} style={[styles.highlight, { backgroundColor: `${theme.accent}30` }]}>{node.text}</Text>;
           case 'code':
             return (
               <Text key={i} style={[styles.inlineCode, { backgroundColor: theme.backgroundElement, color: theme.primary }]}>
@@ -217,14 +276,11 @@ function InlineContent({ nodes, theme }: { nodes: InlineNode[]; theme: any }) {
               </Text>
             );
           case 'image':
-            return (
-              <Image
-                key={i}
-                source={{ uri: node.url }}
-                style={styles.inlineImage}
-                resizeMode="contain"
-              />
-            );
+            return <ImageViewer key={i} uri={node.url} />;
+          case 'video':
+            return <VideoPlayer key={i} uri={node.src} />;
+          case 'audio':
+            return <AudioPlayer key={i} uri={node.src} title={node.title} />;
         }
       })}
     </Text>
@@ -285,6 +341,15 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
               </View>
             );
 
+          case 'audio_block':
+            return (
+              <AudioPlayer
+                key={bi}
+                uri={block.audioSrc || ''}
+                title={block.audioTitle}
+              />
+            );
+
           case 'codeblock':
             return (
               <View key={bi} style={[styles.codeblock, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
@@ -341,23 +406,23 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   h1: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
-    lineHeight: 36,
+    lineHeight: 32,
     marginTop: Spacing.three,
     marginBottom: Spacing.one,
   },
   h2: {
-    fontSize: 24,
+    fontSize: 21,
     fontWeight: '600',
-    lineHeight: 32,
+    lineHeight: 28,
     marginTop: Spacing.two,
     marginBottom: Spacing.one,
   },
   h3: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '600',
-    lineHeight: 28,
+    lineHeight: 26,
     marginTop: Spacing.two,
     marginBottom: Spacing.one,
   },
@@ -405,6 +470,10 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
     borderRadius: 3,
     overflow: 'hidden',
+  },
+  highlight: {
+    paddingHorizontal: 2,
+    borderRadius: 3,
   },
   inlineImage: {
     width: '100%',

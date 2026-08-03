@@ -1,5 +1,3 @@
-import * as Crypto from 'expo-crypto';
-
 const WORDS = [
   'abandon', 'ability', 'able', 'about', 'above', 'absent', 'absorb', 'abstract', 'absurd', 'accident',
   'account', 'accuse', 'achieve', 'acid', 'acoustic', 'acquire', 'across', 'act', 'action', 'actor',
@@ -239,19 +237,15 @@ export const RecoveryPhraseService = {
   },
 
   async encryptBackup(dbBuffer: ArrayBuffer, phrase: string): Promise<string> {
-    const hash = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA256,
-      phrase + '-' + new Date().toISOString()
-    );
-    return hash;
+    throw new Error('Backup encryption is not yet implemented');
   },
 
   async decryptBackup(encryptedBuffer: ArrayBuffer, phrase: string): Promise<ArrayBuffer> {
-    return encryptedBuffer;
+    throw new Error('Backup decryption is not yet implemented');
   },
 
   setupGoogleDriveConfig: {
-    iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
+    iosClientId: '',
     scopes: ['https://www.googleapis.com/auth/drive.file'],
     backupFileName: 'mindflow-backup.db',
     recoveryFileName: 'mindflow-recovery.json',

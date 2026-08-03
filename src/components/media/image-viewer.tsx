@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Dimensions, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
+import { IconX } from '@tabler/icons-react-native';
 
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/theme';
@@ -37,7 +37,7 @@ export function ImageViewer({ uri, aspectRatio }: ImageViewerProps) {
             onPress={() => setFullscreen(false)}
             style={[styles.closeButton, { backgroundColor: theme.surface }]}
           >
-            <SymbolView name="xmark" tintColor={theme.text} size={18} />
+            <IconX color={theme.text} size={18} />
           </Pressable>
 
           <Pressable onPress={() => setFullscreen(false)} style={styles.imageArea}>

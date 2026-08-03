@@ -1,7 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
 import { Alert, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { SymbolView } from 'expo-symbols';
+import * as DocumentPicker from 'expo-document-picker';
+import { IconCheck, IconPaperclip, IconPencil, IconSearch, IconTypography, IconX, IconBold, IconItalic, IconUnderline, IconStrikethrough, IconHighlight, IconList, IconListNumbers, IconLink, IconH1, IconH2, IconH3, IconCheckbox } from '@tabler/icons-react-native';
 
 import FormattingSheet from './formatting-sheet';
 import {
@@ -16,10 +18,14 @@ import {
   insertLink,
   insertNumberedList,
   insertTable,
+  insertVideo,
+  insertAudio,
   toggleBold,
   toggleInlineCode,
   toggleItalic,
   toggleStrikethrough,
+  toggleUnderline,
+  toggleHighlight,
 } from './formatting';
 import { MarkdownRenderer } from '@/components/markdown-renderer';
 import { MediaService } from '@/services/media-service';
@@ -81,7 +87,9 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
       }
       case 'bold': apply(toggleBold(text, start, end)); return;
       case 'italic': apply(toggleItalic(text, start, end)); return;
+      case 'underline': apply(toggleUnderline(text, start, end)); return;
       case 'strikethrough': apply(toggleStrikethrough(text, start, end)); return;
+      case 'highlight': apply(toggleHighlight(text, start, end)); return;
       case 'code': apply(toggleInlineCode(text, start, end)); return;
       case 'quote': apply(insertBlockquote(text, start)); return;
       case 'list': apply(insertBulletList(text, start)); return;
@@ -103,9 +111,9 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
         return;
       }
       case 'media': {
-        Alert.alert('Attach Media', 'Choose a source', [
+        Alert.alert('Attach Media', 'Choose a media type', [
           {
-            text: 'Photo Library',
+            text: 'Image',
             onPress: async () => {
               const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
               if (!granted) return;
@@ -119,14 +127,30 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
             },
           },
           {
-            text: 'Take Photo',
+            text: 'Video',
             onPress: async () => {
-              const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+              const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
               if (!granted) return;
-              const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['videos'],
+                quality: 0.8,
+              });
               if (result.canceled || !result.assets?.[0]) return;
-              const media = await MediaService.importMedia(result.assets[0].uri, 'image');
-              apply(insertImage(lastTextRef.current, start, end, media.uri));
+              const media = await MediaService.importMedia(result.assets[0].uri, 'video');
+              apply(insertVideo(lastTextRef.current, start, end, media.uri));
+            },
+          },
+          {
+            text: 'Audio',
+            onPress: async () => {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: 'audio/*',
+                copyToCacheDirectory: true,
+              });
+              if (result.canceled || !result.assets?.[0]) return;
+              const media = await MediaService.importMedia(result.assets[0].uri, 'audio');
+              const title = result.assets[0].name?.replace(/\.[^/.]+$/, '') || 'audio';
+              apply(insertAudio(lastTextRef.current, start, end, media.uri, title));
             },
           },
           { text: 'Cancel', style: 'cancel' },
@@ -160,20 +184,80 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
     setPreview((p) => !p);
   }, []);
 
+  const handleAttach = useCallback(() => {
+    const { start, end } = selection;
+    Alert.alert('Attach Media', 'Choose a media type', [
+      {
+        text: 'Image',
+        onPress: async () => {
+          const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!granted) return;
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            quality: 0.8,
+          });
+          if (result.canceled || !result.assets?.[0]) return;
+          const media = await MediaService.importMedia(result.assets[0].uri, 'image');
+          apply(insertImage(lastTextRef.current, start, end, media.uri));
+        },
+      },
+      {
+        text: 'Video',
+        onPress: async () => {
+          const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!granted) return;
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['videos'],
+            quality: 0.8,
+          });
+          if (result.canceled || !result.assets?.[0]) return;
+          const media = await MediaService.importMedia(result.assets[0].uri, 'video');
+          apply(insertVideo(lastTextRef.current, start, end, media.uri));
+        },
+      },
+      {
+        text: 'Audio',
+        onPress: async () => {
+          const result = await DocumentPicker.getDocumentAsync({
+            type: 'audio/*',
+            copyToCacheDirectory: true,
+          });
+          if (result.canceled || !result.assets?.[0]) return;
+          const media = await MediaService.importMedia(result.assets[0].uri, 'audio');
+          const title = result.assets[0].name?.replace(/\.[^/.]+$/, '') || 'audio';
+          apply(insertAudio(lastTextRef.current, start, end, media.uri, title));
+        },
+      },
+      {
+        text: 'Sketch',
+        onPress: () => {
+          router.push('/canvas' as any);
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [selection, apply]);
+
   return (
     <View style={styles.container}>
       <View style={styles.modeBar}>
         <Pressable
+          onPress={handleAttach}
+          style={[styles.modeButton, { backgroundColor: theme.backgroundElement }]}
+        >
+          <IconPaperclip size={16} color={theme.text} />
+        </Pressable>
+        <Pressable
           onPress={togglePreview}
           style={[styles.modeButton, preview && { backgroundColor: theme.primary }]}
         >
-          <SymbolView name="doc.text.magnifyingglass" size={16} tintColor={preview ? '#FFFFFF' : theme.text} />
+          <IconSearch size={16} color={preview ? '#FFFFFF' : theme.text} />
         </Pressable>
         <Pressable
           onPress={() => { setPreview(false); inputRef.current?.focus(); }}
           style={[styles.modeButton, !preview && { backgroundColor: theme.primary }]}
         >
-          <SymbolView name="pencil" size={16} tintColor={!preview ? '#FFFFFF' : theme.text} />
+          <IconPencil size={16} color={!preview ? '#FFFFFF' : theme.text} />
         </Pressable>
       </View>
 
@@ -216,25 +300,68 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
                 onSubmitEditing={handleLinkSubmit}
               />
               <Pressable onPress={handleLinkSubmit} style={styles.linkDone}>
-                <SymbolView name="checkmark" tintColor={theme.tint} size={18} />
+                <IconCheck color={theme.tint} size={18} />
               </Pressable>
               <Pressable onPress={() => { setShowLinkInput(false); setLinkUrl(''); }} style={styles.linkDone}>
-                <SymbolView name="xmark" tintColor={theme.textSecondary} size={18} />
+                <IconX color={theme.textSecondary} size={18} />
               </Pressable>
             </View>
           )}
         </>
       )}
 
+      {!preview && (
+        <View style={[styles.toolbar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+          <Pressable onPress={() => handleAction('bold')} style={styles.toolbarButton}>
+            <IconBold size={18} color={theme.text} />
+          </Pressable>
+          <Pressable onPress={() => handleAction('italic')} style={styles.toolbarButton}>
+            <IconItalic size={18} color={theme.text} />
+          </Pressable>
+          <Pressable onPress={() => handleAction('underline')} style={styles.toolbarButton}>
+            <IconUnderline size={18} color={theme.text} />
+          </Pressable>
+          <Pressable onPress={() => handleAction('strikethrough')} style={styles.toolbarButton}>
+            <IconStrikethrough size={18} color={theme.text} />
+          </Pressable>
+          <Pressable onPress={() => handleAction('highlight')} style={styles.toolbarButton}>
+            <IconHighlight size={18} color={theme.text} />
+          </Pressable>
+          <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
+          <Pressable onPress={() => handleAction('heading1')} style={styles.toolbarButton}>
+            <IconH1 size={18} color={theme.text} />
+          </Pressable>
+          <Pressable onPress={() => handleAction('heading2')} style={styles.toolbarButton}>
+            <IconH2 size={18} color={theme.text} />
+          </Pressable>
+          <Pressable onPress={() => handleAction('heading3')} style={styles.toolbarButton}>
+            <IconH3 size={18} color={theme.text} />
+          </Pressable>
+          <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
+          <Pressable onPress={() => handleAction('list')} style={styles.toolbarButton}>
+            <IconList size={18} color={theme.text} />
+          </Pressable>
+          <Pressable onPress={() => handleAction('numberedlist')} style={styles.toolbarButton}>
+            <IconListNumbers size={18} color={theme.text} />
+          </Pressable>
+          <Pressable onPress={() => handleAction('checklist')} style={styles.toolbarButton}>
+            <IconCheckbox size={18} color={theme.text} />
+          </Pressable>
+          <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
+          <Pressable onPress={() => handleAction('link')} style={styles.toolbarButton}>
+            <IconLink size={18} color={theme.text} />
+          </Pressable>
+        </View>
+      )}
+
       <Pressable
         onPress={preview ? togglePreview : openSheet}
         style={[styles.fab, { backgroundColor: theme.primary }]}
       >
-        <SymbolView
-          name={preview ? 'pencil' : 'textformat'}
-          tintColor="#FFFFFF"
-          size={22}
-        />
+        {preview
+          ? <IconPencil color="#FFFFFF" size={22} />
+          : <IconTypography color="#FFFFFF" size={22} />
+        }
       </Pressable>
 
       <FormattingSheet sheetRef={sheetRef} onAction={handleAction} />
@@ -298,8 +425,8 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 20,
-    right: 20,
+    bottom: Spacing.five,
+    right: Spacing.five,
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -310,5 +437,25 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+  },
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    gap: Spacing.one,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  toolbarButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  toolbarDivider: {
+    width: 1,
+    height: 20,
+    marginHorizontal: Spacing.one,
   },
 });

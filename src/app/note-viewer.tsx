@@ -2,15 +2,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, Share, StyleSheet } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { SymbolView } from 'expo-symbols';
+import { IconChevronLeft, IconPencil, IconStar, IconPin, IconShare, IconFileText, IconCopy, IconTrash } from '@tabler/icons-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
+import { MarkdownRenderer } from '@/components/markdown-renderer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { JournalService, type JournalEntry } from '@/services/journal-service';
+import { ExportService } from '@/services/export-service';
 
 export default function NoteViewerScreen() {
   const theme = useTheme();
@@ -26,8 +28,8 @@ export default function NoteViewerScreen() {
     try {
       const journal = await JournalService.getJournalByDate(db, entryDate);
       setEntry(journal);
-      setIsFavorite(false);
-      setIsPinned(false);
+      setIsFavorite(!!journal?.is_favorited);
+      setIsPinned(!!journal?.is_pinned);
     } catch {
       setEntry(null);
     } finally {
@@ -61,6 +63,22 @@ export default function NoteViewerScreen() {
       router.push(`/reading?date=${entry.date}`);
     }
   }, [entry]);
+
+  const handleToggleFavorite = useCallback(async () => {
+    if (!entry) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newValue = await JournalService.toggleFavorite(db, entry.id);
+    setIsFavorite(newValue);
+    setEntry(prev => prev ? { ...prev, is_favorited: newValue ? 1 : 0 } : null);
+  }, [db, entry]);
+
+  const handleTogglePin = useCallback(async () => {
+    if (!entry) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newValue = await JournalService.togglePin(db, entry.id);
+    setIsPinned(newValue);
+    setEntry(prev => prev ? { ...prev, is_pinned: newValue ? 1 : 0 } : null);
+  }, [db, entry]);
 
   const handleDuplicate = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -112,8 +130,22 @@ export default function NoteViewerScreen() {
   const handleExport = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!entry) return;
-    Alert.alert('Export', 'Export functionality coming soon');
-  }, [entry]);
+    try {
+      await ExportService.export({
+        entries: [entry],
+        format: 'markdown',
+        filename: `journal_${entry.date}`,
+        themeColors: {
+          background: theme.background,
+          text: theme.text,
+          primary: theme.primary,
+          fontFamily: theme.fontFamily,
+        },
+      });
+    } catch (e) {
+      Alert.alert('Export failed', e instanceof Error ? e.message : 'Unknown error');
+    }
+  }, [entry, theme]);
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr + 'T00:00:00');
@@ -158,13 +190,13 @@ export default function NoteViewerScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.back();
           }} style={styles.backButton}>
-            <SymbolView name="chevron.left" size={20} tintColor={theme.text} />
+            <IconChevronLeft size={20} color={theme.text} />
           </Pressable>
           <ThemedText type="default" numberOfLines={1} style={styles.headerTitle}>
             {entry.content.split('\n')[0] || 'Journal Entry'}
           </ThemedText>
           <Pressable onPress={handleEdit} style={styles.editButton}>
-            <SymbolView name="pencil" size={18} tintColor={theme.tint} />
+            <IconPencil size={18} color={theme.tint} />
           </Pressable>
         </ThemedView>
       </Animated.View>
@@ -187,9 +219,7 @@ export default function NoteViewerScreen() {
           contentContainerStyle={styles.contentPadding}
           showsVerticalScrollIndicator={false}
         >
-          <ThemedText type="default" style={styles.content}>
-            {entry.content}
-          </ThemedText>
+          <MarkdownRenderer content={entry.content} />
         </ScrollView>
       </Animated.View>
 
@@ -197,47 +227,41 @@ export default function NoteViewerScreen() {
       <Animated.View entering={FadeInDown.delay(300).springify()}>
         <ThemedView style={[styles.actionBar, { borderTopColor: theme.border }]}>
           <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setIsFavorite(!isFavorite);
-            }}
+            onPress={handleToggleFavorite}
             style={[styles.actionButton, isFavorite && styles.actionButtonActive]}
           >
-            <SymbolView
-              name={isFavorite ? "star.fill" : "star"}
+            <IconStar
               size={20}
-              tintColor={isFavorite ? theme.warning : theme.textMuted}
+              color={isFavorite ? theme.warning : theme.textMuted}
+              fill={isFavorite ? theme.warning : 'none'}
             />
           </Pressable>
 
           <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setIsPinned(!isPinned);
-            }}
+            onPress={handleTogglePin}
             style={[styles.actionButton, isPinned && styles.actionButtonActive]}
           >
-            <SymbolView
-              name={isPinned ? "pin.fill" : "pin"}
+            <IconPin
               size={20}
-              tintColor={isPinned ? theme.tint : theme.textMuted}
+              color={isPinned ? theme.tint : theme.textMuted}
+              fill={isPinned ? theme.tint : 'none'}
             />
           </Pressable>
 
           <Pressable onPress={handleShare} style={styles.actionButton}>
-            <SymbolView name="square.and.arrow.up" size={20} tintColor={theme.textMuted} />
+            <IconShare size={20} color={theme.textMuted} />
           </Pressable>
 
           <Pressable onPress={handleExport} style={styles.actionButton}>
-            <SymbolView name="doc.text" size={20} tintColor={theme.textMuted} />
+            <IconFileText size={20} color={theme.textMuted} />
           </Pressable>
 
           <Pressable onPress={handleDuplicate} style={styles.actionButton}>
-            <SymbolView name="doc.on.doc" size={20} tintColor={theme.textMuted} />
+            <IconCopy size={20} color={theme.textMuted} />
           </Pressable>
 
           <Pressable onPress={handleDelete} style={styles.actionButton}>
-            <SymbolView name="trash" size={20} tintColor={theme.error} />
+            <IconTrash size={20} color={theme.error} />
           </Pressable>
         </ThemedView>
       </Animated.View>
@@ -298,16 +322,17 @@ const styles = StyleSheet.create({
   },
   actionBar: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.two,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   actionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },

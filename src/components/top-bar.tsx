@@ -1,7 +1,8 @@
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { IconCalendar, IconSearch, IconSettings2 } from '@tabler/icons-react-native';
 
+import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { Spacing } from '@/constants/theme';
@@ -9,22 +10,19 @@ import { useTheme } from '@/hooks/use-theme';
 
 export default function TopBar() {
   const theme = useTheme();
-  const logoSource = theme.isDark
-    ? require('@/assets/images/name-white.png')
-    : require('@/assets/images/name-black.png');
 
   return (
     <ThemedView type="background" style={styles.container}>
-      <Image source={logoSource} style={styles.logo} resizeMode="contain" />
+      <ThemedText type="default" style={styles.appName}>MindFlow</ThemedText>
       <View style={styles.actions}>
         <Pressable onPress={() => router.push('/calendar')}>
-          <SymbolView name="calendar" size={22} tintColor={theme.textSecondary} />
+          <IconCalendar size={22} color={theme.textSecondary} />
         </Pressable>
         <Pressable onPress={() => router.push('/(tabs)/search')}>
-          <SymbolView name="magnifyingglass" size={22} tintColor={theme.textSecondary} />
+          <IconSearch size={22} color={theme.textSecondary} />
         </Pressable>
         <Pressable onPress={() => router.push('/(tabs)/settings')}>
-          <SymbolView name={{ ios: 'gearshape', android: 'settings', web: 'settings' }} size={22} tintColor={theme.textSecondary} />
+          <IconSettings2 size={22} color={theme.textSecondary} />
         </Pressable>
       </View>
     </ThemedView>
@@ -38,9 +36,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
+    zIndex: 10,
+    elevation: 10,
   },
-  logo: {
-    height: 24,
+  appName: {
+    fontSize: 18,
+    fontWeight: '600',
   },
   actions: {
     flexDirection: 'row',

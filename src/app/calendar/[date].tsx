@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { SymbolView } from 'expo-symbols';
+import { IconChevronLeft, IconFile, IconPencil, IconFileText, IconClock, IconBook } from '@tabler/icons-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -75,7 +75,7 @@ export default function CalendarDayScreen() {
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.headerAction}>
-          <SymbolView name="chevron.left" size={20} tintColor={theme.tint} />
+          <IconChevronLeft size={20} color={theme.tint} />
           <ThemedText type="default" themeColor="tint">Back</ThemedText>
         </Pressable>
       </View>
@@ -94,7 +94,7 @@ export default function CalendarDayScreen() {
 
         {!entry ? (
           <ThemedView style={[styles.emptyCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <SymbolView name="doc" size={40} tintColor={theme.textMuted} />
+            <IconFile size={40} color={theme.textMuted} />
             <ThemedText type="default" themeColor="textMuted" style={{ textAlign: 'center' }}>
               No journal entry for this day
             </ThemedText>
@@ -102,7 +102,7 @@ export default function CalendarDayScreen() {
               onPress={() => router.push(`/(tabs)/writer?date=${date}` as any)}
               style={[styles.createBtn, { backgroundColor: theme.primary }]}
             >
-              <SymbolView name="square.and.pencil" size={16} tintColor="#FFFFFF" />
+              <IconPencil size={16} color="#FFFFFF" />
               <ThemedText type="default" style={{ color: '#FFFFFF', fontWeight: '600' }}>Write Entry</ThemedText>
             </Pressable>
           </ThemedView>
@@ -110,12 +110,12 @@ export default function CalendarDayScreen() {
           <>
             <View style={styles.statsRow}>
               <ThemedView style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-                <SymbolView name="doc.text" size={16} tintColor={theme.textSecondary} />
+                <IconFileText size={16} color={theme.textSecondary} />
                 <ThemedText type="default" style={{ fontWeight: '600' }}>{entry.word_count}</ThemedText>
                 <ThemedText type="small" themeColor="textMuted">words</ThemedText>
               </ThemedView>
               <ThemedView style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-                <SymbolView name="clock" size={16} tintColor={theme.textSecondary} />
+                <IconClock size={16} color={theme.textSecondary} />
                 <ThemedText type="default" style={{ fontWeight: '600' }}>{estimateReadingTime(entry.content)}</ThemedText>
                 <ThemedText type="small" themeColor="textMuted">read</ThemedText>
               </ThemedView>
@@ -144,14 +144,14 @@ export default function CalendarDayScreen() {
                 onPress={() => router.push(`/reading?date=${date}` as any)}
                 style={[styles.actionBtn, { backgroundColor: theme.primary }]}
               >
-                <SymbolView name="book" size={18} tintColor="#FFFFFF" />
+                <IconBook size={18} color="#FFFFFF" />
                 <ThemedText type="default" style={{ color: '#FFFFFF', fontWeight: '600' }}>Read</ThemedText>
               </Pressable>
               <Pressable
                 onPress={() => router.push(`/(tabs)/writer?date=${date}` as any)}
                 style={[styles.actionBtn, { backgroundColor: theme.backgroundElement, borderColor: theme.primary, borderWidth: 1 }]}
               >
-                <SymbolView name="square.and.pencil" size={18} tintColor={theme.primary} />
+                <IconPencil size={18} color={theme.primary} />
                 <ThemedText type="default" style={{ color: theme.primary, fontWeight: '600' }}>Edit</ThemedText>
               </Pressable>
             </View>
@@ -203,9 +203,9 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.six,
   },
   dateTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
-    lineHeight: 36,
+    lineHeight: 32,
   },
   todayBadge: {
     alignSelf: 'flex-start',

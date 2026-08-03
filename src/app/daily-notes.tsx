@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { SymbolView } from 'expo-symbols';
+import { IconChevronLeft, IconChevronRight, IconCalendarEvent, IconFileText, IconPlus } from '@tabler/icons-react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -171,7 +171,7 @@ export default function DailyNotesScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.back();
           }} style={styles.backButton}>
-            <SymbolView name="chevron.left" size={20} tintColor={theme.text} />
+            <IconChevronLeft size={20} color={theme.text} />
           </Pressable>
           <ThemedText type="title">Daily Notes</ThemedText>
         </ThemedView>
@@ -183,7 +183,7 @@ export default function DailyNotesScreen() {
           {/* Month Navigation */}
           <View style={styles.monthNavigation}>
             <Pressable onPress={() => navigateMonth('prev')} style={styles.navButton}>
-              <SymbolView name="chevron.left" size={20} tintColor={theme.text} />
+              <IconChevronLeft size={20} color={theme.text} />
             </Pressable>
             <View style={styles.monthTitleContainer}>
               <ThemedText type="default" style={styles.monthTitle}>
@@ -191,7 +191,7 @@ export default function DailyNotesScreen() {
               </ThemedText>
             </View>
             <Pressable onPress={() => navigateMonth('next')} style={styles.navButton}>
-              <SymbolView name="chevron.right" size={20} tintColor={theme.text} />
+              <IconChevronRight size={20} color={theme.text} />
             </Pressable>
           </View>
 
@@ -215,6 +215,7 @@ export default function DailyNotesScreen() {
 
           {/* Today Button */}
           <Pressable onPress={goToToday} style={[styles.todayButton, { backgroundColor: theme.backgroundElement }]}>
+            <IconCalendarEvent size={14} color={theme.tint} />
             <ThemedText type="small" themeColor="tint">Today</ThemedText>
           </Pressable>
         </ThemedView>
@@ -241,7 +242,7 @@ export default function DailyNotesScreen() {
         ListEmptyComponent={
           !loading ? (
             <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.emptyState}>
-              <SymbolView name="doc.text" size={48} tintColor={theme.textMuted} />
+              <IconFileText size={48} color={theme.textMuted} />
               <ThemedText type="default" themeColor="textSecondary">
                 No entries for this day
               </ThemedText>
@@ -262,7 +263,7 @@ export default function DailyNotesScreen() {
           }}
           style={[styles.fab, { backgroundColor: theme.primary }]}
         >
-          <SymbolView name="plus" size={24} tintColor="#FFFFFF" />
+          <IconPlus size={24} color="#FFFFFF" />
         </Pressable>
       </Animated.View>
     </ThemedView>
@@ -329,10 +330,9 @@ const styles = StyleSheet.create({
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-around',
   },
   dayContainer: {
-    width: 32,
+    width: '14.28%',
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
@@ -359,6 +359,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   todayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
     alignSelf: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.one,

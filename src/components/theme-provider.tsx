@@ -28,10 +28,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     Promise.all([
       db?.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'followSystemTheme'),
+      db?.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'themeId'),
       db?.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'fontOverride'),
-    ]).then(([themeRow, fontRow]) => {
+    ]).then(([themeRow, savedThemeId, fontRow]) => {
       if (themeRow?.value === 'false') {
         setFollowSystemState(false);
+      }
+      if (savedThemeId?.value) {
+        setThemeIdState(savedThemeId.value);
       }
       if (fontRow?.value) {
         setFontOverrideState(fontRow.value);
@@ -54,6 +58,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeIdState(id);
     setFollowSystemState(false);
     db?.runAsync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', 'followSystemTheme', 'false').catch(() => {});
+    db?.runAsync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', 'themeId', id).catch(() => {});
   }, [db]);
 
   const setFollowSystem = useCallback((v: boolean) => {

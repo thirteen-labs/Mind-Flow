@@ -120,9 +120,9 @@ function buildHtmlDocument(
       margin: 0 auto;
       padding: 40px 24px;
     }
-    h1 { font-size: 32px; margin: 24px 0 8px; }
-    h2 { font-size: 24px; margin: 20px 0 4px; color: ${primary}; }
-    h3 { font-size: 20px; margin: 16px 0 4px; }
+    h1 { font-size: 24px; margin: 24px 0 8px; }
+    h2 { font-size: 21px; margin: 20px 0 4px; color: ${primary}; }
+    h3 { font-size: 19px; margin: 16px 0 4px; }
     article { margin-bottom: 32px; }
     article header { margin-bottom: 12px; }
     .meta { color: #888; font-size: 14px; }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useEvent } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { SymbolView } from 'expo-symbols';
+import { IconPlayerPause, IconPlayerPlay, IconX } from '@tabler/icons-react-native';
 
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/theme';
@@ -39,21 +39,16 @@ export function VideoPlayer({ uri }: VideoPlayerProps) {
             }}
             style={[styles.barButton, { backgroundColor: theme.backgroundElement }]}
           >
-            <SymbolView
-              name={isPlaying ? 'pause.fill' : 'play.fill'}
-              tintColor={theme.text}
-              size={16}
-            />
+            {isPlaying
+              ? <IconPlayerPause color={theme.text} size={16} />
+              : <IconPlayerPlay color={theme.text} size={16} />
+            }
           </Pressable>
           <Pressable
             onPress={() => { player.pause(); setExpanded(false); }}
             style={[styles.barButton, { backgroundColor: theme.backgroundElement }]}
           >
-            <SymbolView
-              name="xmark"
-              tintColor={theme.textSecondary}
-              size={14}
-            />
+            <IconX color={theme.textSecondary} size={14} />
           </Pressable>
         </View>
       </View>
@@ -66,7 +61,7 @@ export function VideoPlayer({ uri }: VideoPlayerProps) {
       style={[styles.container, styles.thumbnail, { backgroundColor: theme.surface, borderCurve: 'continuous' }]}
     >
       <View style={[styles.playOverlay, { backgroundColor: theme.primary }]}>
-        <SymbolView name="play.fill" tintColor={theme.background} size={20} />
+        <IconPlayerPlay color={theme.background} size={20} />
       </View>
     </Pressable>
   );

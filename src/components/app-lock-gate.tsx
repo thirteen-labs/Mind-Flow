@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { SymbolView } from 'expo-symbols';
+import { IconLock } from '@tabler/icons-react-native';
 
 import { Spacing } from '@/constants/theme';
 import { getThemeById } from '@/constants/themes';
@@ -59,7 +59,7 @@ export function AppLockGate({ db, children }: AppLockGateProps) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <SymbolView name="lock.fill" size={48} tintColor={theme.textMuted} />
+      <IconLock size={48} color={theme.textMuted} />
       <Text style={[styles.text, { color: theme.text }]}>MindFlow</Text>
       <Text style={[styles.subtext, { color: theme.textMuted }]}>
         {checking ? 'Checking...' : 'Authenticate to continue'}
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
   },
   text: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '700',
   },
   subtext: {

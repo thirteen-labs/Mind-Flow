@@ -1,6 +1,6 @@
 import { Image, Pressable, View, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { IconSearch, IconSettings2 } from '@tabler/icons-react-native';
 import {
   Tabs,
   TabList,
@@ -69,10 +69,10 @@ function CustomTabList(props: TabListProps) {
 
         <View style={styles.actions}>
           <Pressable onPress={() => router.push('/(tabs)/search')}>
-            <SymbolView name="magnifyingglass" size={18} tintColor={theme.textSecondary} />
+            <IconSearch size={18} color={theme.textSecondary} />
           </Pressable>
           <Pressable onPress={() => router.push('/(tabs)/settings')}>
-            <SymbolView name={{ ios: 'gearshape', android: 'settings', web: 'settings' }} size={18} tintColor={theme.textSecondary} />
+            <IconSettings2 size={18} color={theme.textSecondary} />
           </Pressable>
         </View>
       </ThemedView>

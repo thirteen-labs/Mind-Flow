@@ -1,197 +1,126 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
-import { useSQLiteContext } from 'expo-sqlite';
-import { SymbolView } from 'expo-symbols';
-import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { IconChevronLeft, IconMoodHappy } from '@tabler/icons-react-native';
 import * as Haptics from 'expo-haptics';
 
+import { MarkdownEditor } from '@/components/editor/markdown-editor';
+import { MoodPicker } from '@/components/mood-picker';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { JournalService } from '@/services/journal-service';
+import { useJournal } from '@/hooks/use-journal';
+import { insertImage } from '@/components/editor/formatting';
 
-type TabType = 'all' | 'drafts' | 'published' | 'ideas';
-
-interface Document {
-  id: string;
-  title: string;
-  content: string;
-  status: 'draft' | 'published' | 'idea';
-  wordCount: number;
-  date: string;
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
-function getStatusColor(status: string, theme: any): string {
-  switch (status) {
-    case 'draft': return theme.warning;
-    case 'published': return theme.success;
-    case 'idea': return theme.tint;
-    default: return theme.textMuted;
-  }
+function getTodayDate(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export default function WriterScreen() {
+  const { date, sketchUri } = useLocalSearchParams<{ date: string; sketchUri: string }>();
   const theme = useTheme();
-  const db = useSQLiteContext();
-  const [activeTab, setActiveTab] = useState<TabType>('all');
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const loadDocuments = useCallback(async () => {
-    setLoading(true);
-    try {
-      const entries = await JournalService.getRecentJournals(db, 50);
-      const docs: Document[] = entries.map(entry => ({
-        id: entry.id,
-        title: entry.content.split('\n')[0] || 'Untitled',
-        content: entry.content,
-        status: 'draft' as const,
-        wordCount: entry.word_count,
-        date: entry.date,
-      }));
-      
-      let filteredDocs = docs;
-      if (activeTab === 'drafts') {
-        filteredDocs = docs.filter(d => d.status === 'draft');
-      } else if (activeTab === 'published') {
-        filteredDocs = docs.filter(d => d.status === 'published');
-      } else if (activeTab === 'ideas') {
-        filteredDocs = docs.filter(d => d.status === 'idea');
-      }
-      
-      setDocuments(filteredDocs);
-    } catch {
-      setDocuments([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [db, activeTab]);
+  const targetDate = date || getTodayDate();
+  const { journal, loading, error, content, setContent, wordCount, retry } = useJournal(targetDate);
+  const contentRef = useRef(content);
+  const [selectedMood, setSelectedMood] = useState<string | null>(journal?.mood ?? null);
+  const [showMoodPicker, setShowMoodPicker] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadDocuments();
-  }, [activeTab, loadDocuments]);
+    contentRef.current = content;
+  }, [content]);
 
-  const renderDocument = useCallback(({ item, index }: { item: Document; index: number }) => {
-    const date = new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-    
+  useEffect(() => {
+    if (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (sketchUri) {
+      const newContent = insertImage(contentRef.current, contentRef.current.length, contentRef.current.length, sketchUri);
+      setContent(newContent.text);
+    }
+  }, [sketchUri, setContent]);
+
+  const handleBack = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.back();
+  }, []);
+
+  if (loading) {
     return (
-      <Animated.View
-        entering={FadeInDown.delay(index * 50).springify()}
-      >
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push(`/reading?date=${item.date}`);
-          }}
-          style={[styles.documentCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-        >
-          <View style={styles.documentHeader}>
-            <ThemedText type="default" numberOfLines={1} style={styles.documentTitle}>
-              {item.title}
-            </ThemedText>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status, theme) }]}>
-              <ThemedText type="small" style={styles.statusText}>
-                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-              </ThemedText>
-            </View>
-          </View>
-          <ThemedText type="small" themeColor="textMuted">
-            {date} · {item.wordCount} words
-          </ThemedText>
-        </Pressable>
-      </Animated.View>
+      <ThemedView style={styles.centered}>
+        <ActivityIndicator size="large" color={theme.textMuted} />
+      </ThemedView>
     );
-  }, [theme]);
+  }
 
-  const tabs: { key: TabType; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'drafts', label: 'Drafts' },
-    { key: 'published', label: 'Published' },
-    { key: 'ideas', label: 'Ideas' },
-  ];
+  if (error || !journal) {
+    return (
+      <ThemedView style={styles.centered}>
+        <ThemedText type="default" themeColor="textSecondary">
+          {error || 'Could not load journal entry'}
+        </ThemedText>
+        <Pressable onPress={retry} style={[styles.retryButton, { backgroundColor: theme.primary }]}>
+          <ThemedText type="default" style={{ color: '#FFFFFF' }}>Retry</ThemedText>
+        </Pressable>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
       {/* Header */}
-      <Animated.View entering={FadeInDown.springify()}>
-        <ThemedView style={styles.header}>
-          <ThemedText type="title">Writer</ThemedText>
-        </ThemedView>
-      </Animated.View>
-
-      {/* Tabs */}
-      <Animated.View entering={FadeInDown.delay(100).springify()}>
-        <View style={[styles.tabBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          {tabs.map((tab) => (
-            <Pressable
-              key={tab.key}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setActiveTab(tab.key);
-              }}
-              style={[
-                styles.tab,
-                activeTab === tab.key && { backgroundColor: theme.primary },
-              ]}
-            >
-              <ThemedText
-                type="small"
-                style={[
-                  styles.tabText,
-                  activeTab === tab.key && { color: '#FFFFFF' },
-                ]}
-              >
-                {tab.label}
-              </ThemedText>
-            </Pressable>
-          ))}
+      <ThemedView style={[styles.header, { borderBottomColor: theme.border }]}>
+        <Pressable onPress={handleBack} style={styles.headerAction}>
+          <IconChevronLeft size={20} color={theme.tint} />
+          <ThemedText type="default" themeColor="tint">Back</ThemedText>
+        </Pressable>
+        <View style={styles.headerCenter}>
+          <ThemedText type="small" themeColor="textMuted">
+            {formatDate(targetDate)}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textMuted">
+            {wordCount} {wordCount === 1 ? 'word' : 'words'}
+          </ThemedText>
         </View>
-      </Animated.View>
-
-      {/* Documents List */}
-      {loading ? (
-        <ThemedView style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.textMuted} />
-        </ThemedView>
-      ) : (
-        <FlatList
-          data={documents}
-          renderItem={renderDocument}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.documentsList}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.emptyState}>
-              <SymbolView name="doc.text" size={48} tintColor={theme.textMuted} />
-              <ThemedText type="default" themeColor="textSecondary">
-                No documents yet
-              </ThemedText>
-              <ThemedText type="small" themeColor="textMuted">
-                Tap the + button to create one
-              </ThemedText>
-            </Animated.View>
-          }
-        />
-      )}
-
-      {/* FAB */}
-      <Animated.View entering={FadeInRight.delay(300).springify()}>
         <Pressable
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            router.push('/reading');
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowMoodPicker(!showMoodPicker);
           }}
-          style={[styles.fab, { backgroundColor: theme.primary }]}
+          style={styles.headerAction}
         >
-          <SymbolView name="plus" size={24} tintColor="#FFFFFF" />
+          <IconMoodHappy size={20} color={selectedMood ? theme.primary : theme.tint} />
         </Pressable>
-      </Animated.View>
+      </ThemedView>
+
+      {/* Mood Picker */}
+      {showMoodPicker && (
+        <View style={[styles.moodContainer, { borderBottomColor: theme.border }]}>
+          <MoodPicker selected={selectedMood} onSelect={setSelectedMood} />
+        </View>
+      )}
+
+      {/* Editor */}
+      <View style={styles.editorContainer}>
+        <MarkdownEditor
+          value={content}
+          onChange={setContent}
+          placeholder="Start writing your thoughts..."
+        />
+      </View>
     </ThemedView>
   );
 }
@@ -200,83 +129,39 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
   header: {
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
-    paddingBottom: Spacing.three,
-  },
-  tabBar: {
     flexDirection: 'row',
-    marginHorizontal: Spacing.four,
-    padding: Spacing.one,
-    borderRadius: Spacing.three,
-    borderWidth: 1,
-    borderCurve: 'continuous',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: Spacing.two,
     alignItems: 'center',
-    borderRadius: Spacing.two,
-    borderCurve: 'continuous',
-  },
-  tabText: {
-    fontWeight: '500',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  documentsList: {
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.four,
-  },
-  documentCard: {
-    padding: Spacing.three,
-    borderRadius: Spacing.three,
-    borderWidth: 1,
-    marginBottom: Spacing.two,
-    gap: Spacing.two,
-    borderCurve: 'continuous',
-  },
-  documentHeader: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  documentTitle: {
-    fontWeight: '600',
+  headerAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    paddingVertical: Spacing.half,
+  },
+  headerCenter: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  moodContainer: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  editorContainer: {
     flex: 1,
-    marginRight: Spacing.two,
   },
-  statusBadge: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
+  retryButton: {
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
     borderRadius: Spacing.two,
-    borderCurve: 'continuous',
-  },
-  statusText: {
-    color: '#FFFFFF',
-    fontWeight: '500',
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.six,
-    gap: Spacing.two,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: Spacing.four,
-    right: Spacing.four,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderCurve: 'continuous',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
   },
 });

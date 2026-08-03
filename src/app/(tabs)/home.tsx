@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { SymbolView } from 'expo-symbols';
+import { IconBulb, IconCalendar, IconChartBar, IconChevronRight, IconFileText, IconFlame, IconBook2, IconPencil, IconSettings2, IconShare, IconUser } from '@tabler/icons-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -24,10 +24,6 @@ function getGreeting(): string {
   if (hour < 12) return 'Good morning';
   if (hour < 17) return 'Good afternoon';
   return 'Good evening';
-}
-
-function getUserName(): string {
-  return 'Chris';
 }
 
 function getTimeEmoji(): string {
@@ -108,7 +104,7 @@ export default function HomeScreen() {
           </View>
           <View style={styles.entryMeta}>
             <ThemedText type="small" themeColor="textSecondary">{item.word_count}w</ThemedText>
-            <SymbolView name="chevron.right" size={12} tintColor={theme.textMuted} />
+            <IconChevronRight size={12} color={theme.textMuted} />
           </View>
         </Pressable>
       </Animated.View>
@@ -131,7 +127,7 @@ export default function HomeScreen() {
           <ThemedView style={styles.header}>
             <ThemedView style={styles.greetingRow}>
               <View>
-                <ThemedText type="title">{getGreeting()}, {getUserName()} {getTimeEmoji()}</ThemedText>
+                <ThemedText type="title">{getGreeting()} {getTimeEmoji()}</ThemedText>
                 <ThemedText type="default" themeColor="textSecondary">How are you feeling today?</ThemedText>
               </View>
               <Pressable 
@@ -141,7 +137,7 @@ export default function HomeScreen() {
                 }}
                 style={[styles.profileButton, { backgroundColor: theme.surface }]}
               >
-                <SymbolView name="person.fill" size={20} tintColor={theme.text} />
+                <IconUser size={20} color={theme.text} />
               </Pressable>
             </ThemedView>
           </ThemedView>
@@ -152,7 +148,7 @@ export default function HomeScreen() {
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push(`/reading?date=${new Date().toISOString().split('T')[0]}`);
+              router.push('/(tabs)/writer');
             }}
             style={[styles.dailyNoteCard, { backgroundColor: theme.primary }]}
           >
@@ -164,7 +160,7 @@ export default function HomeScreen() {
                   : 'Start writing your daily note...'}
               </ThemedText>
             </View>
-            <SymbolView name="chevron.right" size={20} tintColor="#FFFFFF" />
+            <IconChevronRight size={20} color="#FFFFFF" />
           </Pressable>
         </Animated.View>
 
@@ -182,7 +178,7 @@ export default function HomeScreen() {
                 }}
                 style={[styles.quickActionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
               >
-                <SymbolView name="square.and.pencil" size={24} tintColor={theme.tint} />
+                <IconPencil size={24} color={theme.tint} />
                 <ThemedText type="default" style={styles.quickActionLabel}>New Note</ThemedText>
               </Pressable>
               
@@ -193,7 +189,7 @@ export default function HomeScreen() {
                 }}
                 style={[styles.quickActionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
               >
-                <SymbolView name="lightbulb" size={24} tintColor={theme.tint} />
+                <IconBulb size={24} color={theme.tint} />
                 <ThemedText type="default" style={styles.quickActionLabel}>New Idea</ThemedText>
               </Pressable>
               
@@ -204,7 +200,7 @@ export default function HomeScreen() {
                 }}
                 style={[styles.quickActionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
               >
-                <SymbolView name="calendar" size={24} tintColor={theme.tint} />
+                <IconCalendar size={24} color={theme.tint} />
                 <ThemedText type="default" style={styles.quickActionLabel}>New Plan</ThemedText>
               </Pressable>
               
@@ -215,7 +211,7 @@ export default function HomeScreen() {
                 }}
                 style={[styles.quickActionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
               >
-                <SymbolView name="doc.text" size={24} tintColor={theme.tint} />
+                <IconFileText size={24} color={theme.tint} />
                 <ThemedText type="default" style={styles.quickActionLabel}>Template</ThemedText>
               </Pressable>
             </View>
@@ -246,19 +242,19 @@ export default function HomeScreen() {
             ) : (
               <ThemedView style={styles.statsRow}>
                 <ThemedView type="backgroundElement" style={styles.statCard}>
-                  <SymbolView name="doc.text" size={20} tintColor={theme.text} />
+                  <IconFileText size={20} color={theme.text} />
                   <ThemedText type="title">{stats?.entries ?? 0}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">Entries</ThemedText>
                 </ThemedView>
 
                 <ThemedView type="backgroundElement" style={styles.statCard}>
-                  <SymbolView name="flame" size={20} tintColor={theme.text} />
+                  <IconFlame size={20} color={theme.text} />
                   <ThemedText type="title">{stats?.streak ?? 0}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">Day Streak</ThemedText>
                 </ThemedView>
 
                 <ThemedView type="backgroundElement" style={styles.statCard}>
-                  <SymbolView name="character.book.closed" size={20} tintColor={theme.text} />
+                  <IconBook2 size={20} color={theme.text} />
                   <ThemedText type="title">{stats?.totalWords ?? 0}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">Words</ThemedText>
                 </ThemedView>
@@ -313,9 +309,9 @@ export default function HomeScreen() {
               }}
               style={[styles.linkRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
             >
-              <SymbolView name="chart.bar.fill" size={18} tintColor={theme.text} />
+              <IconChartBar size={18} color={theme.text} />
               <ThemedText type="default">View Insights</ThemedText>
-              <SymbolView name="chevron.right" size={14} tintColor={theme.textMuted} />
+              <IconChevronRight size={14} color={theme.textMuted} />
             </Pressable>
 
             <Pressable
@@ -325,9 +321,9 @@ export default function HomeScreen() {
               }}
               style={[styles.linkRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
             >
-              <SymbolView name="square.and.arrow.up" size={18} tintColor={theme.text} />
+              <IconShare size={18} color={theme.text} />
               <ThemedText type="default">Export Journals</ThemedText>
-              <SymbolView name="chevron.right" size={14} tintColor={theme.textMuted} />
+              <IconChevronRight size={14} color={theme.textMuted} />
             </Pressable>
 
             <Pressable
@@ -337,9 +333,9 @@ export default function HomeScreen() {
               }}
               style={[styles.linkRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
             >
-              <SymbolView name="gearshape.fill" size={18} tintColor={theme.text} />
+              <IconSettings2 size={18} color={theme.text} />
               <ThemedText type="default">Settings</ThemedText>
-              <SymbolView name="chevron.right" size={14} tintColor={theme.textMuted} />
+              <IconChevronRight size={14} color={theme.textMuted} />
             </Pressable>
           </ThemedView>
         </Animated.View>

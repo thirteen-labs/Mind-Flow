@@ -73,6 +73,10 @@ function AppContent() {
             name="settings/about"
             options={{ animation: 'slide_from_right', presentation: 'card' }}
           />
+          <Stack.Screen
+            name="canvas"
+            options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }}
+          />
         </Stack>
       </MindFlowThemeProvider>
     </AppLockGate>

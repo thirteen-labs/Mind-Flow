@@ -215,14 +215,14 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#FFFFFF',
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: '700',
     textAlign: 'center',
     letterSpacing: -0.5,
   },
   subtitle: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '500',
     textAlign: 'center',
   },

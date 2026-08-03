@@ -7,10 +7,21 @@ import {
   Modal,
   Pressable,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
+import {
+  IconCamera,
+  IconMusic,
+  IconPhoto,
+  IconPlayerPlay,
+  IconPlus,
+  IconTrash,
+  IconVideo,
+  IconVideoPlus,
+  IconX,
+} from '@tabler/icons-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -19,13 +30,14 @@ import type { Media } from '@/constants/media';
 import { useTheme } from '@/hooks/use-theme';
 import { MediaService, scanAllMedia } from '@/services/media-service';
 
-const SCREEN = Dimensions.get('window');
 const COLUMNS = 3;
 const GAP = Spacing.two;
-const CELL_SIZE = (SCREEN.width - Spacing.four * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
+const SCREEN = Dimensions.get('window');
 
 export default function LibraryScreen() {
   const theme = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
+  const CELL_SIZE = (screenWidth - Spacing.four * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
   const [items, setItems] = useState<Media[]>([]);
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<Media | null>(null);
@@ -84,7 +96,7 @@ export default function LibraryScreen() {
       <Pressable
         onPress={() => setPreview(item)}
         onLongPress={() => handleDelete(item)}
-        style={styles.cell}
+        style={[styles.cell, { width: CELL_SIZE, height: CELL_SIZE }]}
       >
         {item.type === 'image' ? (
           <Image
@@ -95,11 +107,11 @@ export default function LibraryScreen() {
           />
         ) : (
           <ThemedView type="backgroundElement" style={styles.placeholder}>
-            <SymbolView
-              name={item.type === 'video' ? 'play.rectangle' : 'music.note'}
-              size={24}
-              tintColor={theme.textSecondary}
-            />
+            {item.type === 'video' ? (
+              <IconPlayerPlay size={24} color={theme.textSecondary} />
+            ) : (
+              <IconMusic size={24} color={theme.textSecondary} />
+            )}
           </ThemedView>
         )}
         {item.type !== 'image' && (
@@ -111,7 +123,7 @@ export default function LibraryScreen() {
         )}
       </Pressable>
     ),
-    [theme, handleDelete]
+    [theme, handleDelete, CELL_SIZE]
   );
 
   return (
@@ -120,7 +132,7 @@ export default function LibraryScreen() {
         <ThemedView style={styles.headerRow}>
           <ThemedText type="title">Library</ThemedText>
           <Pressable onPress={() => setShowImport(true)} style={[styles.importBtn, { backgroundColor: theme.primary }]}>
-            <SymbolView name="plus" size={18} tintColor="#FFFFFF" />
+            <IconPlus size={18} color="#FFFFFF" />
           </Pressable>
         </ThemedView>
         <ThemedText type="default" themeColor="textSecondary">
@@ -141,7 +153,7 @@ export default function LibraryScreen() {
         ListEmptyComponent={
           !loading ? (
             <ThemedView style={styles.empty}>
-              <SymbolView name="photo.on.rectangle" size={48} tintColor={theme.textMuted} />
+              <IconPhoto size={48} color={theme.textMuted} />
               <ThemedText type="default" themeColor="textSecondary">
                 No media yet
               </ThemedText>
@@ -159,14 +171,14 @@ export default function LibraryScreen() {
             onPress={() => setPreview(null)}
             style={[styles.closeButton, { backgroundColor: theme.surface }]}
           >
-            <SymbolView name="xmark" tintColor={theme.text} size={18} />
+            <IconX size={18} color={theme.text} />
           </Pressable>
 
           {preview?.type === 'image' && (
             <Pressable onPress={() => setPreview(null)} style={styles.previewArea}>
               <Image
                 source={{ uri: preview.uri }}
-                style={styles.previewImage}
+                style={[styles.previewImage, { width: screenWidth, height: screenWidth * 0.75 }]}
                 contentFit="contain"
               />
             </Pressable>
@@ -174,7 +186,7 @@ export default function LibraryScreen() {
 
           {preview?.type === 'video' && (
             <ThemedView style={styles.previewInfo}>
-              <SymbolView name="play.rectangle" size={48} tintColor={theme.text} />
+              <IconPlayerPlay size={48} color={theme.text} />
               <ThemedText type="title">Video</ThemedText>
               <ThemedText type="default" themeColor="textSecondary" style={styles.previewUri}>
                 {preview.uri.split('/').pop()}
@@ -184,7 +196,7 @@ export default function LibraryScreen() {
 
           {preview?.type === 'audio' && (
             <ThemedView style={styles.previewInfo}>
-              <SymbolView name="music.note" size={48} tintColor={theme.text} />
+              <IconMusic size={48} color={theme.text} />
               <ThemedText type="title">Audio</ThemedText>
               <ThemedText type="default" themeColor="textSecondary" style={styles.previewUri}>
                 {preview.uri.split('/').pop()}
@@ -197,7 +209,7 @@ export default function LibraryScreen() {
               onPress={() => handleDelete(preview)}
               style={[styles.deleteButton, { backgroundColor: theme.error }]}
             >
-              <SymbolView name="trash" tintColor="#FFFFFF" size={16} />
+              <IconTrash size={16} color="#FFFFFF" />
               <ThemedText style={styles.deleteText}>Delete</ThemedText>
             </Pressable>
           )}
@@ -218,28 +230,28 @@ export default function LibraryScreen() {
               onPress={() => handleImport(() => MediaService.pickImage())}
               style={[styles.sheetOption, { borderBottomColor: theme.border }]}
             >
-              <SymbolView name="photo" size={22} tintColor={theme.text} />
+              <IconPhoto size={22} color={theme.text} />
               <ThemedText type="default">Image from Library</ThemedText>
             </Pressable>
             <Pressable
               onPress={() => handleImport(() => MediaService.takePhoto())}
               style={[styles.sheetOption, { borderBottomColor: theme.border }]}
             >
-              <SymbolView name="camera" size={22} tintColor={theme.text} />
+              <IconCamera size={22} color={theme.text} />
               <ThemedText type="default">Take Photo</ThemedText>
             </Pressable>
             <Pressable
               onPress={() => handleImport(() => MediaService.pickVideo())}
               style={[styles.sheetOption, { borderBottomColor: theme.border }]}
             >
-              <SymbolView name="video" size={22} tintColor={theme.text} />
+              <IconVideo size={22} color={theme.text} />
               <ThemedText type="default">Video from Library</ThemedText>
             </Pressable>
             <Pressable
               onPress={() => handleImport(() => MediaService.recordVideo())}
               style={styles.sheetOption}
             >
-              <SymbolView name="video.badge.plus" size={22} tintColor={theme.text} />
+              <IconVideoPlus size={22} color={theme.text} />
               <ThemedText type="default">Record Video</ThemedText>
             </Pressable>
             <Pressable onPress={() => setShowImport(false)} style={[styles.sheetCancel, { backgroundColor: theme.backgroundElement }]}>
@@ -283,8 +295,6 @@ const styles = StyleSheet.create({
     marginBottom: GAP,
   },
   cell: {
-    width: CELL_SIZE,
-    height: CELL_SIZE,
     borderRadius: Spacing.two,
     overflow: 'hidden',
   },

@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { IconChevronLeft, IconCircleCheck } from '@tabler/icons-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -22,7 +22,7 @@ export default function FontsScreen() {
     <ThemedView style={{ flex: 1 }}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.back}>
-          <SymbolView name="chevron.left" size={18} tintColor={theme.text} />
+          <IconChevronLeft size={18} color={theme.text} />
         </Pressable>
         <ThemedText type="title">Fonts</ThemedText>
       </View>
@@ -59,7 +59,7 @@ export default function FontsScreen() {
                     {option.name}
                   </ThemedText>
                   {selected && (
-                    <SymbolView name="checkmark.circle.fill" size={20} tintColor={theme.primary} />
+                    <IconCircleCheck size={20} color={theme.primary} />
                   )}
                 </View>
                 <ThemedText

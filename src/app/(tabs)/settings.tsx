@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Platform,
@@ -10,8 +10,24 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useSQLiteContext } from 'expo-sqlite';
-import { SymbolView } from 'expo-symbols';
+import {
+  IconBell,
+  IconBook2,
+  IconCheck,
+  IconChevronRight,
+  IconCloud,
+  IconContrast,
+  IconDeviceFloppy,
+  IconFileText,
+  IconFingerprint,
+  IconFlame,
+  IconInfoCircle,
+  IconMoonStars,
+  IconPlus,
+  IconSearch,
+  IconSun,
+  IconTypography,
+} from '@tabler/icons-react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -23,7 +39,6 @@ import { Spacing } from '@/constants/theme';
 import { useTheme, useThemeManager } from '@/hooks/use-theme';
 import { useSettings } from '@/hooks/use-settings';
 import { BackupService } from '@/services/backup-service';
-import { CloudSyncService, type BackupInterval } from '@/services/sync/cloud-sync-service';
 
 type SettingsTab = 'themes' | 'templates' | 'tags' | 'reminders';
 
@@ -47,7 +62,7 @@ function SettingRow({
   description,
   children,
 }: {
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   description?: string;
   children: React.ReactNode;
@@ -59,7 +74,7 @@ function SettingRow({
       style={[styles.settingRow, { borderBottomColor: theme.border }]}
     >
       <View style={styles.settingInfo}>
-        <SymbolView name={icon as any} size={18} tintColor={theme.text} />
+        {icon}
         <View style={styles.settingText}>
           <ThemedText type="default">{label}</ThemedText>
           {description && (
@@ -123,7 +138,7 @@ function TimePicker({
           setEditing(false);
         }}
       >
-        <SymbolView name="checkmark" size={18} tintColor={theme.tint} />
+        <IconCheck size={18} color={theme.tint} />
       </Pressable>
     </View>
   );
@@ -131,11 +146,7 @@ function TimePicker({
 
 function TemplatesTab() {
   const theme = useTheme();
-  const [templates] = useState([
-    { id: '1', name: 'Daily Journal', description: 'Default template for daily entries', isDefault: true },
-    { id: '2', name: 'Meeting Notes', description: 'Template for meeting notes', isDefault: false },
-    { id: '3', name: 'Project Plan', description: 'Template for project plans', isDefault: false },
-  ]);
+  const [templates] = useState<{ id: string; name: string; description: string; isDefault: boolean }[]>([]);
 
   return (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
@@ -146,7 +157,7 @@ function TemplatesTab() {
               style={[styles.templateCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
             >
               <View style={styles.templateHeader}>
-                <SymbolView name="doc.text" size={20} tintColor={theme.tint} />
+                <IconFileText size={20} color={theme.tint} />
                 <ThemedText type="default" style={styles.templateName}>{template.name}</ThemedText>
                 {template.isDefault && (
                   <View style={[styles.defaultBadge, { backgroundColor: theme.tint }]}>
@@ -161,7 +172,7 @@ function TemplatesTab() {
 
         <Animated.View entering={FadeInDown.delay(200).springify()}>
           <Pressable style={[styles.createButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <SymbolView name="plus" size={18} tintColor={theme.tint} />
+            <IconPlus size={18} color={theme.tint} />
             <ThemedText type="default" themeColor="tint">Create Template</ThemedText>
           </Pressable>
         </Animated.View>
@@ -172,13 +183,7 @@ function TemplatesTab() {
 
 function TagsTab() {
   const theme = useTheme();
-  const [tags] = useState([
-    { id: '1', name: 'Personal', color: '#007AFF', count: 12 },
-    { id: '2', name: 'Work', color: '#FF9500', count: 8 },
-    { id: '3', name: 'Ideas', color: '#34C759', count: 5 },
-    { id: '4', name: 'Study', color: '#AF52DE', count: 3 },
-    { id: '5', name: 'Health', color: '#FF3B30', count: 2 },
-  ]);
+  const [tags] = useState<{ id: string; name: string; color: string; count: number }[]>([]);
   const [newTagName, setNewTagName] = useState('');
 
   return (
@@ -186,7 +191,7 @@ function TagsTab() {
       <ThemedView style={styles.tabContentContainer}>
         {/* Search/Create Input */}
         <View style={[styles.tagInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <SymbolView name="magnifyingglass" size={16} tintColor={theme.textMuted} />
+          <IconSearch size={16} color={theme.textMuted} />
           <TextInput
             value={newTagName}
             onChangeText={setNewTagName}
@@ -214,7 +219,7 @@ function TagsTab() {
         {/* Add New Tag */}
         <Animated.View entering={FadeInDown.delay(300).springify()}>
           <Pressable style={[styles.createButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <SymbolView name="plus" size={18} tintColor={theme.tint} />
+            <IconPlus size={18} color={theme.tint} />
             <ThemedText type="default" themeColor="tint">New Tag</ThemedText>
           </Pressable>
         </Animated.View>
@@ -240,7 +245,7 @@ function RemindersTab() {
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
       <ThemedView style={styles.tabContentContainer}>
         <SettingRow
-          icon="bell"
+          icon={<IconBell size={18} color={theme.text} />}
           label="Enable Reminder"
           description="Get reminded to write"
         >
@@ -258,7 +263,7 @@ function RemindersTab() {
               <ThemedText type="small" themeColor="textSecondary">Reminder At</ThemedText>
               <Pressable style={[styles.reminderValue, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
                 <ThemedText type="default">Date & Time</ThemedText>
-                <SymbolView name="chevron.right" size={14} tintColor={theme.textMuted} />
+                <IconChevronRight size={14} color={theme.textMuted} />
               </Pressable>
             </View>
 
@@ -266,11 +271,12 @@ function RemindersTab() {
               <ThemedText type="small" themeColor="textSecondary">Repeat</ThemedText>
               <Pressable style={[styles.reminderValue, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
                 <ThemedText type="default">Does not repeat</ThemedText>
-                <SymbolView name="chevron.right" size={14} tintColor={theme.textMuted} />
+                <IconChevronRight size={14} color={theme.textMuted} />
               </Pressable>
             </View>
 
             <Pressable style={[styles.saveButton, { backgroundColor: theme.primary }]}>
+              <IconCheck size={16} color="#FFFFFF" />
               <ThemedText type="default" style={styles.saveButtonText}>Save</ThemedText>
             </Pressable>
           </>
@@ -284,22 +290,8 @@ export default function SettingsScreen() {
   const theme = useTheme();
   const { followSystem, setFollowSystem } = useThemeManager();
   const { settings, loading, update } = useSettings();
-  const db = useSQLiteContext();
   const [activeTab, setActiveTab] = useState<SettingsTab>('themes');
   const [backingUp, setBackingUp] = useState(false);
-  const [syncEnabled, setSyncEnabled] = useState(false);
-  const [syncInterval, setSyncInterval] = useState<BackupInterval>('manual');
-  const [syncing, setSyncing] = useState(false);
-  const [showRecovery, setShowRecovery] = useState(false);
-  const [recoveryPhrase, setRecoveryPhrase] = useState('');
-
-  useEffect(() => {
-    (async () => {
-      const state = await CloudSyncService.getState(db);
-      setSyncEnabled(state.enabled);
-      setSyncInterval(state.interval);
-    })();
-  }, [db]);
 
   const handleBackup = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -330,35 +322,6 @@ export default function SettingsScreen() {
     } catch {
       Alert.alert('Error', 'Could not check biometric availability');
     }
-  };
-
-  const handleToggleSync = async (v: boolean) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await CloudSyncService.saveState(db, { enabled: v });
-    setSyncEnabled(v);
-    if (v) {
-      const phrase = await CloudSyncService.setupRecoveryPhrase(db);
-      setRecoveryPhrase(phrase);
-      setShowRecovery(true);
-    }
-  };
-
-  const handleSetInterval = async (interval: BackupInterval) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await CloudSyncService.setBackupInterval(db, interval);
-    setSyncInterval(interval);
-  };
-
-  const handleSyncNow = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSyncing(true);
-    try {
-      await CloudSyncService.backupToDrive(db);
-      Alert.alert('Backup complete', 'Your data has been backed up to Google Drive');
-    } catch (e) {
-      Alert.alert('Backup failed', e instanceof Error ? e.message : 'Could not complete backup');
-    }
-    setSyncing(false);
   };
 
   if (loading || !settings) {
@@ -424,7 +387,7 @@ export default function SettingsScreen() {
           <Animated.View entering={FadeInDown.delay(200).springify()}>
             <SectionHeader label="Appearance" />
             <SettingRow
-              icon="circle.righthalf.filled"
+              icon={<IconContrast size={18} color={theme.text} />}
               label="Follow system theme"
               description="Automatically switch theme with light/dark mode"
             >
@@ -444,9 +407,9 @@ export default function SettingsScreen() {
               }}
               style={[styles.actionRow, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
             >
-              <SymbolView name="textformat" size={18} tintColor={theme.text} />
+              <IconTypography size={18} color={theme.text} />
               <ThemedText type="default">Fonts</ThemedText>
-              <SymbolView name="chevron.right" size={14} tintColor={theme.textMuted} />
+              <IconChevronRight size={14} color={theme.textMuted} />
             </Pressable>
           </Animated.View>
         )}
@@ -460,7 +423,7 @@ export default function SettingsScreen() {
           <SectionHeader label="Notifications" />
 
           <SettingRow
-            icon="sun.max"
+            icon={<IconSun size={18} color={theme.text} />}
             label="Morning reminder"
             description={settings.morningReminderEnabled ? `Daily at ${timeLabel(settings.morningReminderHour, settings.morningReminderMinute)}` : 'Start your day with a journal prompt'}
           >
@@ -484,7 +447,7 @@ export default function SettingsScreen() {
           )}
 
           <SettingRow
-            icon="moon.stars"
+            icon={<IconMoonStars size={18} color={theme.text} />}
             label="Evening reminder"
             description={settings.eveningReminderEnabled ? `Daily at ${timeLabel(settings.eveningReminderHour, settings.eveningReminderMinute)}` : 'Reflect on your day'}
           >
@@ -508,7 +471,7 @@ export default function SettingsScreen() {
           )}
 
           <SettingRow
-            icon="flame"
+            icon={<IconFlame size={18} color={theme.text} />}
             label="Streak reminder"
             description="Remind you to write if you haven't by evening"
           >
@@ -522,7 +485,7 @@ export default function SettingsScreen() {
 
           <SectionHeader label="Security" />
           <SettingRow
-            icon="faceid"
+            icon={<IconFingerprint size={18} color={theme.text} />}
             label="App lock"
             description="Require biometric or passcode to open the app"
           >
@@ -540,9 +503,9 @@ export default function SettingsScreen() {
             disabled={backingUp}
             style={[styles.actionRow, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
           >
-            <SymbolView name="externaldrive" size={18} tintColor={theme.text} />
+            <IconDeviceFloppy size={18} color={theme.text} />
             <ThemedText type="default">{backingUp ? 'Exporting...' : 'Export Database'}</ThemedText>
-            <SymbolView name="chevron.right" size={14} tintColor={theme.textMuted} />
+            <IconChevronRight size={14} color={theme.textMuted} />
           </Pressable>
           <ThemedText type="small" themeColor="textMuted" style={styles.actionHint}>
             Export your journal database as a SQLite file for safekeeping
@@ -551,74 +514,14 @@ export default function SettingsScreen() {
           <SectionHeader label="Cloud Sync" />
 
           <SettingRow
-            icon="cloud"
+            icon={<IconCloud size={18} color={theme.textMuted} />}
             label="Google Drive backup"
-            description="Automatically back up your journals to Google Drive"
+            description="Coming soon — automatic cloud backup"
           >
-            <Switch
-              value={syncEnabled}
-              onValueChange={handleToggleSync}
-              trackColor={{ false: theme.border, true: theme.primary }}
-              thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
-            />
+            <View style={[styles.badge, { backgroundColor: theme.backgroundElement }]}>
+              <ThemedText type="small" themeColor="textMuted">Soon</ThemedText>
+            </View>
           </SettingRow>
-
-          {showRecovery && recoveryPhrase && (
-            <ThemedView style={[styles.recoveryCard, { backgroundColor: theme.backgroundSelected, borderColor: theme.primary }]}>
-              <SymbolView name="exclamationmark.shield" size={20} tintColor={theme.primary} />
-              <ThemedView style={{ flex: 1, gap: Spacing.one }}>
-                <ThemedText type="default" style={{ fontWeight: '600' }}>Recovery Phrase</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Write down these words. You need them to restore your data.
-                </ThemedText>
-                <ThemedText type="default" style={[styles.recoveryPhrase, { color: theme.primary }]}>
-                  {recoveryPhrase}
-                </ThemedText>
-              </ThemedView>
-            </ThemedView>
-          )}
-
-          {syncEnabled && (
-            <>
-              <SettingRow
-                icon="clock.arrow.circlepath"
-                label="Backup interval"
-                description={`Current: ${syncInterval === 'manual' ? 'Manual only' : syncInterval}`}
-              >
-                <View style={{ flexDirection: 'row', gap: Spacing.one }}>
-                  {(['manual', 'daily', 'weekly', 'monthly'] as BackupInterval[]).map((interval) => (
-                    <Pressable
-                      key={interval}
-                      onPress={() => handleSetInterval(interval)}
-                      style={[
-                        styles.intervalChip,
-                        {
-                          backgroundColor: syncInterval === interval ? theme.primary : theme.backgroundElement,
-                          borderColor: syncInterval === interval ? theme.primary : theme.border,
-                        },
-                      ]}
-                    >
-                      <ThemedText
-                        type="small"
-                        style={{ color: syncInterval === interval ? '#FFFFFF' : theme.text, fontWeight: '500' }}
-                      >
-                        {interval === 'manual' ? 'Manual' : interval.charAt(0).toUpperCase() + interval.slice(1)}
-                      </ThemedText>
-                    </Pressable>
-                  ))}
-                </View>
-              </SettingRow>
-
-              <Pressable
-                onPress={handleSyncNow}
-                disabled={syncing}
-                style={[styles.actionRow, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-              >
-                <SymbolView name="arrow.up.doc" size={18} tintColor={theme.text} />
-                <ThemedText type="default">{syncing ? 'Backing up...' : 'Back Up Now'}</ThemedText>
-              </Pressable>
-            </>
-          )}
 
           <Pressable
             onPress={() => {
@@ -627,12 +530,12 @@ export default function SettingsScreen() {
             }}
             style={[styles.actionRow, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
           >
-            <SymbolView name="info.circle" size={18} tintColor={theme.text} />
+            <IconInfoCircle size={18} color={theme.text} />
             <ThemedText type="default">About MindFlow</ThemedText>
-            <SymbolView name="chevron.right" size={14} tintColor={theme.textMuted} />
+            <IconChevronRight size={14} color={theme.textMuted} />
           </Pressable>
 
-          <SettingRow icon="character.book.closed" label="Writing">
+          <SettingRow icon={<IconBook2 size={18} color={theme.text} />} label="Writing">
             <ThemedText type="small" themeColor="textSecondary">
               Journals stored locally on device
             </ThemedText>
@@ -834,7 +737,10 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
   },
   saveButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
     paddingVertical: Spacing.three,
     borderRadius: Spacing.three,
     marginTop: Spacing.two,
@@ -853,5 +759,10 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     borderWidth: 1,
     borderCurve: 'continuous',
+  },
+  badge: {
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.half,
+    borderRadius: Spacing.two,
   },
 });

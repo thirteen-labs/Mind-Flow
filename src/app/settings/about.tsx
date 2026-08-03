@@ -1,6 +1,6 @@
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { IconChevronLeft, IconArrowUpRight, IconWorld, IconMail, IconLock, IconFileText } from '@tabler/icons-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -17,16 +17,16 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function LinkRow({ icon, label, url }: { icon: string; label: string; url: string }) {
+function LinkRow({ icon: Icon, label, url }: { icon: React.ComponentType<{ size: number; color: string }>; label: string; url: string }) {
   const theme = useTheme();
   return (
     <Pressable
       onPress={() => Linking.openURL(url)}
       style={[styles.linkRow, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
     >
-      <SymbolView name={icon as any} size={18} tintColor={theme.text} />
+      <Icon size={18} color={theme.text} />
       <ThemedText type="default">{label}</ThemedText>
-      <SymbolView name="arrow.up.right" size={14} tintColor={theme.textMuted} />
+      <IconArrowUpRight size={14} color={theme.textMuted} />
     </Pressable>
   );
 }
@@ -38,7 +38,7 @@ export default function AboutScreen() {
     <ThemedView style={{ flex: 1 }}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.back}>
-          <SymbolView name="chevron.left" size={18} tintColor={theme.text} />
+          <IconChevronLeft size={18} color={theme.text} />
         </Pressable>
         <ThemedText type="title">About</ThemedText>
       </View>
@@ -69,10 +69,10 @@ export default function AboutScreen() {
         </ThemedView>
 
         <View style={styles.links}>
-          <LinkRow icon="globe" label="Website" url="https://mindflow.app" />
-          <LinkRow icon="envelope" label="Support" url="mailto:support@mindflow.app" />
-          <LinkRow icon="lock.shield" label="Privacy Policy" url="https://mindflow.app/privacy" />
-          <LinkRow icon="doc.text" label="Terms of Service" url="https://mindflow.app/terms" />
+          <LinkRow icon={IconWorld} label="Website" url="https://mindflow.app" />
+          <LinkRow icon={IconMail} label="Support" url="mailto:support@mindflow.app" />
+          <LinkRow icon={IconLock} label="Privacy Policy" url="https://mindflow.app/privacy" />
+          <LinkRow icon={IconFileText} label="Terms of Service" url="https://mindflow.app/terms" />
         </View>
 
         <ThemedText type="small" themeColor="textMuted" style={styles.footer}>
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.four,
   },
   appName: {
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: '700',
   },
   tagline: {

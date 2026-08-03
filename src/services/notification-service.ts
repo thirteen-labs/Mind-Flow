@@ -91,4 +91,36 @@ export const NotificationService = {
     await Notifications.cancelScheduledNotificationAsync(EVENING_ID);
     await Notifications.cancelScheduledNotificationAsync(STREAK_ID);
   },
+
+  async scheduleEventReminder(eventId: string, title: string, date: string, time: string, minutesBefore: number): Promise<string> {
+    const [year, month, day] = date.split('-').map(Number);
+    const [hours, minutes] = time.split(':').map(Number);
+    const eventDate = new Date(year, month - 1, day, hours, minutes);
+    const reminderDate = new Date(eventDate.getTime() - minutesBefore * 60 * 1000);
+
+    if (reminderDate <= new Date()) {
+      return '';
+    }
+
+    const notificationId = `mindflow-event-${eventId}`;
+    await Notifications.scheduleNotificationAsync({
+      identifier: notificationId,
+      content: {
+        title: `Reminder: ${title}`,
+        body: `Starting in ${minutesBefore} minutes`,
+        sound: undefined,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: reminderDate,
+      },
+    });
+    return notificationId;
+  },
+
+  async cancelEventReminder(notificationId: string): Promise<void> {
+    if (notificationId) {
+      await Notifications.cancelScheduledNotificationAsync(notificationId);
+    }
+  },
 };

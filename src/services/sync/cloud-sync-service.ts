@@ -88,43 +88,15 @@ export const CloudSyncService = {
   },
 
   async backupToDrive(db: SQLiteDatabase): Promise<boolean> {
-    const state = await this.getState(db);
-    if (!state.enabled || !state.isAuthenticated) return false;
-
-    try {
-      await ensureBackupDir();
-      const backupPath = `${BACKUP_DIR}mindflow-backup-encrypted.db`;
-      await FileSystem.copyAsync({ from: DB_PATH, to: backupPath });
-
-      // In production, encrypt with recovery phrase and upload to Google Drive:
-      // 1. Read file as ArrayBuffer
-      // 2. Encrypt with RecoveryPhraseService.encryptBackup()
-      // 3. Upload encrypted data to Google Drive API
-      // 4. Store returned file ID in state
-
-      await this.saveState(db, { lastBackupAt: new Date().toISOString() });
-      return true;
-    } catch {
-      return false;
-    }
+    throw new Error('Google Drive backup is not yet implemented');
   },
 
   async restoreFromDrive(db: SQLiteDatabase, phrase: string): Promise<boolean> {
-    if (!RecoveryPhraseService.validatePhrase(phrase)) return false;
-
-    return true;
+    throw new Error('Google Drive restore is not yet implemented');
   },
 
   async authenticateWithGoogle(db: SQLiteDatabase): Promise<boolean> {
-    // In production:
-    // 1. Launch Google OAuth flow via expo-auth-session
-    // 2. Exchange auth code for access token
-    // 3. Store token (encrypted) in app storage
-    // 4. Set isAuthenticated = true
-
-    // Placeholder implementation:
-    await this.saveState(db, { isAuthenticated: true });
-    return true;
+    throw new Error('Google Drive authentication is not yet implemented');
   },
 
   async signOutFromGoogle(db: SQLiteDatabase): Promise<void> {
@@ -132,18 +104,9 @@ export const CloudSyncService = {
   },
 
   async setBackupInterval(db: SQLiteDatabase, interval: BackupInterval): Promise<void> {
-    await this.saveState(db, { interval });
-
     if (interval !== 'manual') {
-      // In production:
-      // Register background fetch task with expo-background-fetch
-      // The task calls this.backupToDrive() periodically
-      // For daily: registerBackgroundFetchAsync('mindflow-backup', { minimumInterval: 24 * 60 })
-      // For weekly: minimumInterval: 7 * 24 * 60
-      // For monthly: minimumInterval: 30 * 24 * 60
-    } else {
-      // Unregister background fetch
-      // BackgroundFetch.unregisterTaskAsync('mindflow-backup');
+      throw new Error('Automatic backup scheduling is not yet implemented');
     }
+    await this.saveState(db, { interval });
   },
 };

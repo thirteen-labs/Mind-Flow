@@ -6,6 +6,8 @@ export interface JournalEntry {
   content: string;
   word_count: number;
   mood: string | null;
+  is_favorited: number;
+  is_pinned: number;
   created_at: string;
   updated_at: string;
 }
@@ -67,7 +69,7 @@ export const JournalService = {
       'INSERT INTO journals (id, date, content, word_count, mood, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       id, date, '', 0, null, now, now
     );
-    return { id, date, content: '', word_count: 0, mood: null, created_at: now, updated_at: now };
+    return { id, date, content: '', word_count: 0, mood: null, is_favorited: 0, is_pinned: 0, created_at: now, updated_at: now };
   },
 
   async saveJournal(db: SQLiteDatabase, id: string, content: string, wordCount: number): Promise<void> {
@@ -86,7 +88,7 @@ export const JournalService = {
       'INSERT INTO journals (id, date, content, word_count, mood, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       id, date, content, wordCount, null, now, now
     );
-    return { id, date, content, word_count: wordCount, mood: null, created_at: now, updated_at: now };
+    return { id, date, content, word_count: wordCount, mood: null, is_favorited: 0, is_pinned: 0, created_at: now, updated_at: now };
   },
 
   async deleteJournal(db: SQLiteDatabase, id: string): Promise<void> {
@@ -272,5 +274,21 @@ export const JournalService = {
       from, to
     );
     return rows.map((r) => r.date);
+  },
+
+  async toggleFavorite(db: SQLiteDatabase, id: string): Promise<boolean> {
+    const row = await db.getFirstAsync<{ is_favorited: number }>('SELECT is_favorited FROM journals WHERE id = ?', id);
+    if (!row) return false;
+    const newVal = row.is_favorited ? 0 : 1;
+    await db.runAsync('UPDATE journals SET is_favorited = ? WHERE id = ?', newVal, id);
+    return !!newVal;
+  },
+
+  async togglePin(db: SQLiteDatabase, id: string): Promise<boolean> {
+    const row = await db.getFirstAsync<{ is_pinned: number }>('SELECT is_pinned FROM journals WHERE id = ?', id);
+    if (!row) return false;
+    const newVal = row.is_pinned ? 0 : 1;
+    await db.runAsync('UPDATE journals SET is_pinned = ? WHERE id = ?', newVal, id);
+    return !!newVal;
   },
 };

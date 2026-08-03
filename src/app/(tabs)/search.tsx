@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -9,7 +9,17 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { SymbolView } from 'expo-symbols';
+import {
+  IconBulb,
+  IconCalendar,
+  IconChevronDown,
+  IconChevronUp,
+  IconCircleX,
+  IconFileText,
+  IconFilter,
+  IconHelp,
+  IconSearch,
+} from '@tabler/icons-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -213,10 +223,10 @@ export default function SearchScreen() {
     { key: 'year', label: 'This Year' },
   ];
 
-  const typeFilters: { key: FilterType; label: string; icon: string }[] = [
-    { key: 'note', label: 'Notes', icon: 'doc.text' },
-    { key: 'plan', label: 'Plans', icon: 'calendar' },
-    { key: 'idea', label: 'Ideas', icon: 'lightbulb' },
+  const typeFilters: { key: FilterType; label: string; icon: React.ReactNode }[] = [
+    { key: 'note', label: 'Notes', icon: <IconFileText size={14} /> },
+    { key: 'plan', label: 'Plans', icon: <IconCalendar size={14} /> },
+    { key: 'idea', label: 'Ideas', icon: <IconBulb size={14} /> },
   ];
 
   const sortOptions: { key: SortOption; label: string }[] = [
@@ -238,7 +248,7 @@ export default function SearchScreen() {
       {/* Search Bar */}
       <Animated.View entering={FadeInDown.delay(100).springify()}>
         <View style={[styles.searchBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <SymbolView name="magnifyingglass" size={16} tintColor={theme.textMuted} />
+          <IconSearch size={16} color={theme.textMuted} />
           <TextInput
             value={query}
             onChangeText={setQuery}
@@ -251,7 +261,7 @@ export default function SearchScreen() {
           />
           {query.length > 0 && (
             <Pressable onPress={() => setQuery('')}>
-              <SymbolView name="xmark.circle.fill" size={16} tintColor={theme.textMuted} />
+              <IconCircleX size={16} color={theme.textMuted} />
             </Pressable>
           )}
         </View>
@@ -266,9 +276,9 @@ export default function SearchScreen() {
           }}
           style={[styles.filterToggle, { backgroundColor: theme.surface, borderColor: theme.border }]}
         >
-          <SymbolView name="line.3.horizontal.decrease.circle" size={16} tintColor={theme.tint} />
+          <IconFilter size={16} color={theme.tint} />
           <ThemedText type="small" themeColor="tint">Filters</ThemedText>
-          <SymbolView name={showFilters ? "chevron.up" : "chevron.down"} size={12} tintColor={theme.tint} />
+          {showFilters ? <IconChevronUp size={12} color={theme.tint} /> : <IconChevronDown size={12} color={theme.tint} />}
         </Pressable>
       </Animated.View>
 
@@ -291,7 +301,14 @@ export default function SearchScreen() {
                     },
                   ]}
                 >
-                  <SymbolView name={type.icon as any} size={14} tintColor={selectedTypes.includes(type.key) ? '#FFFFFF' : theme.textSecondary} />
+                  {(() => {
+                    const isSelected = selectedTypes.includes(type.key);
+                    const color = isSelected ? '#FFFFFF' : theme.textSecondary;
+                    if (React.isValidElement(type.icon)) {
+                      return React.cloneElement(type.icon as React.ReactElement<{ color?: string }>, { color });
+                    }
+                    return type.icon;
+                  })()}
                   <ThemedText
                     type="small"
                     style={{ color: selectedTypes.includes(type.key) ? '#FFFFFF' : theme.textSecondary, fontWeight: '500' }}
@@ -409,7 +426,7 @@ export default function SearchScreen() {
         </ThemedView>
       ) : !searched ? (
         <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.centered}>
-          <SymbolView name="text.magnifyingglass" size={48} tintColor={theme.textMuted} />
+          <IconSearch size={48} color={theme.textMuted} />
           <ThemedText type="default" themeColor="textSecondary">
             Search your journals
           </ThemedText>
@@ -419,7 +436,7 @@ export default function SearchScreen() {
         </Animated.View>
       ) : results.length === 0 ? (
         <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.centered}>
-          <SymbolView name="questionmark" size={48} tintColor={theme.textMuted} />
+          <IconHelp size={48} color={theme.textMuted} />
           <ThemedText type="default" themeColor="textSecondary">
             No results
           </ThemedText>

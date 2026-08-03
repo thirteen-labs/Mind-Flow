@@ -100,5 +100,40 @@ CREATE INDEX IF NOT EXISTS idx_media_journal ON media(journal_id);
     currentDbVersion = 5;
   }
 
+  if (currentDbVersion < 6) {
+    await db.execAsync(`
+CREATE TABLE IF NOT EXISTS events (
+  id TEXT PRIMARY KEY NOT NULL,
+  title TEXT NOT NULL,
+  date TEXT NOT NULL,
+  start_time TEXT,
+  end_time TEXT,
+  is_all_day INTEGER NOT NULL DEFAULT 0,
+  location TEXT,
+  notes TEXT,
+  color TEXT,
+  repeat TEXT NOT NULL DEFAULT 'never',
+  reminder INTEGER,
+  journal_id TEXT REFERENCES journals(id) ON DELETE SET NULL,
+  notification_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
+CREATE INDEX IF NOT EXISTS idx_events_journal ON events(journal_id);
+`);
+    currentDbVersion = 6;
+  }
+
+  if (currentDbVersion < 7) {
+    await db.execAsync(`
+ALTER TABLE journals ADD COLUMN is_favorited INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE journals ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_journals_favorited ON journals(is_favorited);
+CREATE INDEX IF NOT EXISTS idx_journals_pinned ON journals(is_pinned);
+`);
+    currentDbVersion = 7;
+  }
+
   await db.execAsync(`PRAGMA user_version = ${currentDbVersion}`);
 }

@@ -67,6 +67,19 @@ export function toggleStrikethrough(text: string, start: number, end: number): F
   return wrapSelection(text, start, end, '~~');
 }
 
+export function toggleUnderline(text: string, start: number, end: number): FormatResult {
+  if (start === end) return insertAt(text, start, '<u></u>');
+  return {
+    text: replaceRange(text, start, end, `<u>${text.slice(start, end)}</u>`),
+    cursor: start + text.slice(start, end).length + 7,
+  };
+}
+
+export function toggleHighlight(text: string, start: number, end: number): FormatResult {
+  if (start === end) return insertAt(text, start, '====');
+  return wrapSelection(text, start, end, '==');
+}
+
 export function insertHeading(text: string, pos: number, level: number): FormatResult {
   const prefix = '#'.repeat(level) + ' ';
   return toggleLinePrefix(text, pos, prefix);
@@ -93,8 +106,25 @@ export function insertDivider(text: string, pos: number): FormatResult {
 }
 
 export function insertImage(text: string, start: number, end: number, uri: string, alt?: string): FormatResult {
-  const altText = alt || 'media';
-  const markdown = `![${altText}](${uri})`;
+  const altText = alt || 'image';
+  const markdown = `\n![${altText}](${uri})\n`;
+  return {
+    text: replaceRange(text, start, end, markdown),
+    cursor: start + markdown.length,
+  };
+}
+
+export function insertVideo(text: string, start: number, end: number, uri: string): FormatResult {
+  const markdown = `\n<video src="${uri}" controls width="100%"></video>\n`;
+  return {
+    text: replaceRange(text, start, end, markdown),
+    cursor: start + markdown.length,
+  };
+}
+
+export function insertAudio(text: string, start: number, end: number, uri: string, title?: string): FormatResult {
+  const label = title || 'audio';
+  const markdown = `\n> **${label}**\n> <audio src="${uri}" controls></audio>\n`;
   return {
     text: replaceRange(text, start, end, markdown),
     cursor: start + markdown.length,

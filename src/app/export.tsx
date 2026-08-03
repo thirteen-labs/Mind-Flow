@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { SymbolView } from 'expo-symbols';
+import { IconChevronLeft, IconFileText, IconBraces, IconCheck, IconShare } from '@tabler/icons-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -21,11 +21,11 @@ const RANGE_LABELS: Record<DateRange, string> = {
   all: 'All Entries',
 };
 
-const FORMAT_OPTIONS: { key: ExportFormat; label: string; icon: string; desc: string }[] = [
-  { key: 'markdown', label: 'Markdown', icon: 'doc.text', desc: '.md — Raw text with formatting' },
-  { key: 'html', label: 'HTML', icon: 'doc.richtext', desc: '.html — Styled web page' },
-  { key: 'json', label: 'JSON', icon: 'curlybraces', desc: '.json — Structured data' },
-  { key: 'pdf', label: 'PDF', icon: 'doc.viewfinder', desc: '.pdf — Print-ready document' },
+const FORMAT_OPTIONS: { key: ExportFormat; label: string; icon: React.ComponentType<{ size: number; color: string }>; desc: string }[] = [
+  { key: 'markdown', label: 'Markdown', icon: IconFileText, desc: '.md — Raw text with formatting' },
+  { key: 'html', label: 'HTML', icon: IconFileText, desc: '.html — Styled web page' },
+  { key: 'json', label: 'JSON', icon: IconBraces, desc: '.json — Structured data' },
+  { key: 'pdf', label: 'PDF', icon: IconFileText, desc: '.pdf — Print-ready document' },
 ];
 
 function getDateRange(range: DateRange): { from: string; to: string } | null {
@@ -132,14 +132,14 @@ export default function ExportScreen() {
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.headerAction}>
-          <SymbolView name="chevron.left" size={20} tintColor={theme.tint} />
+          <IconChevronLeft size={20} color={theme.tint} />
           <ThemedText type="default" themeColor="tint">Back</ThemedText>
         </Pressable>
         <ThemedText type="title">Export</ThemedText>
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
           <ThemedText type="default" themeColor="textSecondary" style={styles.sectionTitle}>
             Date Range
@@ -193,7 +193,7 @@ export default function ExportScreen() {
               ]}
             >
               <View style={styles.formatIcon}>
-                <SymbolView name={opt.icon as any} size={22} tintColor={selectedFormats.includes(opt.key) ? theme.primary : theme.textMuted} />
+                <opt.icon size={22} color={selectedFormats.includes(opt.key) ? theme.primary : theme.textMuted} />
               </View>
               <View style={styles.formatInfo}>
                 <ThemedText type="default">{opt.label}</ThemedText>
@@ -207,7 +207,7 @@ export default function ExportScreen() {
                 },
               ]}>
                 {selectedFormats.includes(opt.key) && (
-                  <SymbolView name="checkmark" size={14} tintColor="#FFFFFF" />
+                  <IconCheck size={14} color="#FFFFFF" />
                 )}
               </View>
             </Pressable>
@@ -238,7 +238,7 @@ export default function ExportScreen() {
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
             <>
-              <SymbolView name="square.and.arrow.up" size={20} tintColor="#FFFFFF" />
+              <IconShare size={20} color="#FFFFFF" />
               <Text style={styles.exportButtonText}>
                 Export{selectedFormats.length > 1 ? ` (${selectedFormats.length} formats)` : ''}
               </Text>

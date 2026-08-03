@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { SymbolView } from 'expo-symbols';
+import { IconChevronLeft, IconChevronRight, IconFlame } from '@tabler/icons-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -136,6 +136,7 @@ export default function CalendarScreen() {
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
     >
       <ThemedView style={styles.container}>
         <ThemedText type="title">Calendar</ThemedText>
@@ -160,13 +161,13 @@ export default function CalendarScreen() {
         <ThemedView style={[styles.calendar, { borderColor: theme.border }]}>
           <ThemedView style={styles.monthNav}>
             <Pressable onPress={goBack} style={styles.navButton}>
-              <SymbolView name="chevron.left" size={18} tintColor={theme.text} />
+              <IconChevronLeft size={18} color={theme.text} />
             </Pressable>
             <ThemedText type="default" style={styles.monthTitle}>
               {MONTHS[month]} {year}
             </ThemedText>
             <Pressable onPress={goForward} style={styles.navButton}>
-              <SymbolView name="chevron.right" size={18} tintColor={theme.text} />
+              <IconChevronRight size={18} color={theme.text} />
             </Pressable>
           </ThemedView>
 
@@ -229,7 +230,7 @@ export default function CalendarScreen() {
 
         <ThemedView style={[styles.heatmapCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
           <View style={styles.heatmapHeader}>
-            <SymbolView name="flame.fill" size={16} tintColor={theme.notification} />
+            <IconFlame size={16} color={theme.notification} />
             <ThemedText type="default" style={{ fontWeight: '600' }}>
               {streakCount > 0 ? `${streakCount}-day streak` : 'No active streak'}
             </ThemedText>

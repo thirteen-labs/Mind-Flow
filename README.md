@@ -25,7 +25,7 @@ A beautiful, offline-first journaling app built with Expo. Write freely with mar
 | Database | [expo-sqlite](https://docs.expo.dev/versions/latest/sdk/sqlite/) with FTS5 |
 | Storage | [expo-file-system](https://docs.expo.dev/versions/latest/sdk/filesystem/) |
 | Notifications | [expo-notifications](https://docs.expo.dev/versions/latest/sdk/notifications/) |
-| Icons | [expo-symbols](https://docs.expo.dev/versions/latest/sdk/symbols/) (SF Symbols on iOS, Material on Android) |
+| Icons | [@tabler/icons-react-native](https://tabler.io/icons) (cross-platform) |
 | Fonts | Inter, JetBrains Mono, Playfair Display |
 | Export | [expo-sharing](https://docs.expo.dev/versions/latest/sdk/sharing/), [expo-print](https://docs.expo.dev/versions/latest/sdk/print/) |
 

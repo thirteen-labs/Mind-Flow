@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { SymbolView } from 'expo-symbols';
+import { IconChevronLeft, IconPencil, IconShare, IconSearch } from '@tabler/icons-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MarkdownRenderer } from '@/components/markdown-renderer';
@@ -120,16 +120,16 @@ export default function ReadingScreen() {
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.headerAction}>
-          <SymbolView name="chevron.left" size={20} tintColor={theme.tint} />
+          <IconChevronLeft size={20} color={theme.tint} />
           <ThemedText type="default" themeColor="tint">Back</ThemedText>
         </Pressable>
         <View style={styles.headerActions}>
           <Pressable onPress={() => router.push(`/(tabs)/writer?date=${entry.date}`)} style={styles.headerAction}>
-            <SymbolView name="square.and.pencil" size={18} tintColor={theme.tint} />
+            <IconPencil size={18} color={theme.tint} />
             <ThemedText type="default" themeColor="tint">Edit</ThemedText>
           </Pressable>
           <Pressable onPress={handleExportMenu} style={styles.headerAction}>
-            <SymbolView name="square.and.arrow.up" size={18} tintColor={theme.tint} />
+            <IconShare size={18} color={theme.tint} />
             <ThemedText type="default" themeColor="tint">Export</ThemedText>
           </Pressable>
         </View>
@@ -176,7 +176,7 @@ export default function ReadingScreen() {
           </View>
         ) : (
           <View style={styles.emptyState}>
-            <SymbolView name="doc.text.magnifyingglass" size={40} tintColor={theme.textMuted} />
+            <IconSearch size={40} color={theme.textMuted} />
             <ThemedText type="default" themeColor="textMuted">This entry is empty</ThemedText>
           </View>
         )}
@@ -221,9 +221,9 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.six,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
-    lineHeight: 36,
+    lineHeight: 32,
     marginBottom: Spacing.one,
   },
   meta: {
