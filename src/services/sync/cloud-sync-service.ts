@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -26,13 +26,12 @@ const DEFAULT_SYNC_STATE: SyncState = {
   isAuthenticated: false,
 };
 
-const DB_PATH = `${(FileSystem as any).documentDirectory}SQLite/mindflow.db`;
-const BACKUP_DIR = `${(FileSystem as any).cacheDirectory}backups/`;
+const DB_FILE = new File(Paths.document, 'SQLite', 'mindflow.db');
+const BACKUP_DIR = new Directory(Paths.cache, 'backups');
 
 async function ensureBackupDir(): Promise<void> {
-  const info = await FileSystem.getInfoAsync(BACKUP_DIR);
-  if (!info.exists) {
-    await FileSystem.makeDirectoryAsync(BACKUP_DIR, { intermediates: true });
+  if (!BACKUP_DIR.exists) {
+    BACKUP_DIR.create({ intermediates: true, idempotent: true });
   }
 }
 
@@ -75,13 +74,13 @@ export const CloudSyncService = {
     try {
       await ensureBackupDir();
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const backupPath = `${BACKUP_DIR}mindflow-backup-${timestamp}.db`;
-      await FileSystem.copyAsync({ from: DB_PATH, to: backupPath });
+      const backupFile = new File(BACKUP_DIR, `mindflow-backup-${timestamp}.db`);
+      await DB_FILE.copy(backupFile, { overwrite: true });
 
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(backupPath);
+        await Sharing.shareAsync(backupFile.uri);
       }
-      return backupPath;
+      return backupFile.uri;
     } catch {
       return null;
     }

@@ -10,6 +10,7 @@ export function useJournal(date?: string) {
   const db = useSQLiteContext();
   const [journal, setJournal] = useState<JournalEntry | null>(null);
   const [content, setContent] = useState('');
+  const [title, setTitle] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -35,6 +36,7 @@ export function useJournal(date?: string) {
         setJournal(entry);
         journalRef.current = entry;
         setContent(entry.content);
+        setTitle(entry.title);
       } catch (e) {
         if (mounted) setError(e instanceof Error ? e.message : 'Failed to load journal');
       } finally {
@@ -49,9 +51,10 @@ export function useJournal(date?: string) {
     if (!entry) return;
     try {
       const words = content.trim() ? content.trim().split(/\s+/).length : 0;
-      await JournalService.saveJournal(db, entry.id, content, words);
+      await JournalService.saveJournal(db, entry.id, content, words, title);
       journalRef.current = {
         ...entry,
+        title,
         content,
         word_count: words,
         updated_at: new Date().toISOString(),
@@ -60,7 +63,7 @@ export function useJournal(date?: string) {
     } catch {
       // silently fail — next auto-save will retry
     }
-  }, [db, content]);
+  }, [db, content, title]);
 
   useEffect(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -69,6 +72,17 @@ export function useJournal(date?: string) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
   }, [save]);
+
+  const latestSaveRef = useRef(save);
+  useEffect(() => {
+    latestSaveRef.current = save;
+  }, [save]);
+
+  useEffect(() => {
+    return () => {
+      latestSaveRef.current();
+    };
+  }, []);
 
   const setMood = useCallback(async (mood: string | null) => {
     const entry = journalRef.current;
@@ -89,7 +103,7 @@ export function useJournal(date?: string) {
     setRetryCounter((c) => c + 1);
   }, []);
 
-  return { journal, loading, error, content, setContent, wordCount, save, retry, setMood, isToday };
+  return { journal, loading, error, content, setContent, title, setTitle, wordCount, save, retry, setMood, isToday };
 }
 
 export function useJournalStats() {

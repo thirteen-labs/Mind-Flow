@@ -4,13 +4,14 @@ import { router } from 'expo-router';
 import { IconChevronLeft, IconCheck, IconEraser, IconPencil, IconTrash } from '@tabler/icons-react-native';
 import RNSketchCanvas from '@sourcetoad/react-native-sketch-canvas';
 import * as Haptics from 'expo-haptics';
-import * as FileSystem from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { MediaService } from '@/services/media-service';
+import { openJournal } from '@/services/journal-nav';
 
 const PEN_SIZES = [2, 4, 8, 16];
 const COLORS = ['#000000', '#666666', '#999999', '#208AEF', '#FF453A', '#30D158', '#FF9F0A'];
@@ -59,15 +60,13 @@ export default function CanvasScreen() {
         setSaving(true);
         const timestamp = Date.now();
         const filename = `sketch-${timestamp}.png`;
-        const dir = `${(FileSystem as any).documentDirectory}media`;
-        const dirInfo = await FileSystem.getInfoAsync(dir);
-        if (!dirInfo.exists) {
-          await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+        const dir = new Directory(Paths.document, 'media');
+        if (!dir.exists) {
+          dir.create({ intermediates: true, idempotent: true });
         }
-        const filePath = `${dir}/${filename}`;
-        await FileSystem.writeAsStringAsync(filePath, result.base64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
+        const file = new File(dir, filename);
+        file.write(result.base64, { encoding: 'base64' });
+        const filePath = file.uri;
 
         const media = await MediaService.importMedia(filePath, 'image');
         Alert.alert('Sketch saved', 'Add it to your note?', [
@@ -76,7 +75,7 @@ export default function CanvasScreen() {
             text: 'Add to note',
             onPress: () => {
               router.dismiss();
-              router.push({ pathname: '/(tabs)/writer', params: { sketchUri: media.uri } });
+              openJournal({ sketchUri: media.uri });
             },
           },
         ]);
@@ -194,6 +193,7 @@ export default function CanvasScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 6,
   },
   header: {
     flexDirection: 'row',

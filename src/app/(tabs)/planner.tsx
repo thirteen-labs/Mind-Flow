@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Alert, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { IconChevronLeft, IconChevronRight, IconCalendar, IconCalendarEvent, IconX, IconPlus, IconPencil, IconTrash, IconLink } from '@tabler/icons-react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
@@ -12,6 +13,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { PlannerService, type PlannerEvent, type RepeatType } from '@/services/planner-service';
 import { NotificationService } from '@/services/notification-service';
+import { openJournal } from '@/services/journal-nav';
 
 type TabType = 'day' | 'week' | 'month';
 
@@ -87,7 +89,7 @@ export default function PlannerScreen() {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
 
-  const loadEvents = useCallback(async () => {
+  const loadEvents = async () => {
     try {
       const startOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-01`;
       const endOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
@@ -96,25 +98,39 @@ export default function PlannerScreen() {
     } catch {
       // Silently fail
     }
-  }, [db, year, month, daysInMonth]);
+  };
 
-  useEffect(() => {
-    loadEvents();
-  }, [loadEvents]);
+  useFocusEffect(
+    () => {
+      loadEvents();
+    }
+  );
 
   const navigateDate = useCallback((direction: 'prev' | 'next') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const delta = direction === 'next' ? 1 : -1;
     setCurrentDate(prev => {
       const newDate = new Date(prev);
       if (activeTab === 'day') {
-        newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
+        newDate.setDate(newDate.getDate() + delta);
       } else if (activeTab === 'week') {
-        newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
+        newDate.setDate(newDate.getDate() + delta * 7);
       } else {
-        newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
+        newDate.setMonth(newDate.getMonth() + delta);
       }
       return newDate;
     });
+    if (activeTab !== 'month') {
+      setSelectedDate(prev => {
+        const newSelected = new Date(prev);
+        if (activeTab === 'day') {
+          newSelected.setDate(newSelected.getDate() + delta);
+        } else {
+          newSelected.setDate(newSelected.getDate() + delta * 7);
+        }
+        return newSelected;
+      });
+    }
   }, [activeTab]);
 
   const goToToday = useCallback(() => {
@@ -166,7 +182,7 @@ export default function PlannerScreen() {
     setShowNewEventModal(true);
   }, []);
 
-  const handleSaveEvent = useCallback(async () => {
+  const handleSaveEvent = async () => {
     try {
       if (editingEvent) {
         await PlannerService.updateEvent(db, editingEvent.id, {
@@ -225,9 +241,9 @@ export default function PlannerScreen() {
     } catch {
       Alert.alert('Error', 'Could not save event');
     }
-  }, [db, editingEvent, newEvent, theme.tint, resetForm, loadEvents]);
+  };
 
-  const handleDeleteEvent = useCallback((event: PlannerEvent) => {
+  const handleDeleteEvent = (event: PlannerEvent) => {
     Alert.alert('Delete Event', `Delete "${event.title}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -246,10 +262,14 @@ export default function PlannerScreen() {
         },
       },
     ]);
-  }, [db, loadEvents]);
+  };
 
   const handleOpenJournal = useCallback((journalId: string) => {
-    router.push(`/(tabs)/writer?date=${journalId}`);
+    openJournal({ date: journalId });
+  }, []);
+
+  const openEventDetails = useCallback((eventId: string) => {
+    router.push(`/event/${eventId}` as any);
   }, []);
 
   const renderCalendarDay = useCallback((day: number, index: number) => {
@@ -308,6 +328,7 @@ export default function PlannerScreen() {
           {slotEvents.map(event => (
             <Pressable
               key={event.id}
+              onPress={() => openEventDetails(event.id)}
               onLongPress={() => openEditModal(event)}
               style={[styles.eventBlock, { backgroundColor: event.color || theme.tint }]}
             >
@@ -320,7 +341,7 @@ export default function PlannerScreen() {
         </View>
       </View>
     );
-  }, [events, selectedDate, theme, openEditModal]);
+  }, [events, selectedDate, theme, openEditModal, openEventDetails]);
 
   const renderWeekView = useCallback(() => {
     const startOfWeek = new Date(currentDate);
@@ -333,7 +354,13 @@ export default function PlannerScreen() {
     });
 
     return (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.weekContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        bounces={false}
+        style={styles.weekContainer}
+        contentContainerStyle={styles.weekContent}
+      >
         {weekDays.map((day, index) => {
           const dateStr = formatDate(day);
           const hasEvents = events.some(e => e.date === dateStr);
@@ -403,7 +430,7 @@ export default function PlannerScreen() {
       {/* Header */}
       <Animated.View entering={FadeInDown.springify()}>
         <ThemedView style={styles.header}>
-          <ThemedText type="title">Planner</ThemedText>
+          <ThemedText style={styles.pageTitle}>Planner</ThemedText>
         </ThemedView>
       </Animated.View>
 
@@ -478,11 +505,7 @@ export default function PlannerScreen() {
         </Animated.View>
       )}
 
-      {activeTab === 'week' && (
-        <Animated.View entering={FadeInDown.delay(300).springify()}>
-          {renderWeekView()}
-        </Animated.View>
-      )}
+      {activeTab === 'week' && renderWeekView()}
 
       {/* Today Button */}
       <Animated.View entering={FadeInDown.delay(400).springify()}>
@@ -506,7 +529,7 @@ export default function PlannerScreen() {
           {HOURS.map(hour => renderTimeSlot(hour))}
         </ScrollView>
       ) : (
-        <FlatList
+        <FlashList
           data={dayEvents}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.eventsList}
@@ -525,6 +548,7 @@ export default function PlannerScreen() {
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
               <Pressable
+                onPress={() => openEventDetails(item.id)}
                 onLongPress={() => openEditModal(item)}
                 style={[styles.eventCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
               >
@@ -538,7 +562,7 @@ export default function PlannerScreen() {
                           <IconLink size={14} color={theme.tint} />
                         </Pressable>
                       )}
-                      <Pressable onPress={() => openEditModal(item)} style={styles.eventAction}>
+                      <Pressable onPress={() => openEventDetails(item.id)} style={styles.eventAction}>
                         <IconPencil size={14} color={theme.textMuted} />
                       </Pressable>
                       <Pressable onPress={() => handleDeleteEvent(item)} style={styles.eventAction}>
@@ -577,19 +601,25 @@ export default function PlannerScreen() {
       </Animated.View>
 
       {/* New/Edit Event Modal */}
-      <Modal visible={showNewEventModal} transparent animationType="fade">
-        <Pressable style={styles.modalOverlay} onPress={() => { setShowNewEventModal(false); resetForm(); }}>
-          <Pressable style={[styles.modalContent, { backgroundColor: theme.surface }]} onPress={e => e.stopPropagation()}>
-            <View style={styles.modalHeader}>
-              <ThemedText type="default" style={styles.modalTitle}>
-                {editingEvent ? 'Edit Event' : 'New Event'}
-              </ThemedText>
-              <Pressable onPress={() => { setShowNewEventModal(false); resetForm(); }}>
-                <IconX size={20} color={theme.text} />
-              </Pressable>
-            </View>
+      <Modal visible={showNewEventModal} transparent animationType="fade" onRequestClose={() => { setShowNewEventModal(false); resetForm(); }}>
+        <KeyboardAvoidingView style={styles.modalKav} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={styles.modalOverlay} onPress={() => { Keyboard.dismiss(); setShowNewEventModal(false); resetForm(); }}>
+            <Pressable style={[styles.modalContent, { backgroundColor: theme.surface }]} onPress={e => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <ThemedText type="default" style={styles.modalTitle}>
+                  {editingEvent ? 'Edit Event' : 'New Event'}
+                </ThemedText>
+                <Pressable onPress={() => { Keyboard.dismiss(); setShowNewEventModal(false); resetForm(); }}>
+                  <IconX size={20} color={theme.text} />
+                </Pressable>
+              </View>
 
-            <ScrollView style={styles.modalBody}>
+              <ScrollView
+                style={styles.modalBody}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                automaticallyAdjustKeyboardInsets
+              >
               <View style={styles.inputGroup}>
                 <ThemedText type="small" themeColor="textSecondary">Title</ThemedText>
                 <TextInput
@@ -722,7 +752,7 @@ export default function PlannerScreen() {
 
             <View style={styles.modalFooter}>
               <Pressable
-                onPress={() => { setShowNewEventModal(false); resetForm(); }}
+                onPress={() => { Keyboard.dismiss(); setShowNewEventModal(false); resetForm(); }}
                 style={[styles.cancelButton, { backgroundColor: theme.backgroundElement }]}
               >
                 <ThemedText type="default" themeColor="textMuted">Cancel</ThemedText>
@@ -737,7 +767,8 @@ export default function PlannerScreen() {
               </Pressable>
             </View>
           </Pressable>
-        </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </ThemedView>
   );
@@ -746,11 +777,17 @@ export default function PlannerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 6,
   },
   header: {
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.two,
+  },
+  pageTitle: {
+    fontSize: 24,
+    fontWeight: 700,
+    lineHeight: 30,
   },
   tabBar: {
     flexDirection: 'row',
@@ -839,13 +876,19 @@ const styles = StyleSheet.create({
   weekContainer: {
     paddingHorizontal: Spacing.four,
   },
+  weekContent: {
+    paddingVertical: Spacing.two,
+    gap: Spacing.two,
+    alignItems: 'center',
+  },
   weekDay: {
     width: 48,
     height: 64,
     borderRadius: Spacing.three,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: Spacing.two,
+    marginRight: 0,
+    flexShrink: 0,
     borderCurve: 'continuous',
   },
   weekDayNumber: {
@@ -874,7 +917,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.two,
   },
   eventsTitle: {
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 14,
   },
   timeSlotsContainer: {
     flex: 1,
@@ -967,6 +1011,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  modalKav: {
+    flex: 1,
+  },
   modalContent: {
     width: '90%',
     maxHeight: '85%',
@@ -987,10 +1034,11 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     padding: Spacing.four,
-    gap: Spacing.three,
+    paddingBottom: Spacing.five,
+    gap: Spacing.four,
   },
   inputGroup: {
-    gap: Spacing.one,
+    gap: Spacing.two,
   },
   input: {
     borderWidth: 1,

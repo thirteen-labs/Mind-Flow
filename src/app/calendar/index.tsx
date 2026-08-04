@@ -286,6 +286,7 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
+    paddingTop: 6,
   },
   container: {
     flex: 1,

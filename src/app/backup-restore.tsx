@@ -139,6 +139,7 @@ export default function BackupRestoreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 6,
   },
   scrollContent: {
     paddingHorizontal: Spacing.four,

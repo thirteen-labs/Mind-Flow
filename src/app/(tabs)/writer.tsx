@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
-import { IconChevronLeft, IconMoodHappy } from '@tabler/icons-react-native';
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { IconChevronLeft, IconMoodHappy, IconPencil, IconCheck } from '@tabler/icons-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { MarkdownEditor } from '@/components/editor/markdown-editor';
@@ -12,14 +12,11 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useJournal } from '@/hooks/use-journal';
 import { insertImage } from '@/components/editor/formatting';
+import { consumeJournalParams, type JournalNavParams } from '@/services/journal-nav';
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 function getTodayDate(): string {
@@ -28,13 +25,15 @@ function getTodayDate(): string {
 }
 
 export default function WriterScreen() {
-  const { date, sketchUri } = useLocalSearchParams<{ date: string; sketchUri: string }>();
   const theme = useTheme();
-  const targetDate = date || getTodayDate();
-  const { journal, loading, error, content, setContent, wordCount, retry } = useJournal(targetDate);
+  const [journalParams, setJournalParams] = useState<JournalNavParams>({});
+  const targetDate = journalParams.date || getTodayDate();
+  const { journal, loading, error, content, setContent, title, setTitle, wordCount, save, retry } = useJournal(targetDate);
   const contentRef = useRef(content);
+  const processedSketchRef = useRef<string | null>(null);
   const [selectedMood, setSelectedMood] = useState<string | null>(journal?.mood ?? null);
   const [showMoodPicker, setShowMoodPicker] = useState(false);
+  const [readOnly, setReadOnly] = useState(false);
 
   useEffect(() => {
     contentRef.current = content;
@@ -46,17 +45,38 @@ export default function WriterScreen() {
     }
   }, [error]);
 
+  useFocusEffect(
+    useCallback(() => {
+      const params = consumeJournalParams();
+      setJournalParams(params ?? {});
+    }, [])
+  );
+
   useEffect(() => {
-    if (sketchUri) {
+    const sketchUri = journalParams.sketchUri;
+    if (sketchUri && processedSketchRef.current !== sketchUri) {
+      processedSketchRef.current = sketchUri;
       const newContent = insertImage(contentRef.current, contentRef.current.length, contentRef.current.length, sketchUri);
       setContent(newContent.text);
     }
-  }, [sketchUri, setContent]);
+  }, [journalParams.sketchUri, setContent]);
 
   const handleBack = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    save();
     router.back();
-  }, []);
+  }, [save]);
+
+  const handleSaveToggle = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (readOnly) {
+      setReadOnly(false);
+    } else {
+      Keyboard.dismiss();
+      save();
+      setReadOnly(true);
+    }
+  }, [readOnly, save]);
 
   if (loading) {
     return (
@@ -81,6 +101,10 @@ export default function WriterScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       {/* Header */}
       <ThemedView style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={handleBack} style={styles.headerAction}>
@@ -88,22 +112,40 @@ export default function WriterScreen() {
           <ThemedText type="default" themeColor="tint">Back</ThemedText>
         </Pressable>
         <View style={styles.headerCenter}>
+          <TextInput
+            value={title ?? ''}
+            onChangeText={setTitle}
+            placeholder="Title"
+            placeholderTextColor={theme.textMuted}
+            editable={!readOnly}
+            selectTextOnFocus
+            maxLength={80}
+            style={[styles.titleInput, { color: theme.text, fontFamily: theme.fontFamily }]}
+          />
           <ThemedText type="small" themeColor="textMuted">
-            {formatDate(targetDate)}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textMuted">
-            {wordCount} {wordCount === 1 ? 'word' : 'words'}
+            {formatDate(targetDate)} · {wordCount} {wordCount === 1 ? 'word' : 'words'}
           </ThemedText>
         </View>
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setShowMoodPicker(!showMoodPicker);
-          }}
-          style={styles.headerAction}
-        >
-          <IconMoodHappy size={20} color={selectedMood ? theme.primary : theme.tint} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={handleSaveToggle}
+            style={[styles.headerIconButton, readOnly && { backgroundColor: theme.backgroundElement }]}
+          >
+            {readOnly
+              ? <IconPencil size={20} color={theme.tint} />
+              : <IconCheck size={20} color={theme.tint} />
+            }
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowMoodPicker(!showMoodPicker);
+            }}
+            style={styles.headerIconButton}
+          >
+            <IconMoodHappy size={20} color={selectedMood ? theme.primary : theme.tint} />
+          </Pressable>
+        </View>
       </ThemedView>
 
       {/* Mood Picker */}
@@ -119,8 +161,10 @@ export default function WriterScreen() {
           value={content}
           onChange={setContent}
           placeholder="Start writing your thoughts..."
+          readOnly={readOnly}
         />
       </View>
+      </KeyboardAvoidingView>
     </ThemedView>
   );
 }
@@ -128,6 +172,7 @@ export default function WriterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 6,
   },
   centered: {
     flex: 1,
@@ -150,8 +195,29 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.half,
   },
   headerCenter: {
+    flex: 1,
     alignItems: 'center',
     gap: 2,
+    paddingHorizontal: Spacing.two,
+  },
+  titleInput: {
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+    padding: 0,
+    maxWidth: '100%',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  headerIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   moodContainer: {
     borderBottomWidth: StyleSheet.hairlineWidth,

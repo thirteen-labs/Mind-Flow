@@ -86,7 +86,7 @@ export default function OnboardingScreen() {
   const isLast = page === pages.length - 1;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, paddingTop: 6 }}>
       <ScrollView
         ref={scrollRef}
         horizontal

@@ -11,6 +11,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { JournalService, type JournalEntry } from '@/services/journal-service';
 import { TagService, type Tag } from '@/services/tag-service';
+import { openJournal } from '@/services/journal-nav';
 
 const MOOD_EMOJIS: Record<string, string> = {
   happy: '😊', calm: '😌', grateful: '🥰', thoughtful: '🤔',
@@ -72,7 +73,7 @@ export default function CalendarDayScreen() {
   }
 
   return (
-    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+    <ThemedView style={[styles.container, { paddingTop: insets.top + 6 }]}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.headerAction}>
           <IconChevronLeft size={20} color={theme.tint} />
@@ -85,7 +86,7 @@ export default function CalendarDayScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <ThemedText type="title" style={styles.dateTitle}>{displayDate}</ThemedText>
+        <ThemedText type="title" style={styles.dateTitle}>{entry?.title || displayDate}</ThemedText>
         {isToday && (
           <View style={[styles.todayBadge, { backgroundColor: theme.primary }]}>
             <ThemedText type="small" style={{ color: '#FFFFFF', fontWeight: '600' }}>Today</ThemedText>
@@ -99,7 +100,7 @@ export default function CalendarDayScreen() {
               No journal entry for this day
             </ThemedText>
             <Pressable
-              onPress={() => router.push(`/(tabs)/writer?date=${date}` as any)}
+              onPress={() => openJournal({ date: date as string })}
               style={[styles.createBtn, { backgroundColor: theme.primary }]}
             >
               <IconPencil size={16} color="#FFFFFF" />
@@ -148,7 +149,7 @@ export default function CalendarDayScreen() {
                 <ThemedText type="default" style={{ color: '#FFFFFF', fontWeight: '600' }}>Read</ThemedText>
               </Pressable>
               <Pressable
-                onPress={() => router.push(`/(tabs)/writer?date=${date}` as any)}
+                onPress={() => openJournal({ date: date as string })}
                 style={[styles.actionBtn, { backgroundColor: theme.backgroundElement, borderColor: theme.primary, borderWidth: 1 }]}
               >
                 <IconPencil size={18} color={theme.primary} />

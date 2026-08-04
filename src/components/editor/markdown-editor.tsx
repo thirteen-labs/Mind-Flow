@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -13,6 +13,7 @@ import {
   insertChecklist,
   insertCodeBlock,
   insertDivider,
+  insertFile,
   insertHeading,
   insertImage,
   insertLink,
@@ -37,9 +38,10 @@ interface MarkdownEditorProps {
   value: string;
   onChange: (text: string) => void;
   placeholder?: string;
+  readOnly?: boolean;
 }
 
-export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, placeholder, readOnly = false }: MarkdownEditorProps) {
   const [selection, setSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
@@ -61,6 +63,74 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
     setSelection({ start: result.cursor, end: result.cursor });
     setTimeout(() => inputRef.current?.focus(), 50);
   }, [onChange, selection]);
+
+  const attachImage = useCallback(async (start: number, end: number) => {
+    const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    const media = await MediaService.importMedia(asset.uri, 'image', { fileName: asset.fileName, mimeType: asset.mimeType });
+    apply(insertImage(lastTextRef.current, start, end, media.uri));
+  }, [apply]);
+
+  const attachVideo = useCallback(async (start: number, end: number) => {
+    const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos'],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    const media = await MediaService.importMedia(asset.uri, 'video', { fileName: asset.fileName, mimeType: asset.mimeType });
+    apply(insertVideo(lastTextRef.current, start, end, media.uri));
+  }, [apply]);
+
+  const attachAudio = useCallback(async (start: number, end: number) => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: 'audio/*',
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    const media = await MediaService.importMedia(asset.uri, 'audio', { fileName: asset.name, mimeType: asset.mimeType });
+    const title = asset.name?.replace(/\.[^/.]+$/, '') || 'audio';
+    apply(insertAudio(lastTextRef.current, start, end, media.uri, title));
+  }, [apply]);
+
+  const attachFile = useCallback(async (start: number, end: number) => {
+    const result = await DocumentPicker.getDocumentAsync({
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    const media = await MediaService.importMedia(asset.uri, undefined, { fileName: asset.name, mimeType: asset.mimeType });
+    const title = asset.name?.replace(/\.[^/.]+$/, '') || 'file';
+    apply(insertFile(lastTextRef.current, start, end, media.uri, title));
+  }, [apply]);
+
+  const showAttachOptions = useCallback((includeSketch: boolean) => {
+    const { start, end } = selection;
+    const options: {
+      text: string;
+      onPress?: () => void;
+      style?: 'default' | 'cancel' | 'destructive';
+    }[] = [
+      { text: 'Image', onPress: () => attachImage(start, end) },
+      { text: 'Video', onPress: () => attachVideo(start, end) },
+      { text: 'Audio', onPress: () => attachAudio(start, end) },
+      { text: 'File', onPress: () => attachFile(start, end) },
+    ];
+    if (includeSketch) {
+      options.push({ text: 'Sketch', onPress: () => router.push('/canvas' as any) });
+    }
+    options.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert('Attach Media', 'Choose a media type', options);
+  }, [selection, attachImage, attachVideo, attachAudio, attachFile]);
 
   const handleAction = useCallback((key: string) => {
     const { start, end } = selection;
@@ -111,55 +181,12 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
         return;
       }
       case 'media': {
-        Alert.alert('Attach Media', 'Choose a media type', [
-          {
-            text: 'Image',
-            onPress: async () => {
-              const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-              if (!granted) return;
-              const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ['images'],
-                quality: 0.8,
-              });
-              if (result.canceled || !result.assets?.[0]) return;
-              const media = await MediaService.importMedia(result.assets[0].uri, 'image');
-              apply(insertImage(lastTextRef.current, start, end, media.uri));
-            },
-          },
-          {
-            text: 'Video',
-            onPress: async () => {
-              const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-              if (!granted) return;
-              const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ['videos'],
-                quality: 0.8,
-              });
-              if (result.canceled || !result.assets?.[0]) return;
-              const media = await MediaService.importMedia(result.assets[0].uri, 'video');
-              apply(insertVideo(lastTextRef.current, start, end, media.uri));
-            },
-          },
-          {
-            text: 'Audio',
-            onPress: async () => {
-              const result = await DocumentPicker.getDocumentAsync({
-                type: 'audio/*',
-                copyToCacheDirectory: true,
-              });
-              if (result.canceled || !result.assets?.[0]) return;
-              const media = await MediaService.importMedia(result.assets[0].uri, 'audio');
-              const title = result.assets[0].name?.replace(/\.[^/.]+$/, '') || 'audio';
-              apply(insertAudio(lastTextRef.current, start, end, media.uri, title));
-            },
-          },
-          { text: 'Cancel', style: 'cancel' },
-        ]);
+        showAttachOptions(false);
         return;
       }
       default: return;
     }
-  }, [selection, apply, onChange]);
+  }, [selection, apply, onChange, showAttachOptions]);
 
   const openSheet = useCallback(() => {
     Keyboard.dismiss();
@@ -185,61 +212,21 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
   }, []);
 
   const handleAttach = useCallback(() => {
-    const { start, end } = selection;
-    Alert.alert('Attach Media', 'Choose a media type', [
-      {
-        text: 'Image',
-        onPress: async () => {
-          const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (!granted) return;
-          const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            quality: 0.8,
-          });
-          if (result.canceled || !result.assets?.[0]) return;
-          const media = await MediaService.importMedia(result.assets[0].uri, 'image');
-          apply(insertImage(lastTextRef.current, start, end, media.uri));
-        },
-      },
-      {
-        text: 'Video',
-        onPress: async () => {
-          const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (!granted) return;
-          const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['videos'],
-            quality: 0.8,
-          });
-          if (result.canceled || !result.assets?.[0]) return;
-          const media = await MediaService.importMedia(result.assets[0].uri, 'video');
-          apply(insertVideo(lastTextRef.current, start, end, media.uri));
-        },
-      },
-      {
-        text: 'Audio',
-        onPress: async () => {
-          const result = await DocumentPicker.getDocumentAsync({
-            type: 'audio/*',
-            copyToCacheDirectory: true,
-          });
-          if (result.canceled || !result.assets?.[0]) return;
-          const media = await MediaService.importMedia(result.assets[0].uri, 'audio');
-          const title = result.assets[0].name?.replace(/\.[^/.]+$/, '') || 'audio';
-          apply(insertAudio(lastTextRef.current, start, end, media.uri, title));
-        },
-      },
-      {
-        text: 'Sketch',
-        onPress: () => {
-          router.push('/canvas' as any);
-        },
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  }, [selection, apply]);
+    showAttachOptions(true);
+  }, [showAttachOptions]);
 
   return (
     <View style={styles.container}>
+      {readOnly ? (
+        <ScrollView
+          style={styles.previewArea}
+          contentContainerStyle={styles.previewContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <MarkdownRenderer content={value || ''} />
+        </ScrollView>
+      ) : (
+        <>
       <View style={styles.modeBar}>
         <Pressable
           onPress={handleAttach}
@@ -262,9 +249,13 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
       </View>
 
       {preview ? (
-        <View style={styles.previewArea}>
+        <ScrollView
+          style={styles.previewArea}
+          contentContainerStyle={styles.previewContent}
+          showsVerticalScrollIndicator={false}
+        >
           <MarkdownRenderer content={value || ''} />
-        </View>
+        </ScrollView>
       ) : (
         <>
           <View style={styles.editorArea}>
@@ -281,7 +272,7 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
                 styles.input,
                 { color: theme.text },
               ]}
-              scrollEnabled={false}
+              scrollEnabled
             />
           </View>
 
@@ -365,6 +356,8 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
       </Pressable>
 
       <FormattingSheet sheetRef={sheetRef} onAction={handleAction} />
+        </>
+      )}
     </View>
   );
 }
@@ -389,18 +382,20 @@ const styles = StyleSheet.create({
   },
   editorArea: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
-    paddingBottom: Spacing.one,
   },
   previewArea: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
-    paddingBottom: Spacing.one,
+  },
+  previewContent: {
+    paddingHorizontal: Spacing.four,
+    paddingBottom: Spacing.three,
   },
   input: {
     flex: 1,
+    paddingHorizontal: Spacing.four,
+    paddingTop: 0,
     fontSize: 16,
     lineHeight: 24,
   },

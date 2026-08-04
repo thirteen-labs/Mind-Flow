@@ -135,5 +135,12 @@ CREATE INDEX IF NOT EXISTS idx_journals_pinned ON journals(is_pinned);
     currentDbVersion = 7;
   }
 
+  if (currentDbVersion < 8) {
+    await db.execAsync(`
+ALTER TABLE journals ADD COLUMN title TEXT;
+`);
+    currentDbVersion = 8;
+  }
+
   await db.execAsync(`PRAGMA user_version = ${currentDbVersion}`);
 }

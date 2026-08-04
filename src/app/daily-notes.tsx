@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { IconChevronLeft, IconChevronRight, IconCalendarEvent, IconFileText, IconPlus } from '@tabler/icons-react-native';
@@ -136,7 +137,7 @@ export default function DailyNotesScreen() {
           style={[styles.entryCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
         >
           <View style={styles.entryHeader}>
-            <ThemedText type="small" themeColor="textMuted">{timeStr}</ThemedText>
+            <ThemedText type="small" themeColor="textMuted">{item.title || timeStr}</ThemedText>
           </View>
           <ThemedText type="default" numberOfLines={3}>{item.content}</ThemedText>
           <View style={styles.entryFooter}>
@@ -233,7 +234,7 @@ export default function DailyNotesScreen() {
         </View>
       </Animated.View>
 
-      <FlatList
+      <FlashList
         data={selectedDateEntries}
         renderItem={renderEntry}
         keyExtractor={(item) => item.id}
@@ -273,6 +274,7 @@ export default function DailyNotesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 6,
   },
   header: {
     flexDirection: 'row',

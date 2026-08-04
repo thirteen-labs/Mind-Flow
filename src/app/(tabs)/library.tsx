@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  FlatList,
   Modal,
   Pressable,
   StyleSheet,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import {
   IconCamera,
@@ -92,61 +92,73 @@ export default function LibraryScreen() {
   }, []);
 
   const renderItem = useCallback(
-    ({ item }: { item: Media }) => (
-      <Pressable
-        onPress={() => setPreview(item)}
-        onLongPress={() => handleDelete(item)}
-        style={[styles.cell, { width: CELL_SIZE, height: CELL_SIZE }]}
-      >
-        {item.type === 'image' ? (
-          <Image
-            source={{ uri: item.uri }}
-            style={styles.thumb}
-            contentFit="cover"
-            transition={200}
-          />
-        ) : (
-          <ThemedView type="backgroundElement" style={styles.placeholder}>
-            {item.type === 'video' ? (
-              <IconPlayerPlay size={24} color={theme.textSecondary} />
+    ({ item }: { item: Media[] }) => (
+      <View style={styles.row}>
+        {item.map((media) => (
+          <Pressable
+            key={media.id}
+            onPress={() => setPreview(media)}
+            onLongPress={() => handleDelete(media)}
+            style={[styles.cell, { width: CELL_SIZE, height: CELL_SIZE }]}
+          >
+            {media.type === 'image' ? (
+              <Image
+                source={{ uri: media.uri }}
+                style={styles.thumb}
+                contentFit="cover"
+                transition={200}
+              />
             ) : (
-              <IconMusic size={24} color={theme.textSecondary} />
+              <ThemedView type="backgroundElement" style={styles.placeholder}>
+                {media.type === 'video' ? (
+                  <IconPlayerPlay size={24} color={theme.textSecondary} />
+                ) : (
+                  <IconMusic size={24} color={theme.textSecondary} />
+                )}
+              </ThemedView>
             )}
-          </ThemedView>
-        )}
-        {item.type !== 'image' && (
-          <ThemedView type="surface" style={styles.typeBadge}>
-            <ThemedText type="small" themeColor="textSecondary">
-              {item.type === 'video' ? 'VIDEO' : 'AUDIO'}
-            </ThemedText>
-          </ThemedView>
-        )}
-      </Pressable>
+            {media.type !== 'image' && (
+              <ThemedView type="surface" style={styles.typeBadge}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {media.type === 'video' ? 'VIDEO' : 'AUDIO'}
+                </ThemedText>
+              </ThemedView>
+            )}
+          </Pressable>
+        ))}
+      </View>
     ),
     [theme, handleDelete, CELL_SIZE]
   );
+
+  const rows = useMemo(() => {
+    const result: Media[][] = [];
+    for (let i = 0; i < items.length; i += COLUMNS) {
+      result.push(items.slice(i, i + COLUMNS));
+    }
+    return result;
+  }, [items]);
 
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={styles.header}>
         <ThemedView style={styles.headerRow}>
-          <ThemedText type="title">Library</ThemedText>
+          <ThemedText style={styles.pageTitle}>Library</ThemedText>
           <Pressable onPress={() => setShowImport(true)} style={[styles.importBtn, { backgroundColor: theme.primary }]}>
             <IconPlus size={18} color="#FFFFFF" />
           </Pressable>
         </ThemedView>
-        <ThemedText type="default" themeColor="textSecondary">
+        <ThemedText type="small" themeColor="textSecondary">
           {items.length} {items.length === 1 ? 'item' : 'items'}
         </ThemedText>
       </ThemedView>
 
-      <FlatList
-        data={items}
-        numColumns={COLUMNS}
-        keyExtractor={(item) => item.id}
+      <FlashList
+        data={rows}
+        keyExtractor={(row, index) => row[0]?.id ?? `row-${index}`}
         renderItem={renderItem}
         contentContainerStyle={styles.grid}
-        columnWrapperStyle={styles.row}
+        ItemSeparatorComponent={() => <View style={styles.rowSeparator} />}
         onRefresh={refresh}
         refreshing={loading}
         showsVerticalScrollIndicator={false}
@@ -267,17 +279,23 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 6,
   },
   header: {
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
-    paddingBottom: Spacing.three,
-    gap: Spacing.one,
+    paddingBottom: Spacing.two,
+    gap: Spacing.half,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  pageTitle: {
+    fontSize: 24,
+    fontWeight: 700,
+    lineHeight: 30,
   },
   importBtn: {
     width: 36,
@@ -291,8 +309,11 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.four,
   },
   row: {
+    flexDirection: 'row',
     gap: GAP,
-    marginBottom: GAP,
+  },
+  rowSeparator: {
+    height: GAP,
   },
   cell: {
     borderRadius: Spacing.two,

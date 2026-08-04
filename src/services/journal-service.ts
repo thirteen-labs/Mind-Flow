@@ -3,6 +3,7 @@ import type { SQLiteDatabase, SQLiteBindValue } from 'expo-sqlite';
 export interface JournalEntry {
   id: string;
   date: string;
+  title: string | null;
   content: string;
   word_count: number;
   mood: string | null;
@@ -69,26 +70,26 @@ export const JournalService = {
       'INSERT INTO journals (id, date, content, word_count, mood, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       id, date, '', 0, null, now, now
     );
-    return { id, date, content: '', word_count: 0, mood: null, is_favorited: 0, is_pinned: 0, created_at: now, updated_at: now };
+    return { id, date, title: null, content: '', word_count: 0, mood: null, is_favorited: 0, is_pinned: 0, created_at: now, updated_at: now };
   },
 
-  async saveJournal(db: SQLiteDatabase, id: string, content: string, wordCount: number): Promise<void> {
+  async saveJournal(db: SQLiteDatabase, id: string, content: string, wordCount: number, title?: string | null): Promise<void> {
     await db.runAsync(
-      'UPDATE journals SET content = ?, word_count = ?, updated_at = ? WHERE id = ?',
-      content, wordCount, nowISO(), id
+      'UPDATE journals SET content = ?, word_count = ?, title = ?, updated_at = ? WHERE id = ?',
+      content, wordCount, title ?? null, nowISO(), id
     );
   },
 
-  async createJournal(db: SQLiteDatabase, content: string): Promise<JournalEntry> {
+  async createJournal(db: SQLiteDatabase, content: string, title?: string | null): Promise<JournalEntry> {
     const id = generateId();
     const date = todayDate();
     const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
     const now = nowISO();
     await db.runAsync(
-      'INSERT INTO journals (id, date, content, word_count, mood, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      id, date, content, wordCount, null, now, now
+      'INSERT INTO journals (id, date, title, content, word_count, mood, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      id, date, title ?? null, content, wordCount, null, now, now
     );
-    return { id, date, content, word_count: wordCount, mood: null, is_favorited: 0, is_pinned: 0, created_at: now, updated_at: now };
+    return { id, date, title: title ?? null, content, word_count: wordCount, mood: null, is_favorited: 0, is_pinned: 0, created_at: now, updated_at: now };
   },
 
   async deleteJournal(db: SQLiteDatabase, id: string): Promise<void> {

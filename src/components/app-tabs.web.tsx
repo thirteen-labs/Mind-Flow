@@ -68,10 +68,10 @@ function CustomTabList(props: TabListProps) {
         {props.children}
 
         <View style={styles.actions}>
-          <Pressable onPress={() => router.push('/(tabs)/search')}>
+          <Pressable onPress={() => router.push('/search')}>
             <IconSearch size={18} color={theme.textSecondary} />
           </Pressable>
-          <Pressable onPress={() => router.push('/(tabs)/settings')}>
+          <Pressable onPress={() => router.push('/settings')}>
             <IconSettings2 size={18} color={theme.textSecondary} />
           </Pressable>
         </View>

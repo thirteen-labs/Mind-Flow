@@ -129,7 +129,7 @@ export default function ExportScreen() {
   const range = getDateRange(selectedRange);
 
   return (
-    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+    <ThemedView style={[styles.container, { paddingTop: insets.top + 6 }]}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.headerAction}>
           <IconChevronLeft size={20} color={theme.tint} />

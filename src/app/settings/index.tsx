@@ -14,6 +14,7 @@ import {
   IconBell,
   IconBook2,
   IconCheck,
+  IconChevronLeft,
   IconChevronRight,
   IconCloud,
   IconContrast,
@@ -31,6 +32,7 @@ import {
 import * as LocalAuthentication from 'expo-local-authentication';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemePicker } from '@/components/theme-picker';
 import { ThemedText } from '@/components/themed-text';
@@ -149,7 +151,7 @@ function TemplatesTab() {
   const [templates] = useState<{ id: string; name: string; description: string; isDefault: boolean }[]>([]);
 
   return (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false} automaticallyAdjustKeyboardInsets>
       <ThemedView style={styles.tabContentContainer}>
         {templates.map((template, index) => (
           <Animated.View key={template.id} entering={FadeInDown.delay(index * 50).springify()}>
@@ -187,7 +189,7 @@ function TagsTab() {
   const [newTagName, setNewTagName] = useState('');
 
   return (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false} automaticallyAdjustKeyboardInsets>
       <ThemedView style={styles.tabContentContainer}>
         {/* Search/Create Input */}
         <View style={[styles.tagInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -242,7 +244,7 @@ function RemindersTab() {
   }
 
   return (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false} automaticallyAdjustKeyboardInsets>
       <ThemedView style={styles.tabContentContainer}>
         <SettingRow
           icon={<IconBell size={18} color={theme.text} />}
@@ -288,6 +290,7 @@ function RemindersTab() {
 
 export default function SettingsScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { followSystem, setFollowSystem } = useThemeManager();
   const { settings, loading, update } = useSettings();
   const [activeTab, setActiveTab] = useState<SettingsTab>('themes');
@@ -342,10 +345,16 @@ export default function SettingsScreen() {
   return (
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 6 }]}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
     >
       <ThemedView style={styles.container}>
+        <Pressable onPress={() => router.back()} style={styles.backAction}>
+          <IconChevronLeft size={20} color={theme.tint} />
+          <ThemedText type="default" themeColor="tint">Back</ThemedText>
+        </Pressable>
         <Animated.View entering={FadeInDown.springify()}>
           <ThemedText type="title">Settings</ThemedText>
           <ThemedText type="subtitle" themeColor="textSecondary">
@@ -549,12 +558,20 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
+    paddingTop: 6,
   },
   container: {
     flex: 1,
     paddingVertical: Spacing.four,
     gap: Spacing.three,
     paddingHorizontal: Spacing.four,
+  },
+  backAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    paddingVertical: Spacing.half,
+    alignSelf: 'flex-start',
   },
   tabBar: {
     flexDirection: 'row',

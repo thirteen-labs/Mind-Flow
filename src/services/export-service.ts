@@ -92,11 +92,12 @@ function buildHtmlDocument(
     const date = new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
+    const heading = entry.title || date;
     return `
       <article>
         <header>
-          <h2>${date}</h2>
-          <span class="meta">${entry.word_count} words</span>
+          <h2>${heading}</h2>
+          <span class="meta">${date} · ${entry.word_count} words</span>
         </header>
         <div class="content">${markdownToHtml(entry.content)}</div>
       </article>
@@ -166,6 +167,7 @@ function buildJsonExport(entries: JournalEntry[]): string {
       totalEntries: entries.length,
       entries: entries.map((e) => ({
         date: e.date,
+        title: e.title,
         wordCount: e.word_count,
         content: e.content,
         mood: e.mood,
@@ -196,7 +198,7 @@ export const ExportService = {
             const date = new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', {
               weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
             });
-            return `# ${date}\n\n${e.content}\n\n---\n*${e.word_count} words*\n`;
+            return `# ${e.title || date}\n\n${e.content}\n\n---\n*${e.word_count} words · ${date}*\n`;
           })
           .join('\n\n');
         break;

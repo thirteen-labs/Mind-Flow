@@ -34,6 +34,13 @@ function insertAt(text: string, pos: number, insertion: string): FormatResult {
   };
 }
 
+function insertMarkerPair(text: string, pos: number, left: string, right: string): FormatResult {
+  return {
+    text: replaceRange(text, pos, pos, `${left}${right}`),
+    cursor: pos + left.length,
+  };
+}
+
 function toggleLinePrefix(text: string, pos: number, prefix: string): FormatResult {
   const lineStart = getLineStart(text, pos);
   const lineEnd = getLineEnd(text, pos);
@@ -48,27 +55,27 @@ function toggleLinePrefix(text: string, pos: number, prefix: string): FormatResu
 }
 
 export function toggleBold(text: string, start: number, end: number): FormatResult {
-  if (start === end) return insertAt(text, start, '****');
+  if (start === end) return insertMarkerPair(text, start, '**', '**');
   return wrapSelection(text, start, end, '**');
 }
 
 export function toggleItalic(text: string, start: number, end: number): FormatResult {
-  if (start === end) return insertAt(text, start, '__');
+  if (start === end) return insertMarkerPair(text, start, '_', '_');
   return wrapSelection(text, start, end, '_');
 }
 
 export function toggleInlineCode(text: string, start: number, end: number): FormatResult {
-  if (start === end) return insertAt(text, start, '``');
+  if (start === end) return insertMarkerPair(text, start, '`', '`');
   return wrapSelection(text, start, end, '`');
 }
 
 export function toggleStrikethrough(text: string, start: number, end: number): FormatResult {
-  if (start === end) return insertAt(text, start, '~~~~');
+  if (start === end) return insertMarkerPair(text, start, '~~', '~~');
   return wrapSelection(text, start, end, '~~');
 }
 
 export function toggleUnderline(text: string, start: number, end: number): FormatResult {
-  if (start === end) return insertAt(text, start, '<u></u>');
+  if (start === end) return insertMarkerPair(text, start, '<u>', '</u>');
   return {
     text: replaceRange(text, start, end, `<u>${text.slice(start, end)}</u>`),
     cursor: start + text.slice(start, end).length + 7,
@@ -76,13 +83,27 @@ export function toggleUnderline(text: string, start: number, end: number): Forma
 }
 
 export function toggleHighlight(text: string, start: number, end: number): FormatResult {
-  if (start === end) return insertAt(text, start, '====');
+  if (start === end) return insertMarkerPair(text, start, '==', '==');
   return wrapSelection(text, start, end, '==');
 }
 
 export function insertHeading(text: string, pos: number, level: number): FormatResult {
+  const lineStart = getLineStart(text, pos);
+  const lineEnd = getLineEnd(text, pos);
+  const line = text.slice(lineStart, lineEnd);
+  const existing = line.match(/^(#{1,6})\s+/);
+
+  if (existing && existing[1].length === level) {
+    const prefix = existing[0];
+    const newText = replaceRange(text, lineStart, lineEnd, line.slice(prefix.length));
+    return { text: newText, cursor: Math.max(lineStart, pos - prefix.length) };
+  }
+
+  const stripped = line.replace(/^(#{1,6})\s+/, '');
   const prefix = '#'.repeat(level) + ' ';
-  return toggleLinePrefix(text, pos, prefix);
+  const newText = replaceRange(text, lineStart, lineEnd, `${prefix}${stripped}`);
+  const added = newText.length - (lineEnd - lineStart);
+  return { text: newText, cursor: pos + added };
 }
 
 export function insertBlockquote(text: string, pos: number): FormatResult {
@@ -137,6 +158,15 @@ export function insertLink(text: string, start: number, end: number, url?: strin
   const selected = text.slice(start, end) || 'link text';
   const href = url || 'https://';
   const markdown = `[${selected}](${href})`;
+  return {
+    text: replaceRange(text, start, end, markdown),
+    cursor: start + markdown.length,
+  };
+}
+
+export function insertFile(text: string, start: number, end: number, uri: string, name?: string): FormatResult {
+  const label = name || 'file';
+  const markdown = `\n[${label}](${uri})\n`;
   return {
     text: replaceRange(text, start, end, markdown),
     cursor: start + markdown.length,

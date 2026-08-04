@@ -13,6 +13,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { JournalService, type JournalEntry } from '@/services/journal-service';
 import { ExportService } from '@/services/export-service';
+import { openJournal } from '@/services/journal-nav';
 
 export default function NoteViewerScreen() {
   const theme = useTheme();
@@ -50,7 +51,7 @@ export default function NoteViewerScreen() {
     try {
       await Share.share({
         message: entry.content,
-        title: `Journal Entry - ${entry.date}`,
+        title: entry.title ? entry.title : `Journal Entry - ${entry.date}`,
       });
     } catch {
       // Share cancelled
@@ -60,7 +61,7 @@ export default function NoteViewerScreen() {
   const handleEdit = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (entry) {
-      router.push(`/reading?date=${entry.date}`);
+      openJournal({ date: entry.date });
     }
   }, [entry]);
 
@@ -134,7 +135,7 @@ export default function NoteViewerScreen() {
       await ExportService.export({
         entries: [entry],
         format: 'markdown',
-        filename: `journal_${entry.date}`,
+        filename: entry.title ? `journal_${entry.title}` : `journal_${entry.date}`,
         themeColors: {
           background: theme.background,
           text: theme.text,
@@ -193,7 +194,7 @@ export default function NoteViewerScreen() {
             <IconChevronLeft size={20} color={theme.text} />
           </Pressable>
           <ThemedText type="default" numberOfLines={1} style={styles.headerTitle}>
-            {entry.content.split('\n')[0] || 'Journal Entry'}
+            {entry.title || formatDate(entry.date)}
           </ThemedText>
           <Pressable onPress={handleEdit} style={styles.editButton}>
             <IconPencil size={18} color={theme.tint} />
@@ -272,6 +273,7 @@ export default function NoteViewerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 6,
   },
   loadingContainer: {
     flex: 1,

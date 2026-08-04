@@ -62,6 +62,10 @@ function AppContent() {
             options={{ animation: 'slide_from_right', presentation: 'card' }}
           />
           <Stack.Screen
+            name="event/[id]"
+            options={{ animation: 'slide_from_right', presentation: 'card' }}
+          />
+          <Stack.Screen
             name="calendar/[date]"
             options={{ animation: 'slide_from_right', presentation: 'card' }}
           />
@@ -70,7 +74,15 @@ function AppContent() {
             options={{ animation: 'slide_from_right', presentation: 'card' }}
           />
           <Stack.Screen
+            name="settings/index"
+            options={{ animation: 'slide_from_right', presentation: 'card' }}
+          />
+          <Stack.Screen
             name="settings/about"
+            options={{ animation: 'slide_from_right', presentation: 'card' }}
+          />
+          <Stack.Screen
+            name="search"
             options={{ animation: 'slide_from_right', presentation: 'card' }}
           />
           <Stack.Screen

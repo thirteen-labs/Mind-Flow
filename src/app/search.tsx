@@ -1,18 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
   StyleSheet,
   TextInput,
   View,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   IconBulb,
   IconCalendar,
   IconChevronDown,
+  IconChevronLeft,
   IconChevronUp,
   IconCircleX,
   IconFileText,
@@ -85,6 +87,7 @@ function getDateRange(preset: DateRangePreset): { fromDate?: string; toDate?: st
 
 export default function SearchScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const db = useSQLiteContext();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<JournalEntry[]>([]);
@@ -197,8 +200,8 @@ export default function SearchScreen() {
           style={[styles.result, { borderBottomColor: theme.border }]}
         >
           <ThemedView style={styles.resultHeader}>
-            <ThemedText type="small" themeColor="tint">
-              {formatDate(item.date)}
+            <ThemedText type="small" themeColor="tint" numberOfLines={1}>
+              {item.title || formatDate(item.date)}
             </ThemedText>
             <ThemedText type="small" themeColor="textMuted">
               {item.word_count} words
@@ -237,10 +240,14 @@ export default function SearchScreen() {
   ];
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { paddingTop: insets.top + 6 }]}>
       {/* Header */}
       <Animated.View entering={FadeInDown.springify()}>
         <ThemedView style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.headerAction}>
+            <IconChevronLeft size={20} color={theme.tint} />
+            <ThemedText type="default" themeColor="tint">Back</ThemedText>
+          </Pressable>
           <ThemedText type="title">Search</ThemedText>
         </ThemedView>
       </Animated.View>
@@ -324,12 +331,12 @@ export default function SearchScreen() {
           {allTags.length > 0 && (
             <View style={styles.filterSection}>
               <ThemedText type="small" themeColor="textSecondary" style={styles.filterLabel}>Tags</ThemedText>
-              <FlatList
+              <FlashList
                 horizontal
                 data={allTags}
                 keyExtractor={(t) => t.id}
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.tagList}
+                ItemSeparatorComponent={() => <View style={styles.tagSeparator} />}
                 renderItem={({ item: tag }) => {
                   const active = selectedTagIds.includes(tag.id);
                   return (
@@ -448,7 +455,7 @@ export default function SearchScreen() {
           </Pressable>
         </Animated.View>
       ) : (
-        <FlatList
+        <FlashList
           data={results}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
@@ -464,11 +471,20 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 6,
   },
   header: {
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
     paddingBottom: Spacing.three,
+    gap: Spacing.two,
+  },
+  headerAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    paddingVertical: Spacing.half,
+    alignSelf: 'flex-start',
   },
   searchBar: {
     flexDirection: 'row',
@@ -531,9 +547,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderCurve: 'continuous',
   },
-  tagList: {
-    gap: Spacing.two,
-    alignItems: 'center',
+  tagSeparator: {
+    width: Spacing.two,
   },
   tagChip: {
     paddingVertical: Spacing.one + 2,

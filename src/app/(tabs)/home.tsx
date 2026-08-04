@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { IconBulb, IconCalendar, IconChartBar, IconChevronRight, IconFileText, IconFlame, IconBook2, IconPencil, IconSettings2, IconShare, IconUser } from '@tabler/icons-react-native';
@@ -85,26 +85,48 @@ export default function HomeScreen() {
     const date = new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', {
       weekday: 'short', month: 'short', day: 'numeric',
     });
+    const moodEmoji = item.mood ? MOOD_EMOJIS[item.mood] : null;
     return (
-      <Animated.View
-        entering={FadeInDown.delay(index * 50).springify()}
-      >
+      <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.push(`/reading?date=${item.date}`);
           }}
-          style={[styles.entryRow, { borderBottomColor: theme.border }]}
+          style={({ pressed }) => [
+            styles.entryCard,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+            pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+          ]}
         >
-          <View style={styles.entryInfo}>
-            <ThemedText type="default" numberOfLines={1}>{date}</ThemedText>
-            <ThemedText type="small" themeColor="textMuted" numberOfLines={1}>
-              {item.content.slice(0, 80)}{item.content.length > 80 ? '...' : ''}
-            </ThemedText>
+          <View style={styles.entryCardHeader}>
+            <View style={[styles.entryAvatar, { backgroundColor: theme.primary }]}>
+              <ThemedText style={styles.entryAvatarText}>
+                {(item.title || 'N').charAt(0).toUpperCase()}
+              </ThemedText>
+            </View>
+            <View style={styles.entryCardMeta}>
+              <ThemedText type="default" numberOfLines={1} style={styles.entryCardTitle}>
+                {item.title || 'Daily Note'}
+              </ThemedText>
+              <View style={styles.entryCardSub}>
+                <ThemedText type="small" themeColor="textMuted">{date}</ThemedText>
+                <View style={[styles.entryDot, { backgroundColor: theme.border }]} />
+                <ThemedText type="small" themeColor="textMuted">{item.word_count} words</ThemedText>
+              </View>
+            </View>
+            {moodEmoji ? (
+              <ThemedText style={styles.entryMood}>{moodEmoji}</ThemedText>
+            ) : null}
           </View>
-          <View style={styles.entryMeta}>
-            <ThemedText type="small" themeColor="textSecondary">{item.word_count}w</ThemedText>
-            <IconChevronRight size={12} color={theme.textMuted} />
+
+          <ThemedText type="default" themeColor="textSecondary" numberOfLines={3} style={styles.entryCardBody}>
+            {item.content.trim() || 'No content yet'}
+          </ThemedText>
+
+          <View style={[styles.entryCardFooter, { borderTopColor: theme.border }]}>
+            <ThemedText type="small" themeColor="tint">Read note</ThemedText>
+            <IconChevronRight size={14} color={theme.tint} />
           </View>
         </Pressable>
       </Animated.View>
@@ -127,13 +149,13 @@ export default function HomeScreen() {
           <ThemedView style={styles.header}>
             <ThemedView style={styles.greetingRow}>
               <View>
-                <ThemedText type="title">{getGreeting()} {getTimeEmoji()}</ThemedText>
-                <ThemedText type="default" themeColor="textSecondary">How are you feeling today?</ThemedText>
+                <ThemedText style={styles.greetingTitle}>{getGreeting()} {getTimeEmoji()}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">How are you feeling today?</ThemedText>
               </View>
               <Pressable 
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/(tabs)/settings');
+                  router.push('/settings');
                 }}
                 style={[styles.profileButton, { backgroundColor: theme.surface }]}
               >
@@ -178,8 +200,8 @@ export default function HomeScreen() {
                 }}
                 style={[styles.quickActionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
               >
-                <IconPencil size={24} color={theme.tint} />
-                <ThemedText type="default" style={styles.quickActionLabel}>New Note</ThemedText>
+                <IconPencil size={18} color={theme.tint} />
+                <ThemedText type="small" style={styles.quickActionLabel}>New Note</ThemedText>
               </Pressable>
               
               <Pressable
@@ -189,8 +211,8 @@ export default function HomeScreen() {
                 }}
                 style={[styles.quickActionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
               >
-                <IconBulb size={24} color={theme.tint} />
-                <ThemedText type="default" style={styles.quickActionLabel}>New Idea</ThemedText>
+                <IconBulb size={18} color={theme.tint} />
+                <ThemedText type="small" style={styles.quickActionLabel}>New Idea</ThemedText>
               </Pressable>
               
               <Pressable
@@ -200,8 +222,8 @@ export default function HomeScreen() {
                 }}
                 style={[styles.quickActionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
               >
-                <IconCalendar size={24} color={theme.tint} />
-                <ThemedText type="default" style={styles.quickActionLabel}>New Plan</ThemedText>
+                <IconCalendar size={18} color={theme.tint} />
+                <ThemedText type="small" style={styles.quickActionLabel}>New Plan</ThemedText>
               </Pressable>
               
               <Pressable
@@ -211,8 +233,8 @@ export default function HomeScreen() {
                 }}
                 style={[styles.quickActionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
               >
-                <IconFileText size={24} color={theme.tint} />
-                <ThemedText type="default" style={styles.quickActionLabel}>Template</ThemedText>
+                <IconFileText size={18} color={theme.tint} />
+                <ThemedText type="small" style={styles.quickActionLabel}>Template</ThemedText>
               </Pressable>
             </View>
           </ThemedView>
@@ -242,20 +264,20 @@ export default function HomeScreen() {
             ) : (
               <ThemedView style={styles.statsRow}>
                 <ThemedView type="backgroundElement" style={styles.statCard}>
-                  <IconFileText size={20} color={theme.text} />
-                  <ThemedText type="title">{stats?.entries ?? 0}</ThemedText>
+                  <IconFileText size={16} color={theme.text} />
+                  <ThemedText style={styles.statValue}>{stats?.entries ?? 0}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">Entries</ThemedText>
                 </ThemedView>
 
                 <ThemedView type="backgroundElement" style={styles.statCard}>
-                  <IconFlame size={20} color={theme.text} />
-                  <ThemedText type="title">{stats?.streak ?? 0}</ThemedText>
+                  <IconFlame size={16} color={theme.text} />
+                  <ThemedText style={styles.statValue}>{stats?.streak ?? 0}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">Day Streak</ThemedText>
                 </ThemedView>
 
                 <ThemedView type="backgroundElement" style={styles.statCard}>
-                  <IconBook2 size={20} color={theme.text} />
-                  <ThemedText type="title">{stats?.totalWords ?? 0}</ThemedText>
+                  <IconBook2 size={16} color={theme.text} />
+                  <ThemedText style={styles.statValue}>{stats?.totalWords ?? 0}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">Words</ThemedText>
                 </ThemedView>
               </ThemedView>
@@ -282,19 +304,16 @@ export default function HomeScreen() {
                 </ThemedText>
                 <Pressable onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/(tabs)/search');
+                  router.push('/search');
                 }}>
                   <ThemedText type="small" themeColor="tint">View all</ThemedText>
                 </Pressable>
               </ThemedView>
-              <ThemedView type="backgroundElement" style={[styles.entriesCard, { borderColor: theme.border }]}>
-                <FlatList
-                  data={recentEntries}
-                  renderItem={renderEntry}
-                  keyExtractor={(item) => item.id}
-                  scrollEnabled={false}
-                />
-              </ThemedView>
+              <View style={styles.entriesList}>
+                {recentEntries.map((item, index) => (
+                  <View key={item.id}>{renderEntry({ item, index })}</View>
+                ))}
+              </View>
             </ThemedView>
           </Animated.View>
         )}
@@ -329,7 +348,7 @@ export default function HomeScreen() {
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/(tabs)/settings');
+                router.push('/settings');
               }}
               style={[styles.linkRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
             >
@@ -347,6 +366,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
+    paddingTop: 6,
   },
   container: {
     flex: 1,
@@ -356,15 +376,20 @@ const styles = StyleSheet.create({
   header: {
     gap: Spacing.two,
   },
+  greetingTitle: {
+    fontSize: 24,
+    fontWeight: 700,
+    lineHeight: 30,
+  },
   greetingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
   profileButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -399,7 +424,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -412,26 +438,31 @@ const styles = StyleSheet.create({
     width: '48%',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.two,
-    padding: Spacing.four,
+    gap: Spacing.one,
+    padding: Spacing.three,
     borderRadius: Spacing.three,
     borderWidth: 1,
     borderCurve: 'continuous',
   },
   quickActionLabel: {
-    fontWeight: '500',
+    fontWeight: '600',
   },
   statsRow: {
     flexDirection: 'row',
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
   statCard: {
     flex: 1,
     alignItems: 'center',
     gap: Spacing.one,
-    padding: Spacing.three,
+    padding: Spacing.two,
     borderRadius: Spacing.three,
     borderCurve: 'continuous',
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: 700,
+    lineHeight: 28,
   },
   errorCard: {
     alignItems: 'center',
@@ -454,6 +485,65 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
     borderCurve: 'continuous',
+  },
+  entriesList: {
+    gap: Spacing.three,
+  },
+  entryCard: {
+    borderRadius: Spacing.four,
+    borderWidth: 1,
+    padding: Spacing.four,
+    gap: Spacing.three,
+    borderCurve: 'continuous',
+  },
+  entryCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  entryAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderCurve: 'continuous',
+  },
+  entryAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 700,
+  },
+  entryCardMeta: {
+    flex: 1,
+    gap: 2,
+  },
+  entryCardTitle: {
+    fontWeight: '600',
+  },
+  entryCardSub: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  entryDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+  },
+  entryMood: {
+    fontSize: 22,
+  },
+  entryCardBody: {
+    lineHeight: 22,
+  },
+  entryCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: Spacing.one,
+    paddingTop: Spacing.two,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   entryRow: {
     flexDirection: 'row',

@@ -77,7 +77,7 @@ export default function InsightsScreen() {
   }
 
   return (
-    <ThemedView style={{ flex: 1 }}>
+    <ThemedView style={{ flex: 1, paddingTop: 6 }}>
       <ThemedView style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.back}>
           <IconChevronLeft size={18} color={theme.text} />

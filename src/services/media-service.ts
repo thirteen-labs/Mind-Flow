@@ -1,12 +1,12 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { Media, MediaType } from '@/constants/media';
 import { MEDIA_DIRECTORY } from '@/constants/media';
 
-const MEDIA_BASE = `${(FileSystem as any).documentDirectory}${MEDIA_DIRECTORY}`;
+const MEDIA_DIR = new Directory(Paths.document, ...MEDIA_DIRECTORY.split('/'));
 
 function uuid(): string {
   return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
@@ -14,16 +14,27 @@ function uuid(): string {
 
 function extFromUri(uri: string): string {
   const match = uri.match(/\.(\w+)(\?|$)/);
-  return match ? match[1].toLowerCase() : 'bin';
+  return match ? match[1].toLowerCase() : '';
+}
+
+function extFromMime(mime: string): string {
+  const map: Record<string, string> = {
+    'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif',
+    'image/webp': 'webp', 'image/heic': 'heic', 'image/heif': 'heif',
+    'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
+    'audio/mp4': 'm4a', 'audio/mpeg': 'mp3', 'audio/wav': 'wav',
+    'audio/ogg': 'ogg', 'application/pdf': 'pdf',
+  };
+  return map[mime] ?? '';
 }
 
 function mimeFromExt(ext: string): string {
   const map: Record<string, string> = {
     jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
     gif: 'image/gif', webp: 'image/webp', heic: 'image/heic',
-    mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm',
-    m4a: 'audio/mp4', mp3: 'audio/mpeg', wav: 'audio/wav',
-    ogg: 'audio/ogg', pdf: 'application/pdf',
+    heif: 'image/heif', mp4: 'video/mp4', mov: 'video/quicktime',
+    webm: 'video/webm', m4a: 'audio/mp4', mp3: 'audio/mpeg',
+    wav: 'audio/wav', ogg: 'audio/ogg', pdf: 'application/pdf',
   };
   return map[ext] ?? 'application/octet-stream';
 }
@@ -37,34 +48,44 @@ function typeFromMime(mime: string): MediaType {
 }
 
 async function ensureDir(): Promise<void> {
-  const info = await FileSystem.getInfoAsync(MEDIA_BASE);
-  if (!info.exists) {
-    await FileSystem.makeDirectoryAsync(MEDIA_BASE, { intermediates: true });
+  if (!MEDIA_DIR.exists) {
+    MEDIA_DIR.create({ intermediates: true, idempotent: true });
   }
 }
 
+function fileForUri(uri: string): File {
+  return new File(uri);
+}
+
 export const MediaService = {
-  async importMedia(sourceUri: string, type?: MediaType): Promise<Media> {
+  async importMedia(sourceUri: string, type?: MediaType, source?: { fileName?: string | null; mimeType?: string | null }): Promise<Media> {
     await ensureDir();
-    const ext = extFromUri(sourceUri);
+
+    let ext = source?.fileName ? extFromUri(source.fileName) : extFromUri(sourceUri);
+    let mimeType = source?.mimeType ?? mimeFromExt(ext);
+
+    if (!ext && mimeType && mimeType !== 'application/octet-stream') {
+      ext = extFromMime(mimeType);
+    }
+    if (!ext) ext = 'bin';
+
     const id = uuid();
     const filename = `${id}.${ext}`;
-    const dest = `${MEDIA_BASE}/${filename}`;
+    const dest = new File(MEDIA_DIR, filename);
 
-    if (sourceUri !== dest) {
-      await FileSystem.copyAsync({ from: sourceUri, to: dest });
+    const src = fileForUri(sourceUri);
+    if (src.uri !== dest.uri) {
+      await src.copy(dest, { overwrite: true });
     }
 
-    const fileInfo: any = await FileSystem.getInfoAsync(dest);
-    const mimeType = mimeFromExt(ext);
     const resolvedType = type ?? typeFromMime(mimeType);
 
     return {
       id,
-      uri: dest,
+      uri: dest.uri,
       type: resolvedType,
       mimeType,
-      sizeBytes: fileInfo.exists ? (fileInfo as any).size ?? null : null,
+      sizeBytes: dest.exists ? dest.size || null : null,
       durationSeconds: null,
       width: null,
       height: null,
@@ -74,16 +95,16 @@ export const MediaService = {
   },
 
   async deleteMedia(uri: string): Promise<void> {
-    const info = await FileSystem.getInfoAsync(uri);
-    if (info.exists) {
-      await FileSystem.deleteAsync(uri, { idempotent: true });
+    const file = fileForUri(uri);
+    if (file.exists) {
+      file.delete();
     }
   },
 
   async getMediaInfo(uri: string): Promise<{ size: number } | null> {
-    const info: any = await FileSystem.getInfoAsync(uri);
-    if (!info.exists) return null;
-    return { size: (info as any).size ?? 0 };
+    const file = fileForUri(uri);
+    if (!file.exists) return null;
+    return { size: file.size };
   },
 
   async pickImage(): Promise<Media | null> {
@@ -97,7 +118,8 @@ export const MediaService = {
     });
 
     if (result.canceled || !result.assets?.[0]) return null;
-    return this.importMedia(result.assets[0].uri, 'image');
+    const asset = result.assets[0];
+    return this.importMedia(asset.uri, 'image', { fileName: asset.fileName, mimeType: asset.mimeType });
   },
 
   async pickVideo(): Promise<Media | null> {
@@ -110,7 +132,8 @@ export const MediaService = {
     });
 
     if (result.canceled || !result.assets?.[0]) return null;
-    return this.importMedia(result.assets[0].uri, 'video');
+    const asset = result.assets[0];
+    return this.importMedia(asset.uri, 'video', { fileName: asset.fileName, mimeType: asset.mimeType });
   },
 
   async takePhoto(): Promise<Media | null> {
@@ -122,7 +145,8 @@ export const MediaService = {
     });
 
     if (result.canceled || !result.assets?.[0]) return null;
-    return this.importMedia(result.assets[0].uri, 'image');
+    const asset = result.assets[0];
+    return this.importMedia(asset.uri, 'image', { fileName: asset.fileName, mimeType: asset.mimeType });
   },
 
   async recordVideo(): Promise<Media | null> {
@@ -134,7 +158,8 @@ export const MediaService = {
     });
 
     if (result.canceled || !result.assets?.[0]) return null;
-    return this.importMedia(result.assets[0].uri, 'video');
+    const asset = result.assets[0];
+    return this.importMedia(asset.uri, 'video', { fileName: asset.fileName, mimeType: asset.mimeType });
   },
 
   async saveMediaRecord(db: SQLiteDatabase, media: Media, journalId?: string): Promise<void> {
@@ -196,33 +221,31 @@ export const MediaService = {
 
 export async function scanAllMedia(): Promise<Media[]> {
   try {
-    const dir = `${(FileSystem as any).documentDirectory}${MEDIA_DIRECTORY}`;
-    const info = await FileSystem.getInfoAsync(dir);
-    if (!info.exists) return [];
+    if (!MEDIA_DIR.exists) return [];
 
-    const files = await FileSystem.readDirectoryAsync(dir);
+    const files = MEDIA_DIR.list();
     const items: Media[] = [];
 
-    for (const file of files) {
-      const uri = `${dir}/${file}`;
-      const ext = extFromUri(file);
+    for (const entry of files) {
+      if (entry instanceof Directory) continue;
+      const file = entry as File;
+      const ext = extFromUri(file.name);
       const mimeType = mimeFromExt(ext);
       const mediaType = typeFromMime(mimeType);
-      const id = file.replace(/\.[^.]+$/, '');
-
-      const fileInfo: any = await FileSystem.getInfoAsync(uri);
+      const id = file.name.replace(/\.[^.]+$/, '');
+      const created = file.creationTime ? new Date(file.creationTime).toISOString() : new Date().toISOString();
 
       items.push({
         id,
-        uri,
+        uri: file.uri,
         type: mediaType,
         mimeType,
-        sizeBytes: fileInfo.exists ? (fileInfo as any).size ?? null : null,
+        sizeBytes: file.exists ? file.size || null : null,
         durationSeconds: null,
         width: null,
         height: null,
         thumbnailUri: null,
-        createdAt: new Date().toISOString(),
+        createdAt: created,
       });
     }
 

@@ -13,6 +13,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { JournalService, type JournalEntry } from '@/services/journal-service';
 import { ExportService } from '@/services/export-service';
 import { TagService, type Tag } from '@/services/tag-service';
+import { openJournal } from '@/services/journal-nav';
 
 function estimateReadingTime(text: string): string {
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
@@ -69,7 +70,9 @@ export default function ReadingScreen() {
       await ExportService.export({
         entries: [loadState.entry],
         format,
-        filename: `mindflow_${loadState.entry.date}`,
+        filename: loadState.entry.title
+          ? `mindflow_${loadState.entry.title}`
+          : `mindflow_${loadState.entry.date}`,
         themeColors: {
           background: theme.background,
           text: theme.text,
@@ -117,14 +120,14 @@ export default function ReadingScreen() {
   });
 
   return (
-    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+    <ThemedView style={[styles.container, { paddingTop: insets.top + 6 }]}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.headerAction}>
           <IconChevronLeft size={20} color={theme.tint} />
           <ThemedText type="default" themeColor="tint">Back</ThemedText>
         </Pressable>
         <View style={styles.headerActions}>
-          <Pressable onPress={() => router.push(`/(tabs)/writer?date=${entry.date}`)} style={styles.headerAction}>
+          <Pressable onPress={() => openJournal({ date: entry.date })} style={styles.headerAction}>
             <IconPencil size={18} color={theme.tint} />
             <ThemedText type="default" themeColor="tint">Edit</ThemedText>
           </Pressable>
@@ -141,7 +144,7 @@ export default function ReadingScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.title, { color: theme.text, fontFamily: theme.fontFamily }]}>
-          {displayDate}
+          {entry.title || displayDate}
         </Text>
 
         <View style={styles.meta}>
@@ -152,6 +155,14 @@ export default function ReadingScreen() {
           <Text style={[styles.metaText, { color: theme.textMuted }]}>
             {estimateReadingTime(entry.content)}
           </Text>
+          {entry.title ? (
+            <>
+              <Text style={[styles.metaDot, { color: theme.textMuted }]}>·</Text>
+              <Text style={[styles.metaText, { color: theme.textMuted }]}>
+                {displayDate}
+              </Text>
+            </>
+          ) : null}
         </View>
 
         {entry.mood ? (

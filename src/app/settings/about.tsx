@@ -35,7 +35,7 @@ export default function AboutScreen() {
   const theme = useTheme();
 
   return (
-    <ThemedView style={{ flex: 1 }}>
+    <ThemedView style={{ flex: 1, paddingTop: 6 }}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.back}>
           <IconChevronLeft size={18} color={theme.text} />
