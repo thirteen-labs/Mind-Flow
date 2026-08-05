@@ -396,7 +396,7 @@ export default function EventDetailScreen() {
 
             {event.journalId ? (
               <Pressable
-                onPress={() => openJournal({ date: event.journalId! })}
+                onPress={() => openJournal({ entryId: event.journalId! })}
                 style={[styles.journalButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
               >
                 <IconLink size={16} color={theme.tint} />

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect } from 'react';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -39,17 +39,18 @@ const TABS: TabDef[] = [
 
 const PILL_HEIGHT = 60;
 const TAB_SIZE = 44;
-const INDICATOR_INSET_X = 7;
+const INDICATOR_INSET_X = 6;
 const INDICATOR_INSET_Y = 8;
+const PILL_PADDING_X = 8;
+const PILL_WIDTH_RATIO = 0.96;
 
 interface TabButtonProps {
   tab: TabDef;
   active: boolean;
   onPress: () => void;
-  onLayout: (e: any) => void;
 }
 
-function TabButton({ tab, active, onPress, onLayout }: TabButtonProps) {
+function TabButton({ tab, active, onPress }: TabButtonProps) {
   const theme = useTheme();
   const progress = useSharedValue(active ? 1 : 0);
 
@@ -65,7 +66,6 @@ function TabButton({ tab, active, onPress, onLayout }: TabButtonProps) {
 
   return (
     <Pressable
-      onLayout={onLayout}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
@@ -82,22 +82,24 @@ function TabButton({ tab, active, onPress, onLayout }: TabButtonProps) {
 export function FloatingTabBar({ state, navigation }: { state: any; navigation: any }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const [measures, setMeasures] = useState<Record<string, { x: number; width: number }>>({});
-  const indicatorX = useSharedValue(0);
-  const indicatorW = useSharedValue(0);
+  const { width: windowWidth } = useWindowDimensions();
 
-  const activeKey = state.routes[state.index]?.key;
+  const pillWidth = windowWidth * PILL_WIDTH_RATIO;
+  const tabWidth = (pillWidth - PILL_PADDING_X * 2) / TABS.length;
+
+  const indicatorX = useSharedValue(PILL_PADDING_X + INDICATOR_INSET_X);
+  const indicatorW = useSharedValue(tabWidth - INDICATOR_INSET_X * 2);
 
   useEffect(() => {
-    const m = measures[activeKey];
-    if (m) {
-      indicatorX.value = withSpring(m.x + INDICATOR_INSET_X, { damping: 18, stiffness: 200 });
-      indicatorW.value = withSpring(m.width - INDICATOR_INSET_X * 2, { damping: 18, stiffness: 200 });
-    }
-  }, [activeKey, measures, indicatorX, indicatorW]);
+    indicatorX.value = withSpring(PILL_PADDING_X + tabWidth * state.index + INDICATOR_INSET_X, {
+      damping: 18,
+      stiffness: 200,
+    });
+    indicatorW.value = withSpring(tabWidth - INDICATOR_INSET_X * 2, { damping: 18, stiffness: 200 });
+  }, [state.index, tabWidth, indicatorX, indicatorW]);
 
   const indicatorStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: indicatorX.value }],
+    left: indicatorX.value,
     width: indicatorW.value,
   }));
 
@@ -108,7 +110,7 @@ export function FloatingTabBar({ state, navigation }: { state: any; navigation: 
           tint={theme.isDark ? 'dark' : 'light'}
           intensity={75}
           blurMethod="dimezisBlurViewSdk31Plus"
-          style={[styles.pill, { borderColor: theme.border }]}
+          style={[styles.pill, { width: pillWidth, borderColor: theme.border }]}
         >
           <Animated.View
             style={[styles.indicator, indicatorStyle, { backgroundColor: `${theme.primary}22` }]}
@@ -132,14 +134,6 @@ export function FloatingTabBar({ state, navigation }: { state: any; navigation: 
                     navigation.navigate(tab.name);
                   }
                 }}
-                onLayout={(e) => {
-                  const { x, width } = e.nativeEvent.layout;
-                  setMeasures((prev) => {
-                    const prevM = prev[key];
-                    if (prevM && prevM.x === x && prevM.width === width) return prev;
-                    return { ...prev, [key]: { x, width } };
-                  });
-                }}
               />
             );
           })}
@@ -162,21 +156,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     height: PILL_HEIGHT,
-    paddingHorizontal: 8,
+    paddingHorizontal: PILL_PADDING_X,
     borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
-    gap: 2,
   },
   tabButton: {
-    width: 52,
+    flex: 1,
     height: TAB_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
   },
   indicator: {
     position: 'absolute',
-    left: 0,
     top: INDICATOR_INSET_Y,
     height: TAB_SIZE - INDICATOR_INSET_Y * 2,
     borderRadius: 999,

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { router, usePathname } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -12,6 +13,7 @@ import {
   IconCalendar,
   IconCalendarFilled,
   IconFeather,
+  IconMenu2,
   IconSearch,
   IconSearchFilled,
   IconSettings2,
@@ -19,10 +21,9 @@ import {
   type Icon,
 } from '@tabler/icons-react-native';
 
-import { ThemedView } from './themed-view';
-
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { toggleSidebar } from '@/store/sidebar';
 
 function withAlpha(hex: string, alpha: number): string {
   if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
@@ -89,11 +90,24 @@ export default function TopBar() {
   const isSettings = pathname.includes('settings');
 
   return (
-    <ThemedView
-      type="surface"
-      style={[styles.container, { borderColor: theme.border }]}
+    <BlurView
+      tint={theme.isDark ? 'dark' : 'light'}
+      intensity={75}
+      blurMethod="dimezisBlurViewSdk31Plus"
+      style={styles.container}
     >
       <View style={styles.brand}>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            toggleSidebar();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Toggle notes sidebar"
+          style={({ pressed }) => [styles.menuButton, pressed && { backgroundColor: withAlpha(theme.primary, 0.14) }]}
+        >
+          <IconMenu2 size={20} color={theme.text} />
+        </Pressable>
         <View style={[styles.logo, { backgroundColor: withAlpha(theme.primary, 0.14) }]}>
           <IconFeather size={16} color={theme.primary} strokeWidth={2.4} />
         </View>
@@ -135,7 +149,7 @@ export default function TopBar() {
           }}
         />
       </View>
-    </ThemedView>
+    </BlurView>
   );
 }
 
@@ -147,15 +161,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomLeftRadius: 26,
-    borderBottomRightRadius: 26,
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+    borderBottomLeftRadius: 6,
+    borderBottomRightRadius: 6,
   },
   brand: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+  },
+  menuButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.one,
   },
   logo: {
     width: 30,

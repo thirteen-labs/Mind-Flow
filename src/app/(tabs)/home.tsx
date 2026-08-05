@@ -2,16 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { IconBulb, IconCalendar, IconChartBar, IconChevronRight, IconFileText, IconFlame, IconBook2, IconPencil, IconSettings2, IconShare, IconUser } from '@tabler/icons-react-native';
+import { IconBulb, IconChartBar, IconChevronRight, IconFileText, IconFlame, IconBook2, IconPencil, IconSettings2, IconShare, IconUser, IconCalendarEvent, IconBrain } from '@tabler/icons-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { StatCard } from '@/components/stat-card';
+import { Spacing, contrastText, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useJournalStats } from '@/hooks/use-journal';
 import { JournalService, type JournalEntry } from '@/services/journal-service';
+import { openJournal, type WriterMode } from '@/services/journal-nav';
 
 const MOOD_EMOJIS: Record<string, string> = {
   happy: '😊', calm: '😌', grateful: '🥰', thoughtful: '🤔',
@@ -49,13 +51,13 @@ export default function HomeScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const [entries, today] = await Promise.all([
+        const [entries, todayEntries] = await Promise.all([
           JournalService.getRecentJournals(db, 5),
-          JournalService.getTodayJournal(db),
+          JournalService.getTodayEntries(db),
         ]);
         if (!mountedRef.current) return;
         setRecentEntries(entries.filter((e) => e.content.trim()));
-        setTodayEntry(today);
+        setTodayEntry(todayEntries.find((e) => e.content.trim()) ?? todayEntries[0] ?? null);
       } catch {
         // silently fail
       }
@@ -67,13 +69,13 @@ export default function HomeScreen() {
     await Promise.all([
       (async () => {
         try {
-          const [entries, today] = await Promise.all([
+          const [entries, todayEntries] = await Promise.all([
             JournalService.getRecentJournals(db, 5),
-            JournalService.getTodayJournal(db),
+            JournalService.getTodayEntries(db),
           ]);
           if (!mountedRef.current) return;
           setRecentEntries(entries.filter((e) => e.content.trim()));
-          setTodayEntry(today);
+          setTodayEntry(todayEntries.find((e) => e.content.trim()) ?? todayEntries[0] ?? null);
         } catch { /* silently fail */ }
       })(),
       retry(),
@@ -91,7 +93,7 @@ export default function HomeScreen() {
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push(`/reading?date=${item.date}`);
+            router.push(`/reading?id=${item.id}`);
           }}
           style={({ pressed }) => [
             styles.entryCard,
@@ -101,7 +103,7 @@ export default function HomeScreen() {
         >
           <View style={styles.entryCardHeader}>
             <View style={[styles.entryAvatar, { backgroundColor: theme.primary }]}>
-              <ThemedText style={styles.entryAvatarText}>
+              <ThemedText style={[styles.entryAvatarText, { color: contrastText(theme.primary) }]}>
                 {(item.title || 'N').charAt(0).toUpperCase()}
               </ThemedText>
             </View>
@@ -170,19 +172,19 @@ export default function HomeScreen() {
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push('/(tabs)/writer');
+              openJournal({ type: 'note' });
             }}
             style={[styles.dailyNoteCard, { backgroundColor: theme.primary }]}
           >
             <View style={styles.dailyNoteContent}>
-              <ThemedText style={styles.dailyNoteTitle}>📝 Daily Note</ThemedText>
-              <ThemedText style={styles.dailyNotePreview}>
+              <ThemedText style={[styles.dailyNoteTitle, { color: contrastText(theme.primary) }]}>📝 Daily Note</ThemedText>
+              <ThemedText style={[styles.dailyNotePreview, { color: contrastText(theme.primary) }]}>
                 {todayEntry?.content 
                   ? todayEntry.content.slice(0, 60) + (todayEntry.content.length > 60 ? '...' : '')
                   : 'Start writing your daily note...'}
               </ThemedText>
             </View>
-            <IconChevronRight size={20} color="#FFFFFF" />
+            <IconChevronRight size={20} color={contrastText(theme.primary)} />
           </Pressable>
         </Animated.View>
 
@@ -193,49 +195,37 @@ export default function HomeScreen() {
               Quick Actions
             </ThemedText>
             <View style={styles.quickActionsGrid}>
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/(tabs)/writer');
-                }}
-                style={[styles.quickActionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-              >
-                <IconPencil size={18} color={theme.tint} />
-                <ThemedText type="small" style={styles.quickActionLabel}>New Note</ThemedText>
-              </Pressable>
-              
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/(tabs)/writer');
-                }}
-                style={[styles.quickActionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-              >
-                <IconBulb size={18} color={theme.tint} />
-                <ThemedText type="small" style={styles.quickActionLabel}>New Idea</ThemedText>
-              </Pressable>
-              
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/(tabs)/planner');
-                }}
-                style={[styles.quickActionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-              >
-                <IconCalendar size={18} color={theme.tint} />
-                <ThemedText type="small" style={styles.quickActionLabel}>New Plan</ThemedText>
-              </Pressable>
-              
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/(tabs)/writer');
-                }}
-                style={[styles.quickActionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-              >
-                <IconFileText size={18} color={theme.tint} />
-                <ThemedText type="small" style={styles.quickActionLabel}>Template</ThemedText>
-              </Pressable>
+              {([
+                { type: 'note', label: 'New Note', icon: IconPencil, color: theme.tint },
+                { type: 'idea', label: 'New Idea', icon: IconBulb, color: theme.warning },
+                { type: 'plan', label: 'New Plan', icon: IconCalendarEvent, color: theme.success },
+                { type: 'thought', label: 'New Thought', icon: IconBrain, color: theme.secondary },
+                { type: 'template', label: 'Template', icon: IconFileText, color: theme.secondary },
+              ] as { type: WriterMode; label: string; icon: typeof IconPencil; color: string }[]).map(
+                (action) => (
+                  <Pressable
+                    key={action.type}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      if (action.type === 'template') {
+                        router.push('/templates' as any);
+                      } else {
+                        openJournal({ type: action.type });
+                      }
+                    }}
+                    style={({ pressed }) => [
+                      styles.quickActionCard,
+                      { backgroundColor: theme.surface, borderColor: theme.border },
+                      pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                    ]}
+                  >
+                    <View style={[styles.quickActionIcon, { backgroundColor: withAlpha(action.color, 0.14) }]}>
+                      <action.icon size={20} color={action.color} strokeWidth={2} />
+                    </View>
+                    <ThemedText type="small" style={styles.quickActionLabel}>{action.label}</ThemedText>
+                  </Pressable>
+                )
+              )}
             </View>
           </ThemedView>
         </Animated.View>
@@ -249,7 +239,7 @@ export default function HomeScreen() {
             {loading ? (
               <ThemedView style={styles.statsRow}>
                 {[1, 2, 3].map((i) => (
-                  <ThemedView key={i} type="backgroundElement" style={styles.statCard}>
+                  <ThemedView key={i} type="backgroundElement" style={styles.statLoading}>
                     <ThemedText type="small" themeColor="textMuted">Loading...</ThemedText>
                   </ThemedView>
                 ))}
@@ -263,23 +253,11 @@ export default function HomeScreen() {
               </ThemedView>
             ) : (
               <ThemedView style={styles.statsRow}>
-                <ThemedView type="backgroundElement" style={styles.statCard}>
-                  <IconFileText size={16} color={theme.text} />
-                  <ThemedText style={styles.statValue}>{stats?.entries ?? 0}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">Entries</ThemedText>
-                </ThemedView>
+                <StatCard icon={<IconFileText size={20} />} value={stats?.entries ?? 0} label="Entries" style={styles.statCard} />
 
-                <ThemedView type="backgroundElement" style={styles.statCard}>
-                  <IconFlame size={16} color={theme.text} />
-                  <ThemedText style={styles.statValue}>{stats?.streak ?? 0}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">Day Streak</ThemedText>
-                </ThemedView>
+                <StatCard icon={<IconFlame size={20} />} color={theme.notification} value={stats?.streak ?? 0} label="Day Streak" style={styles.statCard} />
 
-                <ThemedView type="backgroundElement" style={styles.statCard}>
-                  <IconBook2 size={16} color={theme.text} />
-                  <ThemedText style={styles.statValue}>{stats?.totalWords ?? 0}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">Words</ThemedText>
-                </ThemedView>
+                <StatCard icon={<IconBook2 size={20} />} color={theme.accent} value={stats?.totalWords ?? 0} label="Words" style={styles.statCard} />
               </ThemedView>
             )}
           </ThemedView>
@@ -406,12 +384,10 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   dailyNoteTitle: {
-    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
   },
   dailyNotePreview: {
-    color: '#FFFFFF',
     opacity: 0.9,
     fontSize: 14,
   },
@@ -438,31 +414,37 @@ const styles = StyleSheet.create({
     width: '48%',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.one,
+    gap: Spacing.two,
     padding: Spacing.three,
     borderRadius: Spacing.three,
     borderWidth: 1,
     borderCurve: 'continuous',
+  },
+  quickActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   quickActionLabel: {
     fontWeight: '600',
   },
   statsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
     gap: Spacing.two,
   },
   statCard: {
-    flex: 1,
+    width: '31%',
+  },
+  statLoading: {
+    width: '31%',
     alignItems: 'center',
-    gap: Spacing.one,
     padding: Spacing.two,
     borderRadius: Spacing.three,
     borderCurve: 'continuous',
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: 700,
-    lineHeight: 28,
   },
   errorCard: {
     alignItems: 'center',
@@ -510,7 +492,6 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
   },
   entryAvatarText: {
-    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 700,
   },

@@ -1,12 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 
-import { JournalService, type JournalEntry } from '@/services/journal-service';
+import { JournalService, type JournalEntry, type JournalEntryType } from '@/services/journal-service';
 import { WidgetDataService } from '@/services/widget-data-service';
 
 const AUTOSAVE_DELAY = 800;
 
-export function useJournal(date?: string) {
+function todayDate(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function nowISO(): string {
+  return new Date().toISOString();
+}
+
+export interface UseJournalOptions {
+  entryId?: string;
+  type?: JournalEntryType;
+  date?: string;
+  sessionKey?: string;
+}
+
+export function useJournal({ entryId, type = 'note', date, sessionKey }: UseJournalOptions = {}) {
   const db = useSQLiteContext();
   const [journal, setJournal] = useState<JournalEntry | null>(null);
   const [content, setContent] = useState('');
@@ -15,6 +31,8 @@ export function useJournal(date?: string) {
   const [error, setError] = useState<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const journalRef = useRef<JournalEntry | null>(null);
+  const persistedRef = useRef<string | null>(null);
+  const moodRef = useRef<string | null>(null);
   const loadVersionRef = useRef(0);
   const [retryCounter, setRetryCounter] = useState(0);
 
@@ -23,20 +41,43 @@ export function useJournal(date?: string) {
   useEffect(() => {
     const version = ++loadVersionRef.current;
     let mounted = true;
+    persistedRef.current = null;
+    moodRef.current = null;
     (async () => {
-      if (!mounted) return;
       setLoading(true);
       setError(null);
+      setContent('');
+      setTitle(null);
       try {
-        const entry = isToday
-          ? await JournalService.getTodayJournal(db)
-          : await JournalService.getJournalByDate(db, date!);
-        if (!entry) throw new Error('Journal entry not found');
-        if (!mounted || loadVersionRef.current !== version) return;
-        setJournal(entry);
-        journalRef.current = entry;
-        setContent(entry.content);
-        setTitle(entry.title);
+        if (entryId) {
+          const existing = await JournalService.getJournalById(db, entryId);
+          if (!existing) throw new Error('Journal entry not found');
+          if (!mounted || loadVersionRef.current !== version) return;
+          persistedRef.current = existing.id;
+          moodRef.current = existing.mood;
+          journalRef.current = existing;
+          setJournal(existing);
+          setContent(existing.content);
+          setTitle(existing.title);
+        } else {
+          const draft: JournalEntry = {
+            id: `draft_${sessionKey ?? Date.now()}`,
+            date: date ?? todayDate(),
+            title: null,
+            content: '',
+            word_count: 0,
+            mood: null,
+            is_favorited: 0,
+            is_pinned: 0,
+            is_hidden: 0,
+            entry_type: type,
+            created_at: nowISO(),
+            updated_at: nowISO(),
+          };
+          if (!mounted || loadVersionRef.current !== version) return;
+          journalRef.current = draft;
+          setJournal(draft);
+        }
       } catch (e) {
         if (mounted) setError(e instanceof Error ? e.message : 'Failed to load journal');
       } finally {
@@ -44,21 +85,29 @@ export function useJournal(date?: string) {
       }
     })();
     return () => { mounted = false; };
-  }, [db, date, isToday, retryCounter]);
+  }, [db, entryId, type, date, sessionKey, retryCounter]);
 
   const save = useCallback(async () => {
     const entry = journalRef.current;
     if (!entry) return;
     try {
       const words = content.trim() ? content.trim().split(/\s+/).length : 0;
-      await JournalService.saveJournal(db, entry.id, content, words, title);
-      journalRef.current = {
-        ...entry,
-        title,
-        content,
-        word_count: words,
-        updated_at: new Date().toISOString(),
-      };
+      const persistedId = persistedRef.current;
+      if (persistedId) {
+        await JournalService.saveJournal(db, persistedId, content, words, title);
+        journalRef.current = { ...entry, title, content, word_count: words, updated_at: nowISO() };
+      } else if (content.trim()) {
+        const created = await JournalService.createJournalEntry(db, {
+          date: entry.date,
+          type: entry.entry_type,
+          title,
+          content,
+          mood: moodRef.current,
+        });
+        persistedRef.current = created.id;
+        journalRef.current = { ...created, mood: moodRef.current };
+        setJournal({ ...created, mood: moodRef.current });
+      }
       WidgetDataService.updateFromDb(db).catch(() => {});
     } catch {
       // silently fail — next auto-save will retry
@@ -87,13 +136,17 @@ export function useJournal(date?: string) {
   const setMood = useCallback(async (mood: string | null) => {
     const entry = journalRef.current;
     if (!entry) return;
-    try {
-      await JournalService.updateMood(db, entry.id, mood);
-      const updated = { ...entry, mood };
-      journalRef.current = updated;
-      setJournal(updated);
-    } catch {
-      // silently fail
+    moodRef.current = mood;
+    const updated = { ...entry, mood };
+    journalRef.current = updated;
+    setJournal(updated);
+    const persistedId = persistedRef.current;
+    if (persistedId) {
+      try {
+        await JournalService.updateMood(db, persistedId, mood);
+      } catch {
+        // silently fail
+      }
     }
   }, [db]);
 

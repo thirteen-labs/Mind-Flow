@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { IconChevronLeft, IconStar, IconFlame } from '@tabler/icons-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { IconChevronLeft, IconStar, IconFlame, IconFileText, IconBook2, IconTrophy } from '@tabler/icons-react-native';
 
-import { BarChart, StatCard } from '@/components/insights/bar-chart';
+import { LineChart } from '@/components/insights/line-chart';
+import { StatCard } from '@/components/stat-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Spacing, contrastText } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import {
   JournalService,
@@ -18,7 +20,7 @@ import {
 
 function monthLabel(month: string): string {
   const d = new Date(month + '-01T00:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  return d.toLocaleDateString('en-US', { month: 'short' });
 }
 
 function weekdayLabel(dateStr: string): string {
@@ -27,14 +29,17 @@ function weekdayLabel(dateStr: string): string {
   return days[d.getDay()];
 }
 
+type WindowDays = 7 | 30 | 90;
+
 export default function InsightsScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const db = useSQLiteContext();
   const [insights, setInsights] = useState<Insights | null>(null);
   const [history, setHistory] = useState<WordCountPoint[]>([]);
   const [monthly, setMonthly] = useState<MonthlyActivity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [window, setWindow] = useState<7 | 30 | 90>(30);
+  const [windowDays, setWindowDays] = useState<WindowDays>(30);
 
   useEffect(() => {
     let mounted = true;
@@ -55,9 +60,18 @@ export default function InsightsScreen() {
     return () => { mounted = false; };
   }, [db]);
 
+  const labelInterval = windowDays === 90 ? 7 : windowDays === 30 ? 3 : 1;
   const barData = history
-    .filter((_, i) => i >= history.length - window)
-    .map((p) => ({ label: window <= 7 ? weekdayLabel(p.date) : p.date.slice(5), value: p.words }));
+    .filter((_, i) => i >= history.length - windowDays)
+    .map((p, i) => ({
+      label:
+        windowDays <= 7
+          ? weekdayLabel(p.date)
+          : i % labelInterval === 0 || i === windowDays - 1
+            ? p.date.slice(5)
+            : '',
+      value: p.words,
+    }));
 
   const maxWords = Math.max(...barData.map((d) => d.value), 1);
 
@@ -70,14 +84,14 @@ export default function InsightsScreen() {
 
   if (loading) {
     return (
-      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ThemedView style={[styles.centered, { paddingTop: insets.top }]}>
         <ActivityIndicator color={theme.textMuted} />
       </ThemedView>
     );
   }
 
   return (
-    <ThemedView style={{ flex: 1, paddingTop: 6 }}>
+    <ThemedView style={[styles.root, { paddingTop: insets.top + 6 }]}>
       <ThemedView style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.back}>
           <IconChevronLeft size={18} color={theme.text} />
@@ -91,33 +105,33 @@ export default function InsightsScreen() {
       >
         {insights && (
           <ThemedView style={styles.statsRow}>
-            <StatCard label="Entries" value={insights.totalEntries} />
-            <StatCard label="Total Words" value={insights.totalWords} />
-            <StatCard label="Streak" value={`${insights.currentStreak}d`} />
-            <StatCard label="Best Streak" value={`${insights.longestStreak}d`} />
+            <StatCard icon={<IconFileText size={20} />} value={insights.totalEntries} label="Entries" style={styles.statCard} />
+            <StatCard icon={<IconBook2 size={20} />} color={theme.accent} value={insights.totalWords} label="Total Words" style={styles.statCard} />
+            <StatCard icon={<IconFlame size={20} />} color={theme.notification} value={`${insights.currentStreak}d`} label="Streak" style={styles.statCard} />
+            <StatCard icon={<IconTrophy size={20} />} color={theme.primary} value={`${insights.longestStreak}d`} label="Best Streak" style={styles.statCard} />
           </ThemedView>
         )}
 
-        <ThemedView style={styles.section}>
+        <ThemedView type="backgroundElement" style={styles.sectionCard}>
           <ThemedView style={styles.sectionHeader}>
             <ThemedText type="subtitle">Daily Words</ThemedText>
             <ThemedView style={styles.windowRow}>
               {([7, 30, 90] as const).map((w) => (
                 <Pressable
                   key={w}
-                  onPress={() => setWindow(w)}
+                  onPress={() => setWindowDays(w)}
                   style={[
                     styles.windowBtn,
                     {
-                      backgroundColor: window === w ? theme.primary : 'transparent',
-                      borderColor: window === w ? theme.primary : theme.border,
+                      backgroundColor: windowDays === w ? theme.primary : 'transparent',
+                      borderColor: windowDays === w ? theme.primary : theme.border,
                     },
                   ]}
                 >
                   <ThemedText
                     type="small"
-                    themeColor={window === w ? 'text' : 'textSecondary'}
-                    style={{ color: window === w ? '#FFFFFF' : undefined }}
+                    themeColor={windowDays === w ? 'text' : 'textSecondary'}
+                    style={{ color: windowDays === w ? contrastText(theme.primary) : undefined }}
                   >
                     {w}d
                   </ThemedText>
@@ -125,28 +139,28 @@ export default function InsightsScreen() {
               ))}
             </ThemedView>
           </ThemedView>
-          <BarChart data={barData} max={maxWords} />
+          <LineChart data={barData} max={maxWords} showValues={windowDays === 7} />
         </ThemedView>
 
         {monthlyBars.length > 0 && (
-          <ThemedView style={styles.section}>
+          <ThemedView type="backgroundElement" style={styles.sectionCard}>
             <ThemedText type="subtitle">Monthly Words</ThemedText>
-            <BarChart data={monthlyBars} max={maxMonthly} height={100} />
+            <LineChart data={monthlyBars} max={maxMonthly} height={100} />
           </ThemedView>
         )}
 
         {insights && insights.bestDayOfWeek !== '-' && (
-          <ThemedView style={styles.section}>
+          <ThemedView type="backgroundElement" style={styles.sectionCard}>
             <ThemedText type="subtitle">Writing Habits</ThemedText>
-            <ThemedView type="backgroundElement" style={styles.habitCard}>
+            <ThemedView type="backgroundSelected" style={styles.habitCard}>
               <IconStar size={24} color={theme.accent} />
-              <ThemedText type="default">
+              <ThemedText type="default" style={styles.habitText}>
                 Most productive on <ThemedText type="default" style={{ fontWeight: '600' }}>{insights.bestDayOfWeek}</ThemedText>
               </ThemedText>
             </ThemedView>
-            <ThemedView type="backgroundElement" style={styles.habitCard}>
+            <ThemedView type="backgroundSelected" style={styles.habitCard}>
               <IconFlame size={24} color={theme.notification} />
-              <ThemedText type="default">
+              <ThemedText type="default" style={styles.habitText}>
                 Longest streak: <ThemedText type="default" style={{ fontWeight: '600' }}>{insights.longestStreak} days</ThemedText>
               </ThemedText>
             </ThemedView>
@@ -158,6 +172,14 @@ export default function InsightsScreen() {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -176,20 +198,27 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: Spacing.four,
     paddingBottom: Spacing.six,
-    gap: Spacing.five,
+    gap: Spacing.three,
   },
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'flex-start',
     gap: Spacing.two,
   },
-  section: {
+  statCard: {
+    width: '48%',
+  },
+  sectionCard: {
     gap: Spacing.three,
+    padding: Spacing.four,
+    borderRadius: Spacing.three,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: Spacing.two,
   },
   windowRow: {
     flexDirection: 'row',
@@ -205,7 +234,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    padding: Spacing.four,
-    borderRadius: Spacing.three,
+    padding: Spacing.three,
+    borderRadius: Spacing.two,
+  },
+  habitText: {
+    flex: 1,
   },
 });

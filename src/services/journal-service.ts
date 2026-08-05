@@ -1,5 +1,7 @@
 import type { SQLiteDatabase, SQLiteBindValue } from 'expo-sqlite';
 
+export type JournalEntryType = 'note' | 'idea' | 'plan' | 'thought';
+
 export interface JournalEntry {
   id: string;
   date: string;
@@ -9,8 +11,10 @@ export interface JournalEntry {
   mood: string | null;
   is_favorited: number;
   is_pinned: number;
+  is_hidden: number;
   created_at: string;
   updated_at: string;
+  entry_type: JournalEntryType;
 }
 
 export interface JournalStats {
@@ -56,21 +60,16 @@ function nowISO(): string {
 }
 
 export const JournalService = {
-  async getTodayJournal(db: SQLiteDatabase): Promise<JournalEntry> {
+  async getJournalById(db: SQLiteDatabase, id: string): Promise<JournalEntry | null> {
+    return db.getFirstAsync<JournalEntry>('SELECT * FROM journals WHERE id = ?', id);
+  },
+
+  async getTodayEntries(db: SQLiteDatabase): Promise<JournalEntry[]> {
     const date = todayDate();
-    const existing = await db.getFirstAsync<JournalEntry>(
-      'SELECT * FROM journals WHERE date = ?',
+    return db.getAllAsync<JournalEntry>(
+      'SELECT * FROM journals WHERE date = ? ORDER BY created_at DESC',
       date
     );
-    if (existing) return existing;
-
-    const id = generateId();
-    const now = nowISO();
-    await db.runAsync(
-      'INSERT INTO journals (id, date, content, word_count, mood, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      id, date, '', 0, null, now, now
-    );
-    return { id, date, title: null, content: '', word_count: 0, mood: null, is_favorited: 0, is_pinned: 0, created_at: now, updated_at: now };
   },
 
   async saveJournal(db: SQLiteDatabase, id: string, content: string, wordCount: number, title?: string | null): Promise<void> {
@@ -80,16 +79,34 @@ export const JournalService = {
     );
   },
 
-  async createJournal(db: SQLiteDatabase, content: string, title?: string | null): Promise<JournalEntry> {
+  async createJournalEntry(
+    db: SQLiteDatabase,
+    params: {
+      content: string;
+      title?: string | null;
+      mood?: string | null;
+      type?: JournalEntryType;
+      date?: string;
+    }
+  ): Promise<JournalEntry> {
     const id = generateId();
-    const date = todayDate();
-    const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
+    const date = params.date ?? todayDate();
+    const type = params.type ?? 'note';
+    const wordCount = params.content.trim().split(/\s+/).filter(Boolean).length;
     const now = nowISO();
     await db.runAsync(
-      'INSERT INTO journals (id, date, title, content, word_count, mood, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      id, date, title ?? null, content, wordCount, null, now, now
+      'INSERT INTO journals (id, date, title, content, word_count, mood, entry_type, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      id, date, params.title ?? null, params.content, wordCount, params.mood ?? null, type, now, now
     );
-    return { id, date, title: title ?? null, content, word_count: wordCount, mood: null, is_favorited: 0, is_pinned: 0, created_at: now, updated_at: now };
+    return {
+      id, date, title: params.title ?? null, content: params.content, word_count: wordCount,
+      mood: params.mood ?? null, is_favorited: 0, is_pinned: 0, is_hidden: 0, created_at: now, updated_at: now,
+      entry_type: type,
+    };
+  },
+
+  async createJournal(db: SQLiteDatabase, content: string, title?: string | null): Promise<JournalEntry> {
+    return JournalService.createJournalEntry(db, { content, title, type: 'note' });
   },
 
   async deleteJournal(db: SQLiteDatabase, id: string): Promise<void> {
@@ -104,7 +121,15 @@ export const JournalService = {
   },
 
   async getJournalByDate(db: SQLiteDatabase, date: string): Promise<JournalEntry | null> {
-    return db.getFirstAsync<JournalEntry>('SELECT * FROM journals WHERE date = ?', date);
+    return db.getFirstAsync<JournalEntry>(
+      'SELECT * FROM journals WHERE date = ? ORDER BY created_at DESC LIMIT 1', date
+    );
+  },
+
+  async getJournalsByDate(db: SQLiteDatabase, date: string): Promise<JournalEntry[]> {
+    return db.getAllAsync<JournalEntry>(
+      'SELECT * FROM journals WHERE date = ? ORDER BY created_at ASC', date
+    );
   },
 
   async getJournalsByDateRange(db: SQLiteDatabase, from: string, to: string): Promise<JournalEntry[]> {
@@ -159,7 +184,7 @@ export const JournalService = {
 
   async getJournalStats(db: SQLiteDatabase): Promise<JournalStats> {
     const { entries } = (await db.getFirstAsync<{ entries: number }>(
-      'SELECT COUNT(*) as entries FROM journals'
+      "SELECT COUNT(*) as entries FROM journals WHERE content != ''"
     )) ?? { entries: 0 };
 
     const { totalWords } = (await db.getFirstAsync<{ totalWords: number }>(
@@ -167,10 +192,10 @@ export const JournalService = {
     )) ?? { totalWords: 0 };
 
     const today = todayDate();
-    const todayEntry = await db.getFirstAsync<JournalEntry>(
-      'SELECT * FROM journals WHERE date = ?', today
-    );
-    const todayWordCount = todayEntry?.word_count ?? 0;
+    const { todayWordCount } = (await db.getFirstAsync<{ todayWordCount: number }>(
+      'SELECT COALESCE(SUM(word_count), 0) as todayWordCount FROM journals WHERE date = ?',
+      today
+    )) ?? { todayWordCount: 0 };
 
     const rows = await db.getAllAsync<{ date: string }>(
       'SELECT DISTINCT date FROM journals WHERE content != \'\' ORDER BY date DESC LIMIT 365'
@@ -232,7 +257,10 @@ export const JournalService = {
     const entries = await db.getAllAsync<{ date: string; word_count: number }>(
       'SELECT date, word_count FROM journals WHERE date >= ? ORDER BY date ASC', cutoff
     );
-    const map = new Map(entries.map((e) => [e.date, e.word_count]));
+    const map = new Map<string, number>();
+    for (const e of entries) {
+      map.set(e.date, (map.get(e.date) ?? 0) + e.word_count);
+    }
     const result: WordCountPoint[] = [];
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(start);
@@ -292,4 +320,35 @@ export const JournalService = {
     await db.runAsync('UPDATE journals SET is_pinned = ? WHERE id = ?', newVal, id);
     return !!newVal;
   },
+
+  async getSidebarNotes(db: SQLiteDatabase): Promise<JournalEntry[]> {
+    return db.getAllAsync<JournalEntry>(
+      `SELECT * FROM journals
+       WHERE content != ''
+       ORDER BY is_pinned DESC, is_hidden ASC, updated_at DESC`
+    );
+  },
+
+  async renameJournal(db: SQLiteDatabase, id: string, title: string | null): Promise<void> {
+    await db.runAsync(
+      'UPDATE journals SET title = ?, updated_at = ? WHERE id = ?',
+      title && title.trim() ? title.trim() : null, nowISO(), id
+    );
+  },
+
+  async setHidden(db: SQLiteDatabase, id: string, hidden: boolean): Promise<void> {
+    await db.runAsync(
+      'UPDATE journals SET is_hidden = ?, updated_at = ? WHERE id = ?',
+      hidden ? 1 : 0, nowISO(), id
+    );
+  },
 };
+
+export function getNoteName(entry: Pick<JournalEntry, 'title' | 'content'>): string {
+  if (entry.title && entry.title.trim()) return entry.title.trim();
+  const firstLine = entry.content.trim().split('\n')[0] ?? '';
+  const cleaned = firstLine.replace(/^\s*[#>*\-\d.\s]+/, '').trim();
+  const first = cleaned.split(/\s+/)[0] ?? '';
+  const word = first.replace(/^[^a-zA-Z0-9]+/, '').replace(/[^a-zA-Z0-9_]+$/, '');
+  return word || 'Untitled Note';
+}

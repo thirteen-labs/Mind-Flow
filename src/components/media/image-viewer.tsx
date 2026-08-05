@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Dimensions, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Dimensions, Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { IconX } from '@tabler/icons-react-native';
 
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/theme';
+import { CustomModal } from '@/components/ui/modal';
 
 interface ImageViewerProps {
   uri: string;
@@ -31,7 +32,7 @@ export function ImageViewer({ uri, aspectRatio }: ImageViewerProps) {
         />
       </Pressable>
 
-      <Modal visible={fullscreen} transparent animationType="fade">
+      <CustomModal visible={fullscreen} onDismiss={() => setFullscreen(false)} variant="fullscreen">
         <View style={[styles.overlay, { backgroundColor: theme.background }]}>
           <Pressable
             onPress={() => setFullscreen(false)}
@@ -48,7 +49,7 @@ export function ImageViewer({ uri, aspectRatio }: ImageViewerProps) {
             />
           </Pressable>
         </View>
-      </Modal>
+      </CustomModal>
     </>
   );
 }
@@ -59,8 +60,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   image: {
-    width: '100%',
-    minHeight: 140,
+    width: '94%',
+    height: SCREEN.height * 0.35,
+    alignSelf: 'center',
   },
   overlay: {
     flex: 1,
@@ -86,6 +88,6 @@ const styles = StyleSheet.create({
   },
   fullImage: {
     width: SCREEN.width,
-    height: SCREEN.height,
+    height: SCREEN.height * 0.85,
   },
 });

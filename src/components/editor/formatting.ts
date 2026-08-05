@@ -184,6 +184,16 @@ export function insertTable(text: string, pos: number): FormatResult {
   return insertAt(text, pos, table);
 }
 
+export function toggleColor(text: string, start: number, end: number, color: string): FormatResult {
+  const selected = text.slice(start, end);
+  if (!selected) return { text, cursor: start };
+  const wrapped = `<span style="color:${color}">${selected}</span>`;
+  return {
+    text: replaceRange(text, start, end, wrapped),
+    cursor: start + wrapped.length,
+  };
+}
+
 export interface UndoEntry {
   text: string;
   selection: { start: number; end: number };

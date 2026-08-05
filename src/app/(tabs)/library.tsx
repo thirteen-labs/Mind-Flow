@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  Modal,
   Pressable,
   StyleSheet,
   useWindowDimensions,
@@ -25,6 +24,7 @@ import {
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { CustomModal } from '@/components/ui/modal';
 import { Spacing } from '@/constants/theme';
 import type { Media } from '@/constants/media';
 import { useTheme } from '@/hooks/use-theme';
@@ -177,7 +177,7 @@ export default function LibraryScreen() {
         }
       />
 
-      <Modal visible={!!preview} transparent animationType="fade">
+      <CustomModal visible={!!preview} onDismiss={() => setPreview(null)} variant="fullscreen">
         <View style={[styles.overlay, { backgroundColor: theme.background }]}>
           <Pressable
             onPress={() => setPreview(null)}
@@ -226,7 +226,7 @@ export default function LibraryScreen() {
             </Pressable>
           )}
         </View>
-      </Modal>
+      </CustomModal>
 
       {importing && (
         <View style={[styles.importingOverlay, { backgroundColor: 'rgba(0,0,0,0.3)' }]}>
@@ -234,44 +234,46 @@ export default function LibraryScreen() {
         </View>
       )}
 
-      <Modal visible={showImport} transparent animationType="fade">
-        <Pressable style={styles.sheetOverlay} onPress={() => setShowImport(false)}>
-          <Pressable style={[styles.sheet, { backgroundColor: theme.surface }]}>
-            <ThemedText type="default" style={styles.sheetTitle}>Import Media</ThemedText>
-            <Pressable
-              onPress={() => handleImport(() => MediaService.pickImage())}
-              style={[styles.sheetOption, { borderBottomColor: theme.border }]}
-            >
-              <IconPhoto size={22} color={theme.text} />
-              <ThemedText type="default">Image from Library</ThemedText>
-            </Pressable>
-            <Pressable
-              onPress={() => handleImport(() => MediaService.takePhoto())}
-              style={[styles.sheetOption, { borderBottomColor: theme.border }]}
-            >
-              <IconCamera size={22} color={theme.text} />
-              <ThemedText type="default">Take Photo</ThemedText>
-            </Pressable>
-            <Pressable
-              onPress={() => handleImport(() => MediaService.pickVideo())}
-              style={[styles.sheetOption, { borderBottomColor: theme.border }]}
-            >
-              <IconVideo size={22} color={theme.text} />
-              <ThemedText type="default">Video from Library</ThemedText>
-            </Pressable>
-            <Pressable
-              onPress={() => handleImport(() => MediaService.recordVideo())}
-              style={styles.sheetOption}
-            >
-              <IconVideoPlus size={22} color={theme.text} />
-              <ThemedText type="default">Record Video</ThemedText>
-            </Pressable>
-            <Pressable onPress={() => setShowImport(false)} style={[styles.sheetCancel, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText type="default" themeColor="textMuted">Cancel</ThemedText>
-            </Pressable>
+      <CustomModal
+        visible={showImport}
+        onDismiss={() => setShowImport(false)}
+        variant="sheet"
+        title="Import Media"
+      >
+        <View style={styles.sheetInner}>
+          <Pressable
+            onPress={() => handleImport(() => MediaService.pickImage())}
+            style={[styles.sheetOption, { borderBottomColor: theme.border }]}
+          >
+            <IconPhoto size={22} color={theme.text} />
+            <ThemedText type="default">Image from Library</ThemedText>
           </Pressable>
-        </Pressable>
-      </Modal>
+          <Pressable
+            onPress={() => handleImport(() => MediaService.takePhoto())}
+            style={[styles.sheetOption, { borderBottomColor: theme.border }]}
+          >
+            <IconCamera size={22} color={theme.text} />
+            <ThemedText type="default">Take Photo</ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => handleImport(() => MediaService.pickVideo())}
+            style={[styles.sheetOption, { borderBottomColor: theme.border }]}
+          >
+            <IconVideo size={22} color={theme.text} />
+            <ThemedText type="default">Video from Library</ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => handleImport(() => MediaService.recordVideo())}
+            style={styles.sheetOption}
+          >
+            <IconVideoPlus size={22} color={theme.text} />
+            <ThemedText type="default">Record Video</ThemedText>
+          </Pressable>
+          <Pressable onPress={() => setShowImport(false)} style={[styles.sheetCancel, { backgroundColor: theme.backgroundElement }]}>
+            <ThemedText type="default" themeColor="textMuted">Cancel</ThemedText>
+          </Pressable>
+        </View>
+      </CustomModal>
     </ThemedView>
   );
 }
@@ -399,21 +401,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  sheetOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheet: {
-    borderTopLeftRadius: Spacing.four,
-    borderTopRightRadius: Spacing.four,
+  sheetInner: {
     padding: Spacing.four,
-    paddingBottom: Spacing.six,
+    paddingBottom: Spacing.two,
     gap: Spacing.two,
-  },
-  sheetTitle: {
-    fontWeight: '600',
-    marginBottom: Spacing.two,
   },
   sheetOption: {
     flexDirection: 'row',

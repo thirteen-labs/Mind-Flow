@@ -75,7 +75,7 @@ export default function CanvasScreen() {
             text: 'Add to note',
             onPress: () => {
               router.dismiss();
-              openJournal({ sketchUri: media.uri });
+              openJournal({ type: 'note', sketchUri: media.uri });
             },
           },
         ]);

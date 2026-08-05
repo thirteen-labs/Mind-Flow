@@ -4,7 +4,7 @@ import * as Sharing from 'expo-sharing';
 
 import type { JournalEntry } from '@/services/journal-service';
 
-export type ExportFormat = 'markdown' | 'html' | 'json' | 'pdf';
+export type ExportFormat = 'markdown' | 'html' | 'json' | 'pdf' | 'txt';
 
 interface ExportOptions {
   entries: JournalEntry[];
@@ -220,11 +220,24 @@ export const ExportService = {
         mimeType = 'application/pdf';
         const html = buildHtmlDocument(entries, themeColors);
         const { uri } = await Print.printToFileAsync({ html });
-        // printToFileAsync returns a URI, we can share it directly
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(uri, { mimeType, UTI: 'com.adobe.pdf' });
         }
         return uri;
+      }
+      case 'txt': {
+        extension = 'txt';
+        mimeType = 'text/plain';
+        content = entries
+          .map((e) => {
+            const date = new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', {
+              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+            });
+            const heading = e.title || date;
+            return `${heading}\n${'='.repeat(heading.length)}\n\n${e.content}\n\n[${e.word_count} words · ${date}]\n`;
+          })
+          .join('\n\n');
+        break;
       }
       default:
         throw new Error(`Unsupported format: ${format}`);

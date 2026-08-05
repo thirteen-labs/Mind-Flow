@@ -9,16 +9,15 @@ import { useThemeManager } from '@/hooks/use-theme';
 
 function ThemeCard({ theme, isSelected }: { theme: Theme; isSelected: boolean }) {
   return (
-    <Pressable>
-      <ThemedView
-        style={[
-          styles.card,
-          {
-            borderColor: isSelected ? theme.primary : 'transparent',
-            borderWidth: 2,
-          },
-        ]}
-      >
+    <ThemedView
+      style={[
+        styles.card,
+        {
+          borderColor: isSelected ? theme.primary : 'transparent',
+          borderWidth: 2,
+        },
+      ]}
+    >
         <View style={[styles.previewRow]}>
           <View style={[styles.previewCircle, { backgroundColor: theme.primary }]} />
           <View style={[styles.previewCircle, { backgroundColor: theme.secondary }]} />
@@ -78,7 +77,6 @@ function ThemeCard({ theme, isSelected }: { theme: Theme; isSelected: boolean })
           </ThemedView>
         )}
       </ThemedView>
-    </Pressable>
   );
 }
 

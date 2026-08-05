@@ -12,6 +12,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { JournalService, type JournalEntry } from '@/services/journal-service';
+import { openJournal } from '@/services/journal-nav';
 
 const DAYS_OF_WEEK = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTHS = [
@@ -132,7 +133,7 @@ export default function DailyNotesScreen() {
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push(`/reading?date=${item.date}`);
+            router.push(`/reading?id=${item.id}`);
           }}
           style={[styles.entryCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
         >
@@ -260,7 +261,7 @@ export default function DailyNotesScreen() {
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            router.push(`/reading?date=${selectedDate.toISOString().split('T')[0]}`);
+            openJournal({ date: selectedDate.toISOString().split('T')[0], type: 'note' });
           }}
           style={[styles.fab, { backgroundColor: theme.primary }]}
         >

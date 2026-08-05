@@ -37,7 +37,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemePicker } from '@/components/theme-picker';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Spacing, contrastText } from '@/constants/theme';
 import { useTheme, useThemeManager } from '@/hooks/use-theme';
 import { useSettings } from '@/hooks/use-settings';
 import { BackupService } from '@/services/backup-service';
@@ -71,14 +71,11 @@ function SettingRow({
 }) {
   const theme = useTheme();
   return (
-    <ThemedView
-      type="backgroundElement"
-      style={[styles.settingRow, { borderBottomColor: theme.border }]}
-    >
+    <View style={[styles.settingRow, { borderBottomColor: theme.border }]}>
       <View style={styles.settingInfo}>
-        {icon}
+        <View style={[styles.settingIcon, { backgroundColor: theme.surfaceVariant }]}>{icon}</View>
         <View style={styles.settingText}>
-          <ThemedText type="default">{label}</ThemedText>
+          <ThemedText type="default" numberOfLines={1}>{label}</ThemedText>
           {description && (
             <ThemedText type="small" themeColor="textMuted">
               {description}
@@ -86,8 +83,8 @@ function SettingRow({
           )}
         </View>
       </View>
-      {children}
-    </ThemedView>
+      <View style={styles.settingControl}>{children}</View>
+    </View>
   );
 }
 
@@ -163,7 +160,7 @@ function TemplatesTab() {
                 <ThemedText type="default" style={styles.templateName}>{template.name}</ThemedText>
                 {template.isDefault && (
                   <View style={[styles.defaultBadge, { backgroundColor: theme.tint }]}>
-                    <ThemedText type="small" style={styles.defaultBadgeText}>Default</ThemedText>
+                    <ThemedText type="small" style={[styles.defaultBadgeText, { color: contrastText(theme.tint) }]}>Default</ThemedText>
                   </View>
                 )}
               </View>
@@ -278,8 +275,8 @@ function RemindersTab() {
             </View>
 
             <Pressable style={[styles.saveButton, { backgroundColor: theme.primary }]}>
-              <IconCheck size={16} color="#FFFFFF" />
-              <ThemedText type="default" style={styles.saveButtonText}>Save</ThemedText>
+              <IconCheck size={16} color={contrastText(theme.primary)} />
+              <ThemedText type="default" style={[styles.saveButtonText, { color: contrastText(theme.primary) }]}>Save</ThemedText>
             </Pressable>
           </>
         )}
@@ -381,7 +378,7 @@ export default function SettingsScreen() {
                   type="small"
                   style={[
                     styles.tabText,
-                    activeTab === tab.key && { color: '#FFFFFF' },
+                    activeTab === tab.key && { color: contrastText(theme.primary) },
                   ]}
                 >
                   {tab.label}
@@ -395,18 +392,20 @@ export default function SettingsScreen() {
         {activeTab === 'themes' && (
           <Animated.View entering={FadeInDown.delay(200).springify()}>
             <SectionHeader label="Appearance" />
-            <SettingRow
-              icon={<IconContrast size={18} color={theme.text} />}
-              label="Follow system theme"
-              description="Automatically switch theme with light/dark mode"
-            >
-              <Switch
-                value={followSystem}
-                onValueChange={setFollowSystem}
-                trackColor={{ false: theme.border, true: theme.primary }}
-                thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
-              />
-            </SettingRow>
+            <ThemedView style={[styles.settingsGroup, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <SettingRow
+                icon={<IconContrast size={18} color={theme.tint} />}
+                label="Follow system theme"
+                description="Automatically switch theme with light/dark mode"
+              >
+                <Switch
+                  value={followSystem}
+                  onValueChange={setFollowSystem}
+                  trackColor={{ false: theme.border, true: theme.primary }}
+                  thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
+                />
+              </SettingRow>
+            </ThemedView>
             <ThemePicker />
 
             <Pressable
@@ -431,80 +430,84 @@ export default function SettingsScreen() {
         <Animated.View entering={FadeInDown.delay(300).springify()}>
           <SectionHeader label="Notifications" />
 
-          <SettingRow
-            icon={<IconSun size={18} color={theme.text} />}
-            label="Morning reminder"
-            description={settings.morningReminderEnabled ? `Daily at ${timeLabel(settings.morningReminderHour, settings.morningReminderMinute)}` : 'Start your day with a journal prompt'}
-          >
-            <Switch
-              value={settings.morningReminderEnabled}
-              onValueChange={(v) => update({ morningReminderEnabled: v })}
-              trackColor={{ false: theme.border, true: theme.primary }}
-              thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
-            />
-          </SettingRow>
-
-          {settings.morningReminderEnabled && (
-            <View style={styles.timeRow}>
-              <ThemedText type="default" themeColor="textSecondary">Time</ThemedText>
-              <TimePicker
-                hour={settings.morningReminderHour}
-                minute={settings.morningReminderMinute}
-                onChange={(h, m) => update({ morningReminderHour: h, morningReminderMinute: m })}
+          <ThemedView style={[styles.settingsGroup, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <SettingRow
+              icon={<IconSun size={18} color={theme.tint} />}
+              label="Morning reminder"
+              description={settings.morningReminderEnabled ? `Daily at ${timeLabel(settings.morningReminderHour, settings.morningReminderMinute)}` : 'Start your day with a journal prompt'}
+            >
+              <Switch
+                value={settings.morningReminderEnabled}
+                onValueChange={(v) => update({ morningReminderEnabled: v })}
+                trackColor={{ false: theme.border, true: theme.primary }}
+                thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
               />
-            </View>
-          )}
+            </SettingRow>
 
-          <SettingRow
-            icon={<IconMoonStars size={18} color={theme.text} />}
-            label="Evening reminder"
-            description={settings.eveningReminderEnabled ? `Daily at ${timeLabel(settings.eveningReminderHour, settings.eveningReminderMinute)}` : 'Reflect on your day'}
-          >
-            <Switch
-              value={settings.eveningReminderEnabled}
-              onValueChange={(v) => update({ eveningReminderEnabled: v })}
-              trackColor={{ false: theme.border, true: theme.primary }}
-              thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
-            />
-          </SettingRow>
+            {settings.morningReminderEnabled && (
+              <View style={[styles.timeRow, { borderBottomColor: theme.border }]}>
+                <ThemedText type="default" themeColor="textSecondary">Time</ThemedText>
+                <TimePicker
+                  hour={settings.morningReminderHour}
+                  minute={settings.morningReminderMinute}
+                  onChange={(h, m) => update({ morningReminderHour: h, morningReminderMinute: m })}
+                />
+              </View>
+            )}
 
-          {settings.eveningReminderEnabled && (
-            <View style={styles.timeRow}>
-              <ThemedText type="default" themeColor="textSecondary">Time</ThemedText>
-              <TimePicker
-                hour={settings.eveningReminderHour}
-                minute={settings.eveningReminderMinute}
-                onChange={(h, m) => update({ eveningReminderHour: h, eveningReminderMinute: m })}
+            <SettingRow
+              icon={<IconMoonStars size={18} color={theme.tint} />}
+              label="Evening reminder"
+              description={settings.eveningReminderEnabled ? `Daily at ${timeLabel(settings.eveningReminderHour, settings.eveningReminderMinute)}` : 'Reflect on your day'}
+            >
+              <Switch
+                value={settings.eveningReminderEnabled}
+                onValueChange={(v) => update({ eveningReminderEnabled: v })}
+                trackColor={{ false: theme.border, true: theme.primary }}
+                thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
               />
-            </View>
-          )}
+            </SettingRow>
 
-          <SettingRow
-            icon={<IconFlame size={18} color={theme.text} />}
-            label="Streak reminder"
-            description="Remind you to write if you haven't by evening"
-          >
-            <Switch
-              value={settings.streakReminderEnabled}
-              onValueChange={(v) => update({ streakReminderEnabled: v })}
-              trackColor={{ false: theme.border, true: theme.primary }}
-              thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
-            />
-          </SettingRow>
+            {settings.eveningReminderEnabled && (
+              <View style={[styles.timeRow, { borderBottomColor: theme.border }]}>
+                <ThemedText type="default" themeColor="textSecondary">Time</ThemedText>
+                <TimePicker
+                  hour={settings.eveningReminderHour}
+                  minute={settings.eveningReminderMinute}
+                  onChange={(h, m) => update({ eveningReminderHour: h, eveningReminderMinute: m })}
+                />
+              </View>
+            )}
+
+            <SettingRow
+              icon={<IconFlame size={18} color={theme.tint} />}
+              label="Streak reminder"
+              description="Remind you to write if you haven't by evening"
+            >
+              <Switch
+                value={settings.streakReminderEnabled}
+                onValueChange={(v) => update({ streakReminderEnabled: v })}
+                trackColor={{ false: theme.border, true: theme.primary }}
+                thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
+              />
+            </SettingRow>
+          </ThemedView>
 
           <SectionHeader label="Security" />
-          <SettingRow
-            icon={<IconFingerprint size={18} color={theme.text} />}
-            label="App lock"
-            description="Require biometric or passcode to open the app"
-          >
-            <Switch
-              value={settings.appLockEnabled}
-              onValueChange={handleAppLock}
-              trackColor={{ false: theme.border, true: theme.primary }}
-              thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
-            />
-          </SettingRow>
+          <ThemedView style={[styles.settingsGroup, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <SettingRow
+              icon={<IconFingerprint size={18} color={theme.tint} />}
+              label="App lock"
+              description="Require biometric or passcode to open the app"
+            >
+              <Switch
+                value={settings.appLockEnabled}
+                onValueChange={handleAppLock}
+                trackColor={{ false: theme.border, true: theme.primary }}
+                thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
+              />
+            </SettingRow>
+          </ThemedView>
 
           <SectionHeader label="Data" />
           <Pressable
@@ -522,15 +525,17 @@ export default function SettingsScreen() {
 
           <SectionHeader label="Cloud Sync" />
 
-          <SettingRow
-            icon={<IconCloud size={18} color={theme.textMuted} />}
-            label="Google Drive backup"
-            description="Coming soon — automatic cloud backup"
-          >
-            <View style={[styles.badge, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText type="small" themeColor="textMuted">Soon</ThemedText>
-            </View>
-          </SettingRow>
+          <ThemedView style={[styles.settingsGroup, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <SettingRow
+              icon={<IconCloud size={18} color={theme.tint} />}
+              label="Google Drive backup"
+              description="Coming soon — automatic cloud backup"
+            >
+              <View style={[styles.badge, { backgroundColor: theme.surfaceVariant }]}>
+                <ThemedText type="small" themeColor="textMuted">Soon</ThemedText>
+              </View>
+            </SettingRow>
+          </ThemedView>
 
           <Pressable
             onPress={() => {
@@ -544,11 +549,13 @@ export default function SettingsScreen() {
             <IconChevronRight size={14} color={theme.textMuted} />
           </Pressable>
 
-          <SettingRow icon={<IconBook2 size={18} color={theme.text} />} label="Writing">
-            <ThemedText type="small" themeColor="textSecondary">
-              Journals stored locally on device
-            </ThemedText>
-          </SettingRow>
+          <ThemedView style={[styles.settingsGroup, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <SettingRow icon={<IconBook2 size={18} color={theme.tint} />} label="Writing">
+              <ThemedText type="small" themeColor="textSecondary">
+                Journals stored locally on device
+              </ThemedText>
+            </SettingRow>
+          </ThemedView>
         </Animated.View>
       </ThemedView>
     </ScrollView>
@@ -596,6 +603,12 @@ const styles = StyleSheet.create({
   tabContentContainer: {
     gap: Spacing.three,
   },
+  settingsGroup: {
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+    overflow: 'hidden',
+    borderCurve: 'continuous',
+  },
   sectionHeader: {
     marginTop: Spacing.three,
     marginBottom: Spacing.one,
@@ -605,7 +618,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Spacing.three,
     paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.three,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   settingInfo: {
@@ -613,17 +628,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three,
     flex: 1,
+    minWidth: 0,
+  },
+  settingIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: Spacing.two,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   settingText: {
     gap: Spacing.half,
     flex: 1,
+    flexShrink: 1,
+  },
+  settingControl: {
+    marginLeft: Spacing.two,
   },
   timeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingLeft: Spacing.six,
-    paddingBottom: Spacing.three,
+    paddingLeft: 66,
+    paddingRight: Spacing.three,
+    paddingVertical: Spacing.three,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   timeEditor: {
     flexDirection: 'row',
@@ -651,7 +680,7 @@ const styles = StyleSheet.create({
   },
   actionHint: {
     paddingHorizontal: Spacing.one,
-    marginTop: -Spacing.two,
+    marginTop: Spacing.one,
   },
   recoveryCard: {
     flexDirection: 'row',
@@ -699,7 +728,6 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
   },
   defaultBadgeText: {
-    color: '#FFFFFF',
     fontWeight: '500',
   },
   // Tag styles
@@ -764,10 +792,8 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
   },
   saveButtonText: {
-    color: '#FFFFFF',
     fontWeight: '600',
-  },
-  createButton: {
+  },  createButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

@@ -36,7 +36,7 @@ type LoadState =
   | { status: 'error' };
 
 export default function ReadingScreen() {
-  const { date } = useLocalSearchParams<{ date: string }>();
+  const { id, date } = useLocalSearchParams<{ id?: string; date?: string }>();
   const db = useSQLiteContext();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -44,11 +44,13 @@ export default function ReadingScreen() {
   const [readingTags, setReadingTags] = useState<Tag[]>([]);
 
   useEffect(() => {
-    if (!date) return;
+    if (!id && !date) return;
     let mounted = true;
     (async () => {
       try {
-        const result = await JournalService.getJournalByDate(db, date);
+        const result = id
+          ? await JournalService.getJournalById(db, id)
+          : await JournalService.getJournalByDate(db, date!);
         if (mounted) {
           setLoadState(result ? { status: 'loaded', entry: result } : { status: 'error' });
         }
@@ -57,7 +59,7 @@ export default function ReadingScreen() {
       }
     })();
     return () => { mounted = false; };
-  }, [db, date]);
+  }, [db, id, date]);
 
   useEffect(() => {
     if (loadState.status !== 'loaded') return;
@@ -127,7 +129,7 @@ export default function ReadingScreen() {
           <ThemedText type="default" themeColor="tint">Back</ThemedText>
         </Pressable>
         <View style={styles.headerActions}>
-          <Pressable onPress={() => openJournal({ date: entry.date })} style={styles.headerAction}>
+          <Pressable onPress={() => openJournal({ entryId: entry.id })} style={styles.headerAction}>
             <IconPencil size={18} color={theme.tint} />
             <ThemedText type="default" themeColor="tint">Edit</ThemedText>
           </Pressable>

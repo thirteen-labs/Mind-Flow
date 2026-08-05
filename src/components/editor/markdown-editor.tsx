@@ -1,11 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { IconCheck, IconPaperclip, IconPencil, IconSearch, IconTypography, IconX, IconBold, IconItalic, IconUnderline, IconStrikethrough, IconHighlight, IconList, IconListNumbers, IconLink, IconH1, IconH2, IconH3, IconCheckbox } from '@tabler/icons-react-native';
+import { IconCheck, IconPaperclip, IconPencil, IconSearch, IconTypography, IconX, IconBold, IconItalic, IconUnderline, IconStrikethrough, IconHighlight, IconList, IconListNumbers, IconLink, IconH1, IconH2, IconH3, IconCheckbox, IconPhoto, IconVideo, IconMusic, IconFile, IconPencilPlus, IconCode, IconQuote, IconCodePlus, IconMinus, IconTable, IconArrowBackUp, IconArrowForwardUp, IconColorSwatch } from '@tabler/icons-react-native';
 
 import FormattingSheet from './formatting-sheet';
+import { CustomModal } from '@/components/ui/modal';
+import { ModalHeader } from '@/components/ui/modal-header';
 import {
   createUndoStack,
   insertBlockquote,
@@ -27,11 +29,13 @@ import {
   toggleStrikethrough,
   toggleUnderline,
   toggleHighlight,
+  toggleColor,
 } from './formatting';
 import { MarkdownRenderer } from '@/components/markdown-renderer';
+import { ThemedText } from '@/components/themed-text';
 import { MediaService } from '@/services/media-service';
 
-import { Spacing } from '@/constants/theme';
+import { Spacing, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface MarkdownEditorProps {
@@ -44,6 +48,8 @@ interface MarkdownEditorProps {
 export function MarkdownEditor({ value, onChange, placeholder, readOnly = false }: MarkdownEditorProps) {
   const [selection, setSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [showLinkInput, setShowLinkInput] = useState(false);
+  const [showAttachModal, setShowAttachModal] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [preview, setPreview] = useState(false);
   const inputRef = useRef<TextInput>(null);
@@ -114,23 +120,9 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
   }, [apply]);
 
   const showAttachOptions = useCallback((includeSketch: boolean) => {
-    const { start, end } = selection;
-    const options: {
-      text: string;
-      onPress?: () => void;
-      style?: 'default' | 'cancel' | 'destructive';
-    }[] = [
-      { text: 'Image', onPress: () => attachImage(start, end) },
-      { text: 'Video', onPress: () => attachVideo(start, end) },
-      { text: 'Audio', onPress: () => attachAudio(start, end) },
-      { text: 'File', onPress: () => attachFile(start, end) },
-    ];
-    if (includeSketch) {
-      options.push({ text: 'Sketch', onPress: () => router.push('/canvas' as any) });
-    }
-    options.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert('Attach Media', 'Choose a media type', options);
-  }, [selection, attachImage, attachVideo, attachAudio, attachFile]);
+    setShowAttachModal(true);
+    void includeSketch;
+  }, []);
 
   const handleAction = useCallback((key: string) => {
     const { start, end } = selection;
@@ -181,12 +173,12 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
         return;
       }
       case 'media': {
-        showAttachOptions(false);
+        showAttachOptions(true);
         return;
       }
       default: return;
     }
-  }, [selection, apply, onChange, showAttachOptions]);
+    }, [selection, apply, onChange, showAttachOptions]);
 
   const openSheet = useCallback(() => {
     Keyboard.dismiss();
@@ -212,8 +204,19 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
   }, []);
 
   const handleAttach = useCallback(() => {
-    showAttachOptions(true);
-  }, [showAttachOptions]);
+    setShowAttachModal(true);
+  }, []);
+
+  const handleColorPicker = useCallback(() => {
+    setShowColorPicker(true);
+  }, []);
+
+  const handleColorSelect = useCallback((color: string) => {
+    const { start, end } = selection;
+    const text = lastTextRef.current;
+    apply(toggleColor(text, start, end, color));
+    setShowColorPicker(false);
+  }, [selection, apply]);
 
   return (
     <View style={styles.container}>
@@ -257,7 +260,10 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
           <MarkdownRenderer content={value || ''} />
         </ScrollView>
       ) : (
-        <>
+        <KeyboardAvoidingView
+          style={styles.editorWrapper}
+          behavior="padding"
+        >
           <View style={styles.editorArea}>
             <TextInput
               ref={inputRef}
@@ -298,51 +304,77 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
               </Pressable>
             </View>
           )}
-        </>
-      )}
 
-      {!preview && (
-        <View style={[styles.toolbar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
-          <Pressable onPress={() => handleAction('bold')} style={styles.toolbarButton}>
-            <IconBold size={18} color={theme.text} />
-          </Pressable>
-          <Pressable onPress={() => handleAction('italic')} style={styles.toolbarButton}>
-            <IconItalic size={18} color={theme.text} />
-          </Pressable>
-          <Pressable onPress={() => handleAction('underline')} style={styles.toolbarButton}>
-            <IconUnderline size={18} color={theme.text} />
-          </Pressable>
-          <Pressable onPress={() => handleAction('strikethrough')} style={styles.toolbarButton}>
-            <IconStrikethrough size={18} color={theme.text} />
-          </Pressable>
-          <Pressable onPress={() => handleAction('highlight')} style={styles.toolbarButton}>
-            <IconHighlight size={18} color={theme.text} />
-          </Pressable>
-          <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
-          <Pressable onPress={() => handleAction('heading1')} style={styles.toolbarButton}>
-            <IconH1 size={18} color={theme.text} />
-          </Pressable>
-          <Pressable onPress={() => handleAction('heading2')} style={styles.toolbarButton}>
-            <IconH2 size={18} color={theme.text} />
-          </Pressable>
-          <Pressable onPress={() => handleAction('heading3')} style={styles.toolbarButton}>
-            <IconH3 size={18} color={theme.text} />
-          </Pressable>
-          <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
-          <Pressable onPress={() => handleAction('list')} style={styles.toolbarButton}>
-            <IconList size={18} color={theme.text} />
-          </Pressable>
-          <Pressable onPress={() => handleAction('numberedlist')} style={styles.toolbarButton}>
-            <IconListNumbers size={18} color={theme.text} />
-          </Pressable>
-          <Pressable onPress={() => handleAction('checklist')} style={styles.toolbarButton}>
-            <IconCheckbox size={18} color={theme.text} />
-          </Pressable>
-          <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
-          <Pressable onPress={() => handleAction('link')} style={styles.toolbarButton}>
-            <IconLink size={18} color={theme.text} />
-          </Pressable>
-        </View>
+          <View style={[styles.toolbar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarScroll}>
+              <Pressable onPress={() => handleAction('undo')} style={styles.toolbarButton}>
+                <IconArrowBackUp size={18} color={theme.text} />
+              </Pressable>
+              <Pressable onPress={() => handleAction('redo')} style={styles.toolbarButton}>
+                <IconArrowForwardUp size={18} color={theme.text} />
+              </Pressable>
+              <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
+              <Pressable onPress={() => handleAction('bold')} style={styles.toolbarButton}>
+                <IconBold size={18} color={theme.text} />
+              </Pressable>
+              <Pressable onPress={() => handleAction('italic')} style={styles.toolbarButton}>
+                <IconItalic size={18} color={theme.text} />
+              </Pressable>
+              <Pressable onPress={() => handleAction('underline')} style={styles.toolbarButton}>
+                <IconUnderline size={18} color={theme.text} />
+              </Pressable>
+              <Pressable onPress={() => handleAction('strikethrough')} style={styles.toolbarButton}>
+                <IconStrikethrough size={18} color={theme.text} />
+              </Pressable>
+              <Pressable onPress={() => handleAction('highlight')} style={styles.toolbarButton}>
+                <IconHighlight size={18} color={theme.text} />
+              </Pressable>
+              <Pressable onPress={() => handleAction('code')} style={styles.toolbarButton}>
+                <IconCode size={18} color={theme.text} />
+              </Pressable>
+              <Pressable onPress={handleColorPicker} style={styles.toolbarButton}>
+                <IconColorSwatch size={18} color={theme.text} />
+              </Pressable>
+              <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
+              <Pressable onPress={() => handleAction('heading1')} style={styles.toolbarButton}>
+                <IconH1 size={18} color={theme.text} />
+              </Pressable>
+              <Pressable onPress={() => handleAction('heading2')} style={styles.toolbarButton}>
+                <IconH2 size={18} color={theme.text} />
+              </Pressable>
+              <Pressable onPress={() => handleAction('heading3')} style={styles.toolbarButton}>
+                <IconH3 size={18} color={theme.text} />
+              </Pressable>
+              <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
+              <Pressable onPress={() => handleAction('list')} style={styles.toolbarButton}>
+                <IconList size={18} color={theme.text} />
+              </Pressable>
+              <Pressable onPress={() => handleAction('numberedlist')} style={styles.toolbarButton}>
+                <IconListNumbers size={18} color={theme.text} />
+              </Pressable>
+              <Pressable onPress={() => handleAction('checklist')} style={styles.toolbarButton}>
+                <IconCheckbox size={18} color={theme.text} />
+              </Pressable>
+              <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
+              <Pressable onPress={() => handleAction('quote')} style={styles.toolbarButton}>
+                <IconQuote size={18} color={theme.text} />
+              </Pressable>
+              <Pressable onPress={() => handleAction('codeblock')} style={styles.toolbarButton}>
+                <IconCodePlus size={18} color={theme.text} />
+              </Pressable>
+              <Pressable onPress={() => handleAction('divider')} style={styles.toolbarButton}>
+                <IconMinus size={18} color={theme.text} />
+              </Pressable>
+              <Pressable onPress={() => handleAction('table')} style={styles.toolbarButton}>
+                <IconTable size={18} color={theme.text} />
+              </Pressable>
+              <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
+              <Pressable onPress={() => handleAction('link')} style={styles.toolbarButton}>
+                <IconLink size={18} color={theme.text} />
+              </Pressable>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       )}
 
       <Pressable
@@ -356,8 +388,112 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
       </Pressable>
 
       <FormattingSheet sheetRef={sheetRef} onAction={handleAction} />
-        </>
+
+      <CustomModal
+        visible={showAttachModal}
+        onClose={() => setShowAttachModal(false)}
+        variant="dialog"
+      >
+        <ModalHeader title="Attach" onClose={() => setShowAttachModal(false)} />
+        <View style={styles.attachList}>
+          <AttachOption
+            icon={IconPhoto}
+            label="Image"
+            onPress={() => {
+              setShowAttachModal(false);
+              attachImage(selection.start, selection.end);
+            }}
+          />
+          <AttachOption
+            icon={IconVideo}
+            label="Video"
+            onPress={() => {
+              setShowAttachModal(false);
+              attachVideo(selection.start, selection.end);
+            }}
+          />
+          <AttachOption
+            icon={IconMusic}
+            label="Audio"
+            onPress={() => {
+              setShowAttachModal(false);
+              attachAudio(selection.start, selection.end);
+            }}
+          />
+          <AttachOption
+            icon={IconFile}
+            label="File"
+            onPress={() => {
+              setShowAttachModal(false);
+              attachFile(selection.start, selection.end);
+            }}
+          />
+          <AttachOption
+            icon={IconPencilPlus}
+            label="Sketch"
+            onPress={() => {
+              setShowAttachModal(false);
+              router.push('/canvas' as any);
+            }}
+          />
+        </View>
+      </CustomModal>
+
+      <CustomModal
+        visible={showColorPicker}
+        onClose={() => setShowColorPicker(false)}
+        variant="dialog"
+      >
+        <ModalHeader title="Text Color" onClose={() => setShowColorPicker(false)} />
+        <ColorPicker onSelect={handleColorSelect} />
+      </CustomModal>
+         </>
       )}
+    </View>
+  );
+}
+
+interface AttachOptionProps {
+  icon: React.ComponentType<{ size: number; color: string }>;
+  label: string;
+  onPress: () => void;
+}
+
+function AttachOption({ icon: Icon, label, onPress }: AttachOptionProps) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.attachCard, { backgroundColor: theme.backgroundElement }]}
+    >
+      <View style={[styles.attachIconWrap, { backgroundColor: withAlpha(theme.accent, 0.15) }]}>
+        <Icon size={22} color={theme.accent} />
+      </View>
+      <ThemedText type="default" style={styles.attachLabel}>{label}</ThemedText>
+    </Pressable>
+  );
+}
+
+const COLORS = [
+  '#E53E3E', '#DD6B20', '#D69E2E', '#38A169',
+  '#3182CE', '#805AD5', '#D53F8C', '#1A202C',
+  '#FFFFFF', '#718096', '#2D3748', '#C53030',
+];
+
+function ColorPicker({ onSelect }: { onSelect: (color: string) => void }) {
+  const theme = useTheme();
+  return (
+    <View style={styles.colorGrid}>
+      {COLORS.map((color) => (
+        <Pressable
+          key={color}
+          onPress={() => onSelect(color)}
+          style={[
+            styles.colorSwatch,
+            { backgroundColor: color, borderColor: theme.border },
+          ]}
+        />
+      ))}
     </View>
   );
 }
@@ -433,13 +569,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
   },
+  editorWrapper: {
+    flex: 1,
+  },
   toolbar: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  toolbarScroll: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.one,
     gap: Spacing.one,
-    borderTopWidth: StyleSheet.hairlineWidth,
   },
   toolbarButton: {
     width: 36,
@@ -452,5 +593,43 @@ const styles = StyleSheet.create({
     width: 1,
     height: 20,
     marginHorizontal: Spacing.one,
+  },
+  attachList: {
+    paddingHorizontal: '4%',
+    paddingBottom: 24,
+    gap: 8,
+  },
+  attachCard: {
+    width: '92%',
+    height: 56,
+    alignSelf: 'center',
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    gap: 14,
+  },
+  attachIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attachLabel: {
+    flex: 1,
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    gap: 12,
+  },
+  colorSwatch: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 2,
   },
 });

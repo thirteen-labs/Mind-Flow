@@ -54,6 +54,10 @@ function AppContent() {
             options={{ animation: 'slide_from_right', presentation: 'card' }}
           />
           <Stack.Screen
+            name="templates"
+            options={{ animation: 'slide_from_right', presentation: 'card' }}
+          />
+          <Stack.Screen
             name="export"
             options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
           />

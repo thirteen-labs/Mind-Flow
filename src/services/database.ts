@@ -142,5 +142,65 @@ ALTER TABLE journals ADD COLUMN title TEXT;
     currentDbVersion = 8;
   }
 
+  if (currentDbVersion < 9) {
+    await db.execAsync(`
+DROP TABLE IF EXISTS journals_fts;
+ALTER TABLE journals RENAME TO journals_old;
+CREATE TABLE journals (
+  id TEXT PRIMARY KEY NOT NULL,
+  date TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
+  word_count INTEGER NOT NULL DEFAULT 0,
+  mood TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  is_favorited INTEGER NOT NULL DEFAULT 0,
+  is_pinned INTEGER NOT NULL DEFAULT 0,
+  title TEXT,
+  entry_type TEXT NOT NULL DEFAULT 'note'
+);
+CREATE INDEX IF NOT EXISTS idx_journals_date ON journals(date DESC);
+CREATE INDEX IF NOT EXISTS idx_journals_favorited ON journals(is_favorited);
+CREATE INDEX IF NOT EXISTS idx_journals_pinned ON journals(is_pinned);
+CREATE INDEX IF NOT EXISTS idx_journals_type ON journals(entry_type);
+INSERT INTO journals (id, date, content, word_count, mood, created_at, updated_at, is_favorited, is_pinned, title)
+  SELECT id, date, content, word_count, mood, created_at, updated_at, is_favorited, is_pinned, title FROM journals_old;
+DROP TABLE journals_old;
+CREATE VIRTUAL TABLE IF NOT EXISTS journals_fts USING fts5(
+  content, date UNINDEXED,
+  content='journals',
+  content_rowid='rowid'
+);
+INSERT INTO journals_fts(rowid, content, date) SELECT rowid, content, date FROM journals;
+CREATE TRIGGER IF NOT EXISTS journals_fts_ai AFTER INSERT ON journals BEGIN
+  INSERT INTO journals_fts(rowid, content, date) VALUES (new.rowid, new.content, new.date);
+END;
+CREATE TRIGGER IF NOT EXISTS journals_fts_ad AFTER DELETE ON journals BEGIN
+  INSERT INTO journals_fts(journals_fts, rowid, content, date) VALUES('delete', old.rowid, old.content, old.date);
+END;
+CREATE TRIGGER IF NOT EXISTS journals_fts_au AFTER UPDATE ON journals BEGIN
+  INSERT INTO journals_fts(journals_fts, rowid, content, date) VALUES('delete', old.rowid, old.content, old.date);
+  INSERT INTO journals_fts(rowid, content, date) VALUES (new.rowid, new.content, new.date);
+END;
+CREATE TABLE IF NOT EXISTS templates (
+  id TEXT PRIMARY KEY NOT NULL,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_templates_updated ON templates(updated_at DESC);
+`);
+    currentDbVersion = 9;
+  }
+
+  if (currentDbVersion < 10) {
+    await db.execAsync(`
+ALTER TABLE journals ADD COLUMN is_hidden INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_journals_hidden ON journals(is_hidden);
+`);
+    currentDbVersion = 10;
+  }
+
   await db.execAsync(`PRAGMA user_version = ${currentDbVersion}`);
 }

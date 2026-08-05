@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { IconChevronLeft, IconChevronRight, IconFlame } from '@tabler/icons-react-native';
+import { IconChevronLeft, IconChevronRight, IconFlame, IconFileText, IconBook2 } from '@tabler/icons-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { StatCard } from '@/components/stat-card';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { JournalService } from '@/services/journal-service';
@@ -143,18 +144,9 @@ export default function CalendarScreen() {
 
         {stats && (
           <ThemedView style={styles.statsRow}>
-            <ThemedView style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-              <ThemedText type="title" style={styles.statNumber}>{stats.entries}</ThemedText>
-              <ThemedText type="small" themeColor="textMuted">Entries</ThemedText>
-            </ThemedView>
-            <ThemedView style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-              <ThemedText type="title" style={styles.statNumber}>{stats.streak}</ThemedText>
-              <ThemedText type="small" themeColor="textMuted">Day Streak</ThemedText>
-            </ThemedView>
-            <ThemedView style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-              <ThemedText type="title" style={styles.statNumber}>{stats.totalWords}</ThemedText>
-              <ThemedText type="small" themeColor="textMuted">Total Words</ThemedText>
-            </ThemedView>
+            <StatCard icon={<IconFileText size={20} />} value={stats.entries} label="Entries" style={styles.statCard} />
+            <StatCard icon={<IconFlame size={20} />} color={theme.notification} value={stats.streak} label="Day Streak" style={styles.statCard} />
+            <StatCard icon={<IconBook2 size={20} />} color={theme.accent} value={stats.totalWords} label="Total Words" style={styles.statCard} />
           </ThemedView>
         )}
 
@@ -295,19 +287,12 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
     gap: Spacing.two,
   },
   statCard: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.three,
-    borderRadius: Spacing.three,
-    borderWidth: 1,
-    gap: Spacing.half,
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: '700',
+    width: '31%',
   },
   calendar: {
     borderRadius: Spacing.three,

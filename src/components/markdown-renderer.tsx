@@ -131,6 +131,14 @@ function parseInline(text: string): InlineNode[] {
   let remaining = text;
 
   while (remaining.length > 0) {
+    // colored text <span style="color:#xxx">text</span>
+    const colorMatch = remaining.match(/^<span\s+style="color:([^"]+)">(.+?)<\/span>/);
+    if (colorMatch) {
+      nodes.push({ type: 'color', text: colorMatch[2], color: colorMatch[1] });
+      remaining = remaining.slice(colorMatch[0].length);
+      continue;
+    }
+
     // underline <u>text</u>
     const underlineMatch = remaining.match(/^<u>(.+?)<\/u>/);
     if (underlineMatch) {
@@ -237,6 +245,7 @@ type InlineNode =
   | { type: 'strikethrough'; text: string }
   | { type: 'highlight'; text: string }
   | { type: 'code'; text: string }
+  | { type: 'color'; text: string; color: string }
   | { type: 'link'; text: string; url: string }
   | { type: 'image'; alt: string; url: string }
   | { type: 'video'; src: string }
@@ -265,6 +274,8 @@ function InlineContent({ nodes, theme }: { nodes: InlineNode[]; theme: any }) {
                 {node.text}
               </Text>
             );
+          case 'color':
+            return <Text key={i} style={{ color: node.color }}>{node.text}</Text>;
           case 'link':
             return (
               <Text

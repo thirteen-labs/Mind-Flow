@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { IconChevronLeft, IconFile, IconPencil, IconFileText, IconClock, IconBook } from '@tabler/icons-react-native';
+import { IconChevronLeft, IconFile, IconPencil, IconFileText, IconClock, IconBook, IconPlus } from '@tabler/icons-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { StatCard } from '@/components/stat-card';
+import { Spacing, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { JournalService, type JournalEntry } from '@/services/journal-service';
 import { TagService, type Tag } from '@/services/tag-service';
@@ -26,8 +27,12 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function estimateReadingTime(text: string): string {
-  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+function formatTime(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+function estimateReadingTime(words: number): string {
   const minutes = Math.max(1, Math.round(words / 200));
   return `${minutes} min read`;
 }
@@ -37,8 +42,8 @@ export default function CalendarDayScreen() {
   const db = useSQLiteContext();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const [entry, setEntry] = useState<JournalEntry | null>(null);
-  const [tags, setTags] = useState<Tag[]>([]);
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [tagsByEntry, setTagsByEntry] = useState<Record<string, Tag[]>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -46,21 +51,27 @@ export default function CalendarDayScreen() {
     let mounted = true;
     (async () => {
       try {
-        const result = await JournalService.getJournalByDate(db, date);
-        if (mounted) {
-          setEntry(result);
-          if (result) {
-            TagService.getJournalTags(db, result.id).then(setTags).catch(() => {});
+        const result = await JournalService.getJournalsByDate(db, date);
+        if (!mounted) return;
+        setEntries(result);
+        const tags: Record<string, Tag[]> = {};
+        await Promise.all(result.map(async (entry) => {
+          try {
+            tags[entry.id] = await TagService.getJournalTags(db, entry.id);
+          } catch {
+            tags[entry.id] = [];
           }
-        }
+        }));
+        if (mounted) setTagsByEntry(tags);
       } catch {
-        if (mounted) setEntry(null);
+        if (mounted) setEntries([]);
       }
       if (mounted) setLoading(false);
     })();
     return () => { mounted = false; };
   }, [db, date]);
 
+  const totalWords = entries.reduce((sum, e) => sum + e.word_count, 0);
   const displayDate = date ? formatDate(date) : '';
   const isToday = date === new Date().toISOString().slice(0, 10);
 
@@ -86,21 +97,30 @@ export default function CalendarDayScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <ThemedText type="title" style={styles.dateTitle}>{entry?.title || displayDate}</ThemedText>
-        {isToday && (
-          <View style={[styles.todayBadge, { backgroundColor: theme.primary }]}>
-            <ThemedText type="small" style={{ color: '#FFFFFF', fontWeight: '600' }}>Today</ThemedText>
+        <View style={styles.titleRow}>
+          <ThemedText type="title" style={styles.dateTitle}>{displayDate}</ThemedText>
+          {isToday && (
+            <View style={[styles.todayBadge, { backgroundColor: theme.primary }]}>
+              <ThemedText type="small" style={{ color: '#FFFFFF', fontWeight: '600' }}>Today</ThemedText>
+            </View>
+          )}
+        </View>
+
+        {entries.length > 0 && (
+          <View style={styles.statsRow}>
+            <StatCard icon={<IconFileText size={20} />} value={totalWords} label="words" style={styles.statCard} />
+            <StatCard icon={<IconClock size={20} />} color={theme.accent} value={estimateReadingTime(totalWords)} label="read" style={styles.statCard} />
           </View>
         )}
 
-        {!entry ? (
+        {entries.length === 0 ? (
           <ThemedView style={[styles.emptyCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
             <IconFile size={40} color={theme.textMuted} />
             <ThemedText type="default" themeColor="textMuted" style={{ textAlign: 'center' }}>
-              No journal entry for this day
+              No journal entries for this day
             </ThemedText>
             <Pressable
-              onPress={() => openJournal({ date: date as string })}
+              onPress={() => openJournal({ date: date as string, type: 'note' })}
               style={[styles.createBtn, { backgroundColor: theme.primary }]}
             >
               <IconPencil size={16} color="#FFFFFF" />
@@ -109,66 +129,67 @@ export default function CalendarDayScreen() {
           </ThemedView>
         ) : (
           <>
-            <View style={styles.statsRow}>
-              <ThemedView style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-                <IconFileText size={16} color={theme.textSecondary} />
-                <ThemedText type="default" style={{ fontWeight: '600' }}>{entry.word_count}</ThemedText>
-                <ThemedText type="small" themeColor="textMuted">words</ThemedText>
-              </ThemedView>
-              <ThemedView style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-                <IconClock size={16} color={theme.textSecondary} />
-                <ThemedText type="default" style={{ fontWeight: '600' }}>{estimateReadingTime(entry.content)}</ThemedText>
-                <ThemedText type="small" themeColor="textMuted">read</ThemedText>
-              </ThemedView>
-            </View>
-
-            {entry.mood && (
-              <View style={[styles.moodRow, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-                <ThemedText type="default">
-                  {MOOD_EMOJIS[entry.mood] ?? ''} {entry.mood}
-                </ThemedText>
-              </View>
-            )}
-
-            {tags.length > 0 && (
-              <View style={styles.tagRow}>
-                {tags.map((tag) => (
-                  <View key={tag.id} style={[styles.tagChip, { backgroundColor: tag.color }]}>
-                    <ThemedText type="small" style={{ color: '#FFFFFF' }}>{tag.name}</ThemedText>
+            {entries.map((entry) => {
+              const entryTags = tagsByEntry[entry.id] ?? [];
+              return (
+                <ThemedView key={entry.id} style={[styles.entryCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                  <View style={styles.entryHeader}>
+                    <View style={styles.entryTitleWrap}>
+                      <ThemedText type="default" numberOfLines={1} style={styles.entryTitle}>
+                        {entry.title || formatTime(entry.date)}
+                      </ThemedText>
+                      {entry.entry_type === 'idea' && (
+                        <View style={[styles.typeChip, { backgroundColor: withAlpha(theme.warning, 0.14) }]}>
+                          <ThemedText type="small" style={[styles.typeChipText, { color: theme.warning }]}>Idea</ThemedText>
+                        </View>
+                      )}
+                    </View>
+                    {entry.mood && (
+                      <ThemedText type="default">{MOOD_EMOJIS[entry.mood] ?? ''} {entry.mood}</ThemedText>
+                    )}
                   </View>
-                ))}
-              </View>
-            )}
 
-            <View style={styles.actions}>
-              <Pressable
-                onPress={() => router.push(`/reading?date=${date}` as any)}
-                style={[styles.actionBtn, { backgroundColor: theme.primary }]}
-              >
-                <IconBook size={18} color="#FFFFFF" />
-                <ThemedText type="default" style={{ color: '#FFFFFF', fontWeight: '600' }}>Read</ThemedText>
-              </Pressable>
-              <Pressable
-                onPress={() => openJournal({ date: date as string })}
-                style={[styles.actionBtn, { backgroundColor: theme.backgroundElement, borderColor: theme.primary, borderWidth: 1 }]}
-              >
-                <IconPencil size={18} color={theme.primary} />
-                <ThemedText type="default" style={{ color: theme.primary, fontWeight: '600' }}>Edit</ThemedText>
-              </Pressable>
-            </View>
+                  {entryTags.length > 0 && (
+                    <View style={styles.tagRow}>
+                      {entryTags.map((tag) => (
+                        <View key={tag.id} style={[styles.tagChip, { backgroundColor: tag.color }]}>
+                          <ThemedText type="small" style={{ color: '#FFFFFF' }}>{tag.name}</ThemedText>
+                        </View>
+                      ))}
+                    </View>
+                  )}
 
-            {entry.content.trim() ? (
-              <ThemedView style={[styles.previewCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-                <ThemedText type="smallBold" themeColor="textMuted" style={{ marginBottom: Spacing.one }}>Preview</ThemedText>
-                <ThemedText type="default" numberOfLines={10} style={{ lineHeight: 24 }}>
-                  {entry.content}
-                </ThemedText>
-              </ThemedView>
-            ) : (
-              <ThemedView style={[styles.emptyCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-                <ThemedText type="default" themeColor="textMuted">This entry is empty</ThemedText>
-              </ThemedView>
-            )}
+                  <ThemedText type="default" numberOfLines={3} style={styles.preview}>
+                    {entry.content.trim() || 'Empty entry'}
+                  </ThemedText>
+
+                  <View style={styles.actions}>
+                    <Pressable
+                      onPress={() => router.push(`/reading?id=${entry.id}` as any)}
+                      style={[styles.actionBtn, { backgroundColor: theme.primary }]}
+                    >
+                      <IconBook size={18} color="#FFFFFF" />
+                      <ThemedText type="default" style={{ color: '#FFFFFF', fontWeight: '600' }}>Read</ThemedText>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => openJournal({ entryId: entry.id })}
+                      style={[styles.actionBtn, { backgroundColor: theme.backgroundElement, borderColor: theme.primary, borderWidth: 1 }]}
+                    >
+                      <IconPencil size={18} color={theme.primary} />
+                      <ThemedText type="default" style={{ color: theme.primary, fontWeight: '600' }}>Edit</ThemedText>
+                    </Pressable>
+                  </View>
+                </ThemedView>
+              );
+            })}
+
+            <Pressable
+              onPress={() => openJournal({ date: date as string, type: 'note' })}
+              style={[styles.addBtn, { borderColor: theme.primary }]}
+            >
+              <IconPlus size={16} color={theme.primary} />
+              <ThemedText type="default" style={{ color: theme.primary, fontWeight: '600' }}>Add another entry</ThemedText>
+            </Pressable>
           </>
         )}
       </ScrollView>
@@ -203,10 +224,17 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     paddingBottom: Spacing.six,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
   dateTitle: {
     fontSize: 24,
     fontWeight: '700',
     lineHeight: 32,
+    flex: 1,
   },
   todayBadge: {
     alignSelf: 'flex-start',
@@ -216,23 +244,46 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
     gap: Spacing.two,
   },
   statCard: {
+    width: '48%',
+  },
+  entryCard: {
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+    borderCurve: 'continuous',
+    gap: Spacing.two,
+  },
+  entryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  entryTitleWrap: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
-    padding: Spacing.three,
-    borderRadius: Spacing.three,
-    borderWidth: 1,
+    minWidth: 0,
   },
-  moodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.three,
-    borderRadius: Spacing.three,
-    borderWidth: 1,
+  entryTitle: {
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  typeChip: {
+    paddingHorizontal: Spacing.one,
+    paddingVertical: 1,
+    borderRadius: Spacing.one,
+  },
+  typeChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
   },
   tagRow: {
     flexDirection: 'row',
@@ -244,9 +295,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     borderRadius: Spacing.two,
   },
+  preview: {
+    lineHeight: 22,
+  },
   actions: {
     flexDirection: 'row',
     gap: Spacing.two,
+    marginTop: Spacing.one,
   },
   actionBtn: {
     flex: 1,
@@ -254,13 +309,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.one,
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two,
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
     paddingVertical: Spacing.three,
     borderRadius: Spacing.three,
-  },
-  previewCard: {
-    padding: Spacing.four,
-    borderRadius: Spacing.three,
     borderWidth: 1,
+    borderStyle: 'dashed',
   },
   emptyCard: {
     alignItems: 'center',

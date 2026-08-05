@@ -98,11 +98,16 @@ export default function SearchScreen() {
   const [datePreset, setDatePreset] = useState<DateRangePreset>('all');
   const [selectedTypes, setSelectedTypes] = useState<FilterType[]>([]);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
-  const [showFilters, setShowFilters] = useState(true);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [allNotes, setAllNotes] = useState<JournalEntry[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     TagService.getAll(db).then(setAllTags).catch(() => {});
+    JournalService.getAllJournals(db).then((entries) => {
+      setAllNotes(entries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    }).catch(() => {});
   }, [db]);
 
   const search = useCallback(
@@ -112,26 +117,29 @@ export default function SearchScreen() {
       const hasTags = tagIds.length > 0;
       const hasDate = preset !== 'all';
       const hasTypes = types.length > 0;
-      
-      if (!hasQuery && !hasTags && !hasDate && !hasTypes) {
-        setResults([]);
+      const hasSearch = hasQuery || hasTags || hasDate || hasTypes;
+
+      if (!hasSearch) {
+        setResults(allNotes);
         setSearched(false);
         setLoading(false);
         return;
       }
-      
+
       setLoading(true);
       setSearched(true);
       try {
-        const rows = await JournalService.searchJournals(
+        let rows = await JournalService.searchJournals(
           db, q,
           hasTags ? tagIds : undefined,
           range.fromDate, range.toDate
         );
-        
-        let filteredRows = rows;
-        
-        filteredRows.sort((a, b) => {
+
+        if (hasTypes) {
+          rows = rows.filter((r) => types.includes(r.entry_type as FilterType));
+        }
+
+        rows.sort((a, b) => {
           switch (sort) {
             case 'newest':
               return new Date(b.date).getTime() - new Date(a.date).getTime();
@@ -145,15 +153,15 @@ export default function SearchScreen() {
               return 0;
           }
         });
-        
-        setResults(filteredRows);
+
+        setResults(rows);
       } catch {
         setResults([]);
       } finally {
         setLoading(false);
       }
     },
-    [db]
+    [db, allNotes]
   );
 
   useEffect(() => {
@@ -180,7 +188,7 @@ export default function SearchScreen() {
 
   const handleResultPress = useCallback((entry: JournalEntry) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/reading?date=${entry.date}`);
+    router.push(`/reading?id=${entry.id}`);
   }, []);
 
   const clearAll = useCallback(() => {
@@ -248,46 +256,60 @@ export default function SearchScreen() {
             <IconChevronLeft size={20} color={theme.tint} />
             <ThemedText type="default" themeColor="tint">Back</ThemedText>
           </Pressable>
-          <ThemedText type="title">Search</ThemedText>
+          <ThemedText type="title">All Notes</ThemedText>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowSearch(!showSearch);
+            }}
+            style={styles.headerAction}
+          >
+            <IconSearch size={20} color={theme.tint} />
+          </Pressable>
         </ThemedView>
       </Animated.View>
 
-      {/* Search Bar */}
-      <Animated.View entering={FadeInDown.delay(100).springify()}>
-        <View style={[styles.searchBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <IconSearch size={16} color={theme.textMuted} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search notes, plans, ideas..."
-            placeholderTextColor={theme.textMuted}
-            style={[styles.searchInput, { color: theme.text }]}
-            returnKeyType="search"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')}>
-              <IconCircleX size={16} color={theme.textMuted} />
-            </Pressable>
-          )}
-        </View>
-      </Animated.View>
+      {/* Search Bar — hidden until triggered */}
+      {showSearch && (
+        <Animated.View entering={FadeInDown.delay(100).springify()}>
+          <View style={[styles.searchBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <IconSearch size={16} color={theme.textMuted} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search notes, plans, ideas..."
+              placeholderTextColor={theme.textMuted}
+              style={[styles.searchInput, { color: theme.text }]}
+              returnKeyType="search"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+            />
+            {query.length > 0 && (
+              <Pressable onPress={() => setQuery('')}>
+                <IconCircleX size={16} color={theme.textMuted} />
+              </Pressable>
+            )}
+          </View>
+        </Animated.View>
+      )}
 
-      {/* Filters Toggle */}
-      <Animated.View entering={FadeInDown.delay(200).springify()}>
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setShowFilters(!showFilters);
-          }}
-          style={[styles.filterToggle, { backgroundColor: theme.surface, borderColor: theme.border }]}
-        >
-          <IconFilter size={16} color={theme.tint} />
-          <ThemedText type="small" themeColor="tint">Filters</ThemedText>
-          {showFilters ? <IconChevronUp size={12} color={theme.tint} /> : <IconChevronDown size={12} color={theme.tint} />}
-        </Pressable>
-      </Animated.View>
+      {/* Filters Toggle — only visible when search is open */}
+      {showSearch && (
+        <Animated.View entering={FadeInDown.delay(200).springify()}>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowFilters(!showFilters);
+            }}
+            style={[styles.filterToggle, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          >
+            <IconFilter size={16} color={theme.tint} />
+            <ThemedText type="small" themeColor="tint">Filters</ThemedText>
+            {showFilters ? <IconChevronUp size={12} color={theme.tint} /> : <IconChevronDown size={12} color={theme.tint} />}
+          </Pressable>
+        </Animated.View>
+      )}
 
       {/* Filters Section */}
       {showFilters && (
@@ -431,7 +453,7 @@ export default function SearchScreen() {
         <ThemedView style={styles.centered}>
           <ActivityIndicator color={theme.textMuted} />
         </ThemedView>
-      ) : !searched ? (
+      ) : !searched && results.length === 0 ? (
         <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.centered}>
           <IconSearch size={48} color={theme.textMuted} />
           <ThemedText type="default" themeColor="textSecondary">
@@ -455,14 +477,21 @@ export default function SearchScreen() {
           </Pressable>
         </Animated.View>
       ) : (
-        <FlashList
-          data={results}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        />
+        <>
+          {searched && (
+            <ThemedText type="small" themeColor="textMuted" style={styles.resultsCount}>
+              {results.length} {results.length === 1 ? 'note' : 'notes'} found
+            </ThemedText>
+          )}
+          <FlashList
+            data={results}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.list}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          />
+        </>
       )}
     </ThemedView>
   );
@@ -593,5 +622,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  resultsCount: {
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.two,
   },
 });

@@ -1,14 +1,15 @@
 import { useCallback, useState } from 'react';
-import { Alert, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { IconChevronLeft, IconChevronRight, IconCalendar, IconCalendarEvent, IconX, IconPlus, IconPencil, IconTrash, IconLink } from '@tabler/icons-react-native';
+import { IconChevronLeft, IconChevronRight, IconCalendar, IconCalendarEvent, IconPlus, IconPencil, IconTrash, IconLink } from '@tabler/icons-react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { CustomModal } from '@/components/ui/modal';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { PlannerService, type PlannerEvent, type RepeatType } from '@/services/planner-service';
@@ -265,7 +266,7 @@ export default function PlannerScreen() {
   };
 
   const handleOpenJournal = useCallback((journalId: string) => {
-    openJournal({ date: journalId });
+    openJournal({ entryId: journalId });
   }, []);
 
   const openEventDetails = useCallback((eventId: string) => {
@@ -601,175 +602,166 @@ export default function PlannerScreen() {
       </Animated.View>
 
       {/* New/Edit Event Modal */}
-      <Modal visible={showNewEventModal} transparent animationType="fade" onRequestClose={() => { setShowNewEventModal(false); resetForm(); }}>
-        <KeyboardAvoidingView style={styles.modalKav} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <Pressable style={styles.modalOverlay} onPress={() => { Keyboard.dismiss(); setShowNewEventModal(false); resetForm(); }}>
-            <Pressable style={[styles.modalContent, { backgroundColor: theme.surface }]} onPress={e => e.stopPropagation()}>
-              <View style={styles.modalHeader}>
-                <ThemedText type="default" style={styles.modalTitle}>
-                  {editingEvent ? 'Edit Event' : 'New Event'}
-                </ThemedText>
-                <Pressable onPress={() => { Keyboard.dismiss(); setShowNewEventModal(false); resetForm(); }}>
-                  <IconX size={20} color={theme.text} />
-                </Pressable>
-              </View>
+      <CustomModal
+        visible={showNewEventModal}
+        onDismiss={() => { Keyboard.dismiss(); setShowNewEventModal(false); resetForm(); }}
+        variant="dialog"
+        title={editingEvent ? 'Edit Event' : 'New Event'}
+        showCloseButton
+      >
+        <ScrollView
+          style={styles.modalBody}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
+        >
+          <View style={styles.inputGroup}>
+            <ThemedText type="small" themeColor="textSecondary">Title</ThemedText>
+            <TextInput
+              value={newEvent.title}
+              onChangeText={(text) => setNewEvent(prev => ({ ...prev, title: text }))}
+              placeholder="Event title"
+              placeholderTextColor={theme.textMuted}
+              style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+            />
+          </View>
 
-              <ScrollView
-                style={styles.modalBody}
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
-                automaticallyAdjustKeyboardInsets
-              >
-              <View style={styles.inputGroup}>
-                <ThemedText type="small" themeColor="textSecondary">Title</ThemedText>
+          <View style={styles.inputGroup}>
+            <ThemedText type="small" themeColor="textSecondary">Location (optional)</ThemedText>
+            <TextInput
+              value={newEvent.location}
+              onChangeText={(text) => setNewEvent(prev => ({ ...prev, location: text }))}
+              placeholder="Add location"
+              placeholderTextColor={theme.textMuted}
+              style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+            />
+          </View>
+
+          <View style={styles.toggleRow}>
+            <ThemedText type="default">All Day</ThemedText>
+            <Pressable
+              onPress={() => setNewEvent(prev => ({ ...prev, isAllDay: !prev.isAllDay }))}
+              style={[styles.toggle, newEvent.isAllDay && { backgroundColor: theme.primary }]}
+            >
+              <View style={[styles.toggleThumb, newEvent.isAllDay && { marginLeft: 20 }]} />
+            </Pressable>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <ThemedText type="small" themeColor="textSecondary">Date</ThemedText>
+            <TextInput
+              value={newEvent.date}
+              onChangeText={(text) => setNewEvent(prev => ({ ...prev, date: text }))}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={theme.textMuted}
+              style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+            />
+          </View>
+
+          {!newEvent.isAllDay && (
+            <View style={styles.timeRow}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <ThemedText type="small" themeColor="textSecondary">Start Time</ThemedText>
                 <TextInput
-                  value={newEvent.title}
-                  onChangeText={(text) => setNewEvent(prev => ({ ...prev, title: text }))}
-                  placeholder="Event title"
+                  value={newEvent.startTime}
+                  onChangeText={(text) => setNewEvent(prev => ({ ...prev, startTime: text }))}
+                  placeholder="HH:MM"
                   placeholderTextColor={theme.textMuted}
                   style={[styles.input, { color: theme.text, borderColor: theme.border }]}
                 />
               </View>
-
-              <View style={styles.inputGroup}>
-                <ThemedText type="small" themeColor="textSecondary">Location (optional)</ThemedText>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <ThemedText type="small" themeColor="textSecondary">End Time</ThemedText>
                 <TextInput
-                  value={newEvent.location}
-                  onChangeText={(text) => setNewEvent(prev => ({ ...prev, location: text }))}
-                  placeholder="Add location"
+                  value={newEvent.endTime}
+                  onChangeText={(text) => setNewEvent(prev => ({ ...prev, endTime: text }))}
+                  placeholder="HH:MM"
                   placeholderTextColor={theme.textMuted}
                   style={[styles.input, { color: theme.text, borderColor: theme.border }]}
                 />
               </View>
-
-              <View style={styles.toggleRow}>
-                <ThemedText type="default">All Day</ThemedText>
-                <Pressable
-                  onPress={() => setNewEvent(prev => ({ ...prev, isAllDay: !prev.isAllDay }))}
-                  style={[styles.toggle, newEvent.isAllDay && { backgroundColor: theme.primary }]}
-                >
-                  <View style={[styles.toggleThumb, newEvent.isAllDay && { marginLeft: 20 }]} />
-                </Pressable>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <ThemedText type="small" themeColor="textSecondary">Date</ThemedText>
-                <TextInput
-                  value={newEvent.date}
-                  onChangeText={(text) => setNewEvent(prev => ({ ...prev, date: text }))}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={theme.textMuted}
-                  style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                />
-              </View>
-
-              {!newEvent.isAllDay && (
-                <View style={styles.timeRow}>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <ThemedText type="small" themeColor="textSecondary">Start Time</ThemedText>
-                    <TextInput
-                      value={newEvent.startTime}
-                      onChangeText={(text) => setNewEvent(prev => ({ ...prev, startTime: text }))}
-                      placeholder="HH:MM"
-                      placeholderTextColor={theme.textMuted}
-                      style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                    />
-                  </View>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <ThemedText type="small" themeColor="textSecondary">End Time</ThemedText>
-                    <TextInput
-                      value={newEvent.endTime}
-                      onChangeText={(text) => setNewEvent(prev => ({ ...prev, endTime: text }))}
-                      placeholder="HH:MM"
-                      placeholderTextColor={theme.textMuted}
-                      style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                    />
-                  </View>
-                </View>
-              )}
-
-              <View style={styles.inputGroup}>
-                <ThemedText type="small" themeColor="textSecondary">Repeat</ThemedText>
-                <View style={styles.chipRow}>
-                  {REPEAT_OPTIONS.map((opt) => (
-                    <Pressable
-                      key={opt.value}
-                      onPress={() => setNewEvent(prev => ({ ...prev, repeat: opt.value }))}
-                      style={[
-                        styles.chip,
-                        { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-                        newEvent.repeat === opt.value && { backgroundColor: theme.primary, borderColor: theme.primary },
-                      ]}
-                    >
-                      <ThemedText
-                        type="small"
-                        style={newEvent.repeat === opt.value ? { color: '#FFFFFF' } : undefined}
-                      >
-                        {opt.label}
-                      </ThemedText>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <ThemedText type="small" themeColor="textSecondary">Reminder</ThemedText>
-                <View style={styles.chipRow}>
-                  {REMINDER_OPTIONS.map((opt) => (
-                    <Pressable
-                      key={String(opt.value)}
-                      onPress={() => setNewEvent(prev => ({ ...prev, reminder: opt.value }))}
-                      style={[
-                        styles.chip,
-                        { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-                        newEvent.reminder === opt.value && { backgroundColor: theme.primary, borderColor: theme.primary },
-                      ]}
-                    >
-                      <ThemedText
-                        type="small"
-                        style={newEvent.reminder === opt.value ? { color: '#FFFFFF' } : undefined}
-                      >
-                        {opt.label}
-                      </ThemedText>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <ThemedText type="small" themeColor="textSecondary">Notes</ThemedText>
-                <TextInput
-                  value={newEvent.notes}
-                  onChangeText={(text) => setNewEvent(prev => ({ ...prev, notes: text }))}
-                  placeholder="Add notes"
-                  placeholderTextColor={theme.textMuted}
-                  multiline
-                  numberOfLines={3}
-                  style={[styles.input, styles.textArea, { color: theme.text, borderColor: theme.border }]}
-                />
-              </View>
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <Pressable
-                onPress={() => { Keyboard.dismiss(); setShowNewEventModal(false); resetForm(); }}
-                style={[styles.cancelButton, { backgroundColor: theme.backgroundElement }]}
-              >
-                <ThemedText type="default" themeColor="textMuted">Cancel</ThemedText>
-              </Pressable>
-              <Pressable
-                onPress={handleSaveEvent}
-                style={[styles.saveButton, { backgroundColor: theme.primary }]}
-              >
-                <ThemedText type="default" style={styles.saveButtonText}>
-                  {editingEvent ? 'Update' : 'Save'}
-                </ThemedText>
-              </Pressable>
             </View>
+          )}
+
+          <View style={styles.inputGroup}>
+            <ThemedText type="small" themeColor="textSecondary">Repeat</ThemedText>
+            <View style={styles.chipRow}>
+              {REPEAT_OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => setNewEvent(prev => ({ ...prev, repeat: opt.value }))}
+                  style={[
+                    styles.chip,
+                    { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+                    newEvent.repeat === opt.value && { backgroundColor: theme.primary, borderColor: theme.primary },
+                  ]}
+                >
+                  <ThemedText
+                    type="small"
+                    style={newEvent.repeat === opt.value ? { color: '#FFFFFF' } : undefined}
+                  >
+                    {opt.label}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <ThemedText type="small" themeColor="textSecondary">Reminder</ThemedText>
+            <View style={styles.chipRow}>
+              {REMINDER_OPTIONS.map((opt) => (
+                <Pressable
+                  key={String(opt.value)}
+                  onPress={() => setNewEvent(prev => ({ ...prev, reminder: opt.value }))}
+                  style={[
+                    styles.chip,
+                    { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+                    newEvent.reminder === opt.value && { backgroundColor: theme.primary, borderColor: theme.primary },
+                  ]}
+                >
+                  <ThemedText
+                    type="small"
+                    style={newEvent.reminder === opt.value ? { color: '#FFFFFF' } : undefined}
+                  >
+                    {opt.label}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <ThemedText type="small" themeColor="textSecondary">Notes</ThemedText>
+            <TextInput
+              value={newEvent.notes}
+              onChangeText={(text) => setNewEvent(prev => ({ ...prev, notes: text }))}
+              placeholder="Add notes"
+              placeholderTextColor={theme.textMuted}
+              multiline
+              numberOfLines={3}
+              style={[styles.input, styles.textArea, { color: theme.text, borderColor: theme.border }]}
+            />
+          </View>
+        </ScrollView>
+
+        <View style={styles.modalFooter}>
+          <Pressable
+            onPress={() => { Keyboard.dismiss(); setShowNewEventModal(false); resetForm(); }}
+            style={[styles.cancelButton, { backgroundColor: theme.backgroundElement }]}
+          >
+            <ThemedText type="default" themeColor="textMuted">Cancel</ThemedText>
           </Pressable>
+          <Pressable
+            onPress={handleSaveEvent}
+            style={[styles.saveButton, { backgroundColor: theme.primary }]}
+          >
+            <ThemedText type="default" style={styles.saveButtonText}>
+              {editingEvent ? 'Update' : 'Save'}
+            </ThemedText>
           </Pressable>
-        </KeyboardAvoidingView>
-      </Modal>
+        </View>
+      </CustomModal>
     </ThemedView>
   );
 }
@@ -1005,33 +997,7 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalKav: {
-    flex: 1,
-  },
-  modalContent: {
-    width: '90%',
-    maxHeight: '85%',
-    borderRadius: Spacing.four,
-    overflow: 'hidden',
-    borderCurve: 'continuous',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Spacing.four,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  modalTitle: {
-    fontWeight: '600',
-    fontSize: 18,
-  },
+
   modalBody: {
     padding: Spacing.four,
     paddingBottom: Spacing.five,
