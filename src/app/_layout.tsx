@@ -10,11 +10,15 @@ import { ThemeProvider as MindFlowThemeProvider } from '@/components/theme-provi
 import { migrateDbIfNeeded } from '@/services/database';
 import { NotificationService } from '@/services/notification-service';
 
+SplashScreen.preventAutoHideAsync();
+
+// Fallback: if the app doesn't render the AnnotatedSplashOverlay within 5s,
+// hide the native splash so we don't get stuck on a blank screen
+setTimeout(() => SplashScreen.hideAsync(), 5000);
+
 function onDatabaseError(e: Error) {
   console.warn('Database init failed:', e.message);
 }
-
-SplashScreen.preventAutoHideAsync();
 
 function AppContent() {
   const db = useSQLiteContext();
@@ -105,12 +109,6 @@ export default function RootLayout() {
     'JetBrains Mono': require('../../assets/fonts/JetBrainsMono-VariableFont_wght.ttf'),
     'Playfair Display': require('../../assets/fonts/PlayfairDisplay-VariableFont_wght.ttf'),
   });
-
-  useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
 
   if (!fontsLoaded) return null;
 
