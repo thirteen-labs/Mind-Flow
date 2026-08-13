@@ -1,5 +1,4 @@
 import { Image } from 'expo-image';
-import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, { Easing, Keyframe, runOnJS } from 'react-native-reanimated';
@@ -60,9 +59,7 @@ export function AnimatedSplashOverlay() {
   ) : (
     <View
       onLayout={() => {
-        SplashScreen.hideAsync().finally(() => {
-          setAnimate(true);
-        });
+        setAnimate(true);
       }}
       style={styles.splashOverlay}
       {...overlayProps}>

@@ -23,13 +23,6 @@ function AppContent() {
     NotificationService.setup();
   }, []);
 
-  // Once the React tree has committed its first frame (lock screen or app),
-  // hide the native splash. The AnimatedSplashOverlay handles the branded
-  // blue transition on top independently, so this is safe to do here.
-  useEffect(() => {
-    SplashScreen.hideAsync().catch(() => {});
-  }, []);
-
   return (
     <AppLockGate db={db}>
       <MindFlowThemeProvider>
@@ -123,9 +116,26 @@ export default function RootLayout() {
 
   const appReady = fontsLoaded || fontError || forceReady;
 
+  // Guaranteed native splash hide. Once the app tree is ready we hide the
+  // native splash immediately, and as a hard safety net we ALSO hide it after
+  // a short delay no matter what the subtree does (slow/failed DB init, app
+  // lock screen, a thrown render error, etc.). This is the single source of
+  // truth for hiding the native splash so the app can never get stuck on it.
+  useEffect(() => {
+    if (!appReady) return;
+    let hidden = false;
+    const hide = () => {
+      if (hidden) return;
+      hidden = true;
+      SplashScreen.hideAsync().catch(() => {});
+    };
+    hide();
+    const t = setTimeout(hide, 4000);
+    return () => clearTimeout(t);
+  }, [appReady]);
+
   // While not ready, render nothing so the native splash stays covering the
-  // screen. We only reveal the app (which hides the native splash itself via
-  // AnimatedSplashOverlay) once fonts are actually available.
+  // screen. We only reveal the app once fonts are actually available.
   if (!appReady) return null;
 
   return (
