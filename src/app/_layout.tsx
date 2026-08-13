@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router/stack';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
@@ -12,10 +12,6 @@ import { NotificationService } from '@/services/notification-service';
 
 SplashScreen.preventAutoHideAsync();
 
-// Fallback: if the app doesn't render the AnnotatedSplashOverlay within 5s,
-// hide the native splash so we don't get stuck on a blank screen
-setTimeout(() => SplashScreen.hideAsync(), 5000);
-
 function onDatabaseError(e: Error) {
   console.warn('Database init failed:', e.message);
 }
@@ -25,6 +21,13 @@ function AppContent() {
 
   useEffect(() => {
     NotificationService.setup();
+  }, []);
+
+  // Once the React tree has committed its first frame (lock screen or app),
+  // hide the native splash. The AnimatedSplashOverlay handles the branded
+  // blue transition on top independently, so this is safe to do here.
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {});
   }, []);
 
   return (
@@ -104,13 +107,26 @@ function AppContent() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     'Inter': require('../../assets/fonts/Inter-VariableFont_opsz,wght.ttf'),
     'JetBrains Mono': require('../../assets/fonts/JetBrainsMono-VariableFont_wght.ttf'),
     'Playfair Display': require('../../assets/fonts/PlayfairDisplay-VariableFont_wght.ttf'),
   });
 
-  if (!fontsLoaded) return null;
+  // Safety net: if fonts never resolve (or error), proceed with fallback
+  // fonts rather than staying stuck on the native splash indefinitely.
+  const [forceReady, setForceReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setForceReady(true), 10000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const appReady = fontsLoaded || fontError || forceReady;
+
+  // While not ready, render nothing so the native splash stays covering the
+  // screen. We only reveal the app (which hides the native splash itself via
+  // AnimatedSplashOverlay) once fonts are actually available.
+  if (!appReady) return null;
 
   return (
     <SQLiteProvider databaseName="mindflow.db" onInit={migrateDbIfNeeded} onError={onDatabaseError}>
