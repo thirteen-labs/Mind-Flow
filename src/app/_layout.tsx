@@ -4,7 +4,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AppLockGate } from '@/components/app-lock-gate';
 import { ThemeProvider as MindFlowThemeProvider } from '@/components/theme-provider';
 import { migrateDbIfNeeded } from '@/services/database';
@@ -21,12 +20,12 @@ function AppContent() {
 
   useEffect(() => {
     NotificationService.setup();
+    SplashScreen.hideAsync().catch(() => {});
   }, []);
 
   return (
     <AppLockGate db={db}>
       <MindFlowThemeProvider>
-        <AnimatedSplashOverlay />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
@@ -116,21 +115,14 @@ export default function RootLayout() {
 
   const appReady = fontsLoaded || fontError || forceReady;
 
-  // Guaranteed native splash hide. Once the app tree is ready we hide the
-  // native splash immediately, and as a hard safety net we ALSO hide it after
-  // a short delay no matter what the subtree does (slow/failed DB init, app
-  // lock screen, a thrown render error, etc.). This is the single source of
-  // truth for hiding the native splash so the app can never get stuck on it.
+  // Hard safety net: if AppContent never mounts (DB fails to init), hide
+  // the splash after a delay so the app doesn't stay stuck on it forever.
+  // The primary splash hide lives in AppContent — this is just the fallback.
   useEffect(() => {
     if (!appReady) return;
-    let hidden = false;
-    const hide = () => {
-      if (hidden) return;
-      hidden = true;
+    const t = setTimeout(() => {
       SplashScreen.hideAsync().catch(() => {});
-    };
-    hide();
-    const t = setTimeout(hide, 4000);
+    }, 6000);
     return () => clearTimeout(t);
   }, [appReady]);
 

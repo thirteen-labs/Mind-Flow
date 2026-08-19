@@ -9,6 +9,7 @@
     "@sourcetoad/react-native-sketch-canvas": "^2.4.1",
     "@tabler/icons-react-native": "^3.45.0",
     "@tailwindcss/postcss": "^4.3.3",
+    "acorn": "^8.18.0",
     "clsx": "^2.1.1",
     "expo": "^57.0.9",
     "expo-asset": "~57.0.11",
