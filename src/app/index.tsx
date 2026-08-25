@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { documentDirectory, getInfoAsync } from 'expo-file-system/legacy';
@@ -17,25 +18,38 @@ export default function Index() {
   const [onboarded, setOnboarded] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+    const timeout = setTimeout(() => {
+      if (mounted) setChecked(true);
+    }, 2500);
     (async () => {
       try {
         const row = await db.getFirstAsync<{ value: string }>(
           "SELECT value FROM settings WHERE key = ?", 'onboarded'
         );
+        if (!mounted) return;
         if (row?.value === '1') {
           setOnboarded(true);
         } else if (ONBOARDING_FLAG) {
           const info = await getInfoAsync(ONBOARDING_FLAG);
-          setOnboarded(info.exists);
+          if (mounted) setOnboarded(info.exists);
         }
       } catch {
-        setOnboarded(false);
+        if (mounted) setOnboarded(false);
       }
-      setChecked(true);
+      if (mounted) setChecked(true);
+      clearTimeout(timeout);
     })();
+    return () => { mounted = false; clearTimeout(timeout); };
   }, [db]);
 
-  if (!checked) return null;
+  if (!checked) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#636366" />
+      </View>
+    );
+  }
 
   if (!onboarded) {
     return <Redirect href="/onboarding" />
@@ -43,3 +57,12 @@ export default function Index() {
 
   return <Redirect href="/(tabs)/home" />;
 }
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000000',
+  },
+});

@@ -267,23 +267,29 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
     const IconEl = TYPE_ICON[item.entry_type ?? 'note'];
     const isActive = item.id === activeNoteId;
     return (
-      <Pressable
-        onPress={() => openViewer(item)}
-        style={({ pressed }) => [
+      <View
+        style={[
           styles.row,
-          pressed && { backgroundColor: theme.backgroundElement },
-          isActive && { backgroundColor: withAlpha(theme.tint, 0.1 ) },
+          isActive && { backgroundColor: withAlpha(theme.tint, 0.1) },
         ]}
       >
-        <View style={[styles.rowIcon, { backgroundColor: withAlpha(typeColor(item.entry_type ?? 'note', theme), 0.14) }]}>
-          <IconEl size={15} color={typeColor(item.entry_type ?? 'note', theme)} />
-        </View>
-        <ThemedText type="default" numberOfLines={1} style={styles.rowName}>
-          {name}
-        </ThemedText>
+        <Pressable
+          onPress={() => openViewer(item)}
+          style={({ pressed }) => [
+            styles.rowMain,
+            pressed && { opacity: 0.7 },
+          ]}
+        >
+          <View style={[styles.rowIcon, { backgroundColor: withAlpha(typeColor(item.entry_type ?? 'note', theme), 0.14) }]}>
+            <IconEl size={15} color={typeColor(item.entry_type ?? 'note', theme)} />
+          </View>
+          <ThemedText type="default" numberOfLines={1} style={styles.rowName}>
+            {name}
+          </ThemedText>
+        </Pressable>
         <Pressable
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setMenuEntry(item);
           }}
           hitSlop={10}
@@ -291,7 +297,7 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
         >
           <IconDots size={18} color={theme.textMuted} />
         </Pressable>
-      </Pressable>
+      </View>
     );
   }, [theme, activeNoteId, openViewer]);
 
@@ -492,6 +498,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.two,
     borderRadius: Spacing.two,
+  },
+  rowMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
   rowIcon: {
     width: 30,

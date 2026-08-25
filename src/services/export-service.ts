@@ -244,7 +244,7 @@ export const ExportService = {
     }
 
     const file = new File(Paths.cache, `${baseName}.${extension}`);
-    file.write(content);
+    await file.write(content);
 
     if (await Sharing.isAvailableAsync()) {
       await Sharing.shareAsync(file.uri, { mimeType });

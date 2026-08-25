@@ -24,29 +24,46 @@ function uuid(): string {
   return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
+type EventRow = {
+  id: string; title: string; date: string; start_time: string | null; end_time: string | null;
+  is_all_day: number; location: string | null; notes: string | null; color: string | null;
+  repeat: RepeatType; reminder: number | null; journal_id: string | null; notification_id: string | null;
+  created_at: string; updated_at: string;
+};
+
+function mapEventRow(row: EventRow): PlannerEvent {
+  return {
+    id: row.id, title: row.title, date: row.date,
+    startTime: row.start_time, endTime: row.end_time,
+    isAllDay: !!row.is_all_day, location: row.location, notes: row.notes, color: row.color,
+    repeat: row.repeat, reminder: row.reminder, journalId: row.journal_id, notificationId: row.notification_id,
+    createdAt: row.created_at, updatedAt: row.updated_at,
+  };
+}
+
 export const PlannerService = {
   async getEventsByDate(db: SQLiteDatabase, date: string): Promise<PlannerEvent[]> {
-    const rows = await db.getAllAsync<PlannerEvent>(
+    const rows = await db.getAllAsync<EventRow>(
       'SELECT * FROM events WHERE date = ? ORDER BY start_time ASC',
       date
     );
-    return rows;
+    return rows.map(mapEventRow);
   },
 
   async getEventsByDateRange(db: SQLiteDatabase, startDate: string, endDate: string): Promise<PlannerEvent[]> {
-    const rows = await db.getAllAsync<PlannerEvent>(
+    const rows = await db.getAllAsync<EventRow>(
       'SELECT * FROM events WHERE date >= ? AND date <= ? ORDER BY date ASC, start_time ASC',
       startDate, endDate
     );
-    return rows;
+    return rows.map(mapEventRow);
   },
 
   async getEventById(db: SQLiteDatabase, id: string): Promise<PlannerEvent | null> {
-    const row = await db.getFirstAsync<PlannerEvent>(
+    const row = await db.getFirstAsync<EventRow>(
       'SELECT * FROM events WHERE id = ?',
       id
     );
-    return row ?? null;
+    return row ? mapEventRow(row) : null;
   },
 
   async createEvent(db: SQLiteDatabase, event: Omit<PlannerEvent, 'id' | 'createdAt' | 'updatedAt'>): Promise<PlannerEvent> {
@@ -112,7 +129,7 @@ export const PlannerService = {
   },
 
   async getEventsWithJournals(db: SQLiteDatabase, startDate: string, endDate: string): Promise<(PlannerEvent & { journalContent?: string })[]> {
-    const rows = await db.getAllAsync<PlannerEvent & { journalContent?: string }>(
+    const rows = await db.getAllAsync<EventRow & { journalContent?: string }>(
       `SELECT e.*, j.content as journalContent
        FROM events e
        LEFT JOIN journals j ON e.journal_id = j.id
@@ -120,6 +137,6 @@ export const PlannerService = {
        ORDER BY e.date ASC, e.start_time ASC`,
       startDate, endDate
     );
-    return rows;
+    return rows.map((r) => ({ ...mapEventRow(r as EventRow), journalContent: (r as any).journalContent }));
   },
 };

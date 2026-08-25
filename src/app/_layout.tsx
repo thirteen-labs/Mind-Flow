@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router/stack';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
@@ -9,7 +10,24 @@ import { ThemeProvider as MindFlowThemeProvider } from '@/components/theme-provi
 import { migrateDbIfNeeded } from '@/services/database';
 import { NotificationService } from '@/services/notification-service';
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+function DbFallback() {
+  return (
+    <View style={fallbackStyles.container}>
+      <ActivityIndicator size="large" color="#636366" />
+    </View>
+  );
+}
+
+const fallbackStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000000',
+  },
+});
 
 function onDatabaseError(e: Error) {
   console.warn('Database init failed:', e.message);
@@ -19,9 +37,11 @@ function AppContent() {
   const db = useSQLiteContext();
 
   useEffect(() => {
-    NotificationService.setup();
+    NotificationService.setup().catch(() => {});
+    // Enforce FKs at runtime (also set during migration)
+    db.execAsync('PRAGMA foreign_keys = ON').catch(() => {});
     SplashScreen.hideAsync().catch(() => {});
-  }, []);
+  }, [db]);
 
   return (
     <AppLockGate db={db}>
@@ -109,7 +129,7 @@ export default function RootLayout() {
   // fonts rather than staying stuck on the native splash indefinitely.
   const [forceReady, setForceReady] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setForceReady(true), 10000);
+    const t = setTimeout(() => setForceReady(true), 3500);
     return () => clearTimeout(t);
   }, []);
 
@@ -122,17 +142,18 @@ export default function RootLayout() {
     if (!appReady) return;
     const t = setTimeout(() => {
       SplashScreen.hideAsync().catch(() => {});
-    }, 6000);
+    }, 1500);
     return () => clearTimeout(t);
   }, [appReady]);
 
-  // While not ready, render nothing so the native splash stays covering the
-  // screen. We only reveal the app once fonts are actually available.
+  // While not ready, keep native splash covering the screen.
   if (!appReady) return null;
 
   return (
-    <SQLiteProvider databaseName="mindflow.db" onInit={migrateDbIfNeeded} onError={onDatabaseError}>
-      <AppContent />
-    </SQLiteProvider>
+    <Suspense fallback={<DbFallback />}>
+      <SQLiteProvider databaseName="mindflow.db" onInit={migrateDbIfNeeded} onError={onDatabaseError} useSuspense>
+        <AppContent />
+      </SQLiteProvider>
+    </Suspense>
   );
 }

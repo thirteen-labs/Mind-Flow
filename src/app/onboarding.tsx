@@ -18,7 +18,8 @@ const ONBOARDING_FLAG = (() => {
 const pages = [
   {
     id: 'welcome',
-    gradient: 'linear-gradient(135deg, #0F0C29, #302B63, #24243E)',
+    colors: ['#0F0C29', '#302B63', '#24243E'] as const,
+    backgroundColor: '#0F0C29',
     accent: '#7C5CFC',
     title: 'MindFlow',
     subtitle: 'Write. Connect. Grow.',
@@ -26,7 +27,8 @@ const pages = [
   },
   {
     id: 'write',
-    gradient: 'linear-gradient(135deg, #0D1B2A, #1B3A5C, #2E5984)',
+    colors: ['#0D1B2A', '#1B3A5C', '#2E5984'] as const,
+    backgroundColor: '#0D1B2A',
     accent: '#4A9EFF',
     title: 'Start Writing',
     subtitle: 'Every day already exists.',
@@ -34,7 +36,8 @@ const pages = [
   },
   {
     id: 'grow',
-    gradient: 'linear-gradient(135deg, #1A0A1E, #3B1D4A, #5C2D72)',
+    colors: ['#1A0A1E', '#3B1D4A', '#5C2D72'] as const,
+    backgroundColor: '#1A0A1E',
     accent: '#C084FC',
     title: 'You Are Ready',
     subtitle: 'Your second brain is waiting.',
@@ -71,8 +74,11 @@ export default function OnboardingScreen() {
     } catch {
       // filesystem write failed, continuing anyway
     }
-    router.dismissAll();
-    router.replace('/');
+    try { router.dismissAll(); } catch {}
+    // Small delay to let DB WAL flush before Index re-reads
+    setTimeout(() => {
+      router.replace('/(tabs)/home' as any);
+    }, 100);
   }, [db]);
 
   const handleSkip = () => {
@@ -98,8 +104,8 @@ export default function OnboardingScreen() {
         }}
       >
         {pages.map((p, i) => (
-          <View key={p.id} style={{ width }}>
-            <View style={[styles.page, { experimental_backgroundImage: p.gradient }]}>
+          <View key={p.id} style={{ width, backgroundColor: p.backgroundColor }}>
+            <View style={styles.page}>
               <Animated.View
                 entering={FadeInDown.delay(200).duration(600)}
                 style={styles.content}

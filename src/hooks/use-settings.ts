@@ -23,42 +23,36 @@ export function useSettings() {
   const update = useCallback(
     async (updates: Partial<AppSettings>) => {
       await SettingsService.setMany(db, updates);
-      setSettings((prev) => (prev ? { ...prev, ...updates } : prev));
+      let nextSettings: AppSettings | null = null;
+      setSettings((prev) => {
+        if (!prev) return prev;
+        nextSettings = { ...prev, ...updates };
+        return nextSettings;
+      });
+      // Use fresh state for notification scheduling to avoid stale closure
+      const s = nextSettings ?? (settings ? { ...settings, ...updates } : null);
+      if (!s) return;
 
       if (updates.morningReminderEnabled !== undefined) {
-        if (updates.morningReminderEnabled && settings) {
-          const h = updates.morningReminderHour ?? settings.morningReminderHour ?? 7;
-          const m = updates.morningReminderMinute ?? settings.morningReminderMinute ?? 0;
-          await NotificationService.scheduleMorning(h, m);
+        if (updates.morningReminderEnabled) {
+          await NotificationService.scheduleMorning(s.morningReminderHour ?? 7, s.morningReminderMinute ?? 0);
         } else {
           await NotificationService.cancelMorning();
         }
-      }
-      if (updates.morningReminderHour !== undefined || updates.morningReminderMinute !== undefined) {
-        const s = { ...settings, ...updates };
+      } else if (updates.morningReminderHour !== undefined || updates.morningReminderMinute !== undefined) {
         if (s.morningReminderEnabled) {
-          await NotificationService.scheduleMorning(
-            s.morningReminderHour ?? 7,
-            s.morningReminderMinute ?? 0
-          );
+          await NotificationService.scheduleMorning(s.morningReminderHour ?? 7, s.morningReminderMinute ?? 0);
         }
       }
       if (updates.eveningReminderEnabled !== undefined) {
-        if (updates.eveningReminderEnabled && settings) {
-          const h = updates.eveningReminderHour ?? settings.eveningReminderHour ?? 18;
-          const m = updates.eveningReminderMinute ?? settings.eveningReminderMinute ?? 0;
-          await NotificationService.scheduleEvening(h, m);
+        if (updates.eveningReminderEnabled) {
+          await NotificationService.scheduleEvening(s.eveningReminderHour ?? 18, s.eveningReminderMinute ?? 0);
         } else {
           await NotificationService.cancelEvening();
         }
-      }
-      if (updates.eveningReminderHour !== undefined || updates.eveningReminderMinute !== undefined) {
-        const s = { ...settings, ...updates };
+      } else if (updates.eveningReminderHour !== undefined || updates.eveningReminderMinute !== undefined) {
         if (s.eveningReminderEnabled) {
-          await NotificationService.scheduleEvening(
-            s.eveningReminderHour ?? 18,
-            s.eveningReminderMinute ?? 0
-          );
+          await NotificationService.scheduleEvening(s.eveningReminderHour ?? 18, s.eveningReminderMinute ?? 0);
         }
       }
       if (updates.streakReminderEnabled !== undefined) {

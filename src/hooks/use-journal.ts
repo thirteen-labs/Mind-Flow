@@ -129,7 +129,9 @@ export function useJournal({ entryId, type = 'note', date, sessionKey }: UseJour
 
   useEffect(() => {
     return () => {
-      latestSaveRef.current();
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      // Flush pending save on unmount; ignore empty drafts
+      void latestSaveRef.current();
     };
   }, []);
 

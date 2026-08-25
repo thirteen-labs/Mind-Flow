@@ -166,7 +166,7 @@ export default function SearchScreen() {
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => search(query, selectedTagIds, datePreset, selectedTypes, sortBy), DEBOUNCE_MS);
+    timerRef.current = setTimeout(() => { void search(query, selectedTagIds, datePreset, selectedTypes, sortBy); }, DEBOUNCE_MS);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };

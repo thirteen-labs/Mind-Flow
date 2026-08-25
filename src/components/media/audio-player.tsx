@@ -30,10 +30,11 @@ export function AudioPlayer({ uri, title, artworkUri, durationSeconds }: AudioPl
   }, [player, isPlaying]);
 
   useEffect(() => {
+    let mounted = true;
     const interval = setInterval(() => {
-      setIsPlaying(player.playing);
-    }, 200);
-    return () => clearInterval(interval);
+      if (mounted) setIsPlaying(player.playing);
+    }, 300);
+    return () => { mounted = false; clearInterval(interval); };
   }, [player]);
 
   return (

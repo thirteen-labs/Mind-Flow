@@ -143,19 +143,19 @@ export default function WriterScreen() {
     }
   }, [journalParams.sketchUri, setContent]);
 
-  const handleBack = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    save();
+  const handleBack = useCallback(async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try { await save(); } catch {}
     router.back();
   }, [save]);
 
-  const handleSaveToggle = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const handleSaveToggle = useCallback(async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (readOnly) {
       setReadOnly(false);
     } else {
       Keyboard.dismiss();
-      save();
+      try { await save(); } catch {}
       setReadOnly(true);
     }
   }, [readOnly, save]);

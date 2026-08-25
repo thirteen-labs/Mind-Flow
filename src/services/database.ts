@@ -2,9 +2,27 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 export const DATABASE_NAME = 'mindflow.db';
 
+async function hasColumn(db: SQLiteDatabase, table: string, column: string): Promise<boolean> {
+  try {
+    const rows = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+    return rows.some((r) => r.name === column);
+  } catch {
+    return false;
+  }
+}
+
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
   const result = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   let currentDbVersion = result?.user_version ?? 0;
+  // Self-heal: if tables already upgraded but user_version lagged, bump it
+  try {
+    if (currentDbVersion < 9 && (await hasColumn(db, 'journals', 'entry_type'))) {
+      currentDbVersion = 9;
+    }
+    if (currentDbVersion < 10 && (await hasColumn(db, 'journals', 'is_hidden'))) {
+      currentDbVersion = 10;
+    }
+  } catch {}
 
   if (currentDbVersion < 1) {
     await db.execAsync(`
@@ -143,8 +161,12 @@ ALTER TABLE journals ADD COLUMN title TEXT;
   }
 
   if (currentDbVersion < 9) {
-    await db.execAsync(`
+    // If already migrated (entry_type exists) skip heavy rebuild
+    const already = await hasColumn(db, 'journals', 'entry_type');
+    if (!already) {
+      await db.execAsync(`
 DROP TABLE IF EXISTS journals_fts;
+DROP TABLE IF EXISTS journals_old;
 ALTER TABLE journals RENAME TO journals_old;
 CREATE TABLE journals (
   id TEXT PRIMARY KEY NOT NULL,
@@ -191,6 +213,7 @@ CREATE TABLE IF NOT EXISTS templates (
 );
 CREATE INDEX IF NOT EXISTS idx_templates_updated ON templates(updated_at DESC);
 `);
+    }
     currentDbVersion = 9;
   }
 
@@ -202,5 +225,7 @@ CREATE INDEX IF NOT EXISTS idx_journals_hidden ON journals(is_hidden);
     currentDbVersion = 10;
   }
 
+  // Ensure foreign keys are enforced for journal_tags / media / events cascades
+  await db.execAsync('PRAGMA foreign_keys = ON');
   await db.execAsync(`PRAGMA user_version = ${currentDbVersion}`);
 }

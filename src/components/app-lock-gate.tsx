@@ -15,24 +15,34 @@ interface AppLockGateProps {
 
 export function AppLockGate({ db, children }: AppLockGateProps) {
   const [unlocked, setUnlocked] = useState(false);
-  const [checking] = useState(true);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     let mounted = true;
+    const fallback = setTimeout(() => {
+      if (mounted) {
+        setUnlocked(true);
+        setChecking(false);
+      }
+    }, 3000);
     (async () => {
       try {
         const settings = await SettingsService.getAll(db);
         if (!settings.appLockEnabled) {
-          if (mounted) setUnlocked(true);
+          if (mounted) { setUnlocked(true); setChecking(false); }
+          clearTimeout(fallback);
           return;
         }
         const compatible = await LocalAuthentication.hasHardwareAsync();
         if (!compatible) {
-          if (mounted) setUnlocked(true);
+          if (mounted) { setUnlocked(true); setChecking(false); }
+          clearTimeout(fallback);
           return;
         }
         const enrolled = await LocalAuthentication.isEnrolledAsync();
         if (!enrolled) {
+          clearTimeout(fallback);
+          if (mounted) setChecking(false);
           Alert.alert(
             'No biometrics set up',
             'Please enroll in biometric authentication in your device settings.',
@@ -45,12 +55,14 @@ export function AppLockGate({ db, children }: AppLockGateProps) {
           fallbackLabel: 'Enter passcode',
           cancelLabel: 'Exit',
         });
-        if (mounted) setUnlocked(result.success);
+        if (mounted) { setUnlocked(result.success); setChecking(false); }
+        clearTimeout(fallback);
       } catch {
-        if (mounted) setUnlocked(true);
+        if (mounted) { setUnlocked(true); setChecking(false); }
+        clearTimeout(fallback);
       }
     })();
-    return () => { mounted = false; };
+    return () => { mounted = false; clearTimeout(fallback); };
   }, [db]);
 
   if (unlocked) return <>{children}</>;

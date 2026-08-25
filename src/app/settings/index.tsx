@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Platform,
@@ -33,6 +33,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSQLiteContext } from 'expo-sqlite';
 
 import { ThemePicker } from '@/components/theme-picker';
 import { ThemedText } from '@/components/themed-text';
@@ -145,85 +146,165 @@ function TimePicker({
 
 function TemplatesTab() {
   const theme = useTheme();
-  const [templates] = useState<{ id: string; name: string; description: string; isDefault: boolean }[]>([]);
+  const db = useSQLiteContext();
+  const [templates, setTemplates] = useState<{ id: string; title: string; content: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    import('@/services/template-service').then(({ TemplateService }) => {
+      TemplateService.getAllTemplates(db).then((list) => {
+        if (mounted) { setTemplates(list.map(t => ({ id: t.id, title: t.title, content: t.content }))); setLoading(false); }
+      }).catch(() => { if (mounted) setLoading(false); });
+    });
+    return () => { mounted = false; };
+  }, [db]);
+
+  if (loading) {
+    return (
+      <ThemedView style={styles.tabContentContainer}>
+        <ThemedText type="small" themeColor="textMuted">Loading templates…</ThemedText>
+      </ThemedView>
+    );
+  }
 
   return (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false} automaticallyAdjustKeyboardInsets>
-      <ThemedView style={styles.tabContentContainer}>
-        {templates.map((template, index) => (
-          <Animated.View key={template.id} entering={FadeInDown.delay(index * 50).springify()}>
-            <Pressable
-              style={[styles.templateCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-            >
-              <View style={styles.templateHeader}>
-                <IconFileText size={20} color={theme.tint} />
-                <ThemedText type="default" style={styles.templateName}>{template.name}</ThemedText>
-                {template.isDefault && (
-                  <View style={[styles.defaultBadge, { backgroundColor: theme.tint }]}>
-                    <ThemedText type="small" style={[styles.defaultBadgeText, { color: contrastText(theme.tint) }]}>Default</ThemedText>
-                  </View>
-                )}
-              </View>
-              <ThemedText type="small" themeColor="textMuted">{template.description}</ThemedText>
-            </Pressable>
-          </Animated.View>
-        ))}
-
-        <Animated.View entering={FadeInDown.delay(200).springify()}>
-          <Pressable style={[styles.createButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <IconPlus size={18} color={theme.tint} />
-            <ThemedText type="default" themeColor="tint">Create Template</ThemedText>
+    <View style={styles.tabContentContainer}>
+      {templates.length === 0 ? (
+        <ThemedText type="small" themeColor="textMuted">No templates yet. Create one to reuse content.</ThemedText>
+      ) : (
+        templates.slice(0, 3).map((template) => (
+          <Pressable
+            key={template.id}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/templates' as any);
+            }}
+            style={[styles.templateCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          >
+            <View style={styles.templateHeader}>
+              <IconFileText size={20} color={theme.tint} />
+              <ThemedText type="default" style={styles.templateName} numberOfLines={1}>{template.title || 'Untitled'}</ThemedText>
+            </View>
+            <ThemedText type="small" themeColor="textMuted" numberOfLines={2}>{template.content || 'Empty template'}</ThemedText>
           </Pressable>
-        </Animated.View>
-      </ThemedView>
-    </ScrollView>
+        ))
+      )}
+      <Pressable
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push('/templates' as any);
+        }}
+        style={[styles.createButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+      >
+        <IconPlus size={18} color={theme.tint} />
+        <ThemedText type="default" themeColor="tint">{templates.length ? 'View all templates' : 'Create Template'}</ThemedText>
+      </Pressable>
+    </View>
   );
 }
 
+const TAG_COLORS = ['#208AEF', '#30D158', '#FF9F0A', '#FF453A', '#AF52DE', '#5AC8FA', '#FF2D92'];
+
 function TagsTab() {
   const theme = useTheme();
-  const [tags] = useState<{ id: string; name: string; color: string; count: number }[]>([]);
+  const db = useSQLiteContext();
+  const [tags, setTags] = useState<{ id: string; name: string; color: string }[]>([]);
   const [newTagName, setNewTagName] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    try {
+      const { TagService } = await import('@/services/tag-service');
+      const list = await TagService.getAll(db);
+      setTags(list);
+    } catch { setTags([]); }
+    setLoading(false);
+  }, [db]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void load(); }, [load]);
+
+  const handleCreate = async () => {
+    const name = newTagName.trim();
+    if (!name) return;
+    if (tags.some(t => t.name.toLowerCase() === name.toLowerCase())) {
+      Alert.alert('Exists', 'A tag with this name already exists');
+      return;
+    }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const { TagService } = await import('@/services/tag-service');
+      const color = TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)];
+      const created = await TagService.create(db, name, color);
+      setTags((prev) => [...prev, created].sort((a,b) => a.name.localeCompare(b.name)));
+      setNewTagName('');
+    } catch { Alert.alert('Error', 'Could not create tag'); }
+  };
+
+  const handleDelete = (tag: { id: string; name: string }) => {
+    Alert.alert('Delete tag', `Delete "${tag.name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try { const { TagService } = await import('@/services/tag-service'); await TagService.delete(db, tag.id); setTags((p) => p.filter(t => t.id !== tag.id)); } catch {}
+      }},
+    ]);
+  };
+
+  const filtered = newTagName.trim()
+    ? tags.filter(t => t.name.toLowerCase().includes(newTagName.trim().toLowerCase()))
+    : tags;
+
+  if (loading) {
+    return (
+      <ThemedView style={styles.tabContentContainer}>
+        <ThemedText type="small" themeColor="textMuted">Loading tags…</ThemedText>
+      </ThemedView>
+    );
+  }
 
   return (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false} automaticallyAdjustKeyboardInsets>
-      <ThemedView style={styles.tabContentContainer}>
-        {/* Search/Create Input */}
-        <View style={[styles.tagInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <IconSearch size={16} color={theme.textMuted} />
-          <TextInput
-            value={newTagName}
-            onChangeText={setNewTagName}
-            placeholder="Search or create tag..."
-            placeholderTextColor={theme.textMuted}
-            style={[styles.tagInputField, { color: theme.text }]}
-          />
-        </View>
+    <View style={styles.tabContentContainer}>
+      <View style={[styles.tagInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <IconSearch size={16} color={theme.textMuted} />
+        <TextInput
+          value={newTagName}
+          onChangeText={setNewTagName}
+          placeholder="Search or create tag..."
+          placeholderTextColor={theme.textMuted}
+          style={[styles.tagInputField, { color: theme.text }]}
+          returnKeyType="done"
+          onSubmitEditing={handleCreate}
+        />
+        {newTagName.trim().length > 0 && (
+          <Pressable onPress={handleCreate} hitSlop={6} style={{ padding: 4 }}>
+            <IconPlus size={18} color={theme.tint} />
+          </Pressable>
+        )}
+      </View>
 
-        {/* Tags List */}
+      {filtered.length > 0 ? (
         <ThemedView style={[styles.tagsList, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          {tags.map((tag, index) => (
-            <Animated.View key={tag.id} entering={FadeInDown.delay(index * 50).springify()}>
-              <Pressable
-                style={[styles.tagItem, index < tags.length - 1 && { borderBottomColor: theme.border, borderBottomWidth: StyleSheet.hairlineWidth }]}
-              >
-                <View style={[styles.tagColor, { backgroundColor: tag.color }]} />
-                <ThemedText type="default" style={styles.tagName}>{tag.name}</ThemedText>
-                <ThemedText type="small" themeColor="textMuted">{tag.count}</ThemedText>
+          {filtered.map((tag, index) => (
+            <Pressable
+              key={tag.id}
+              onLongPress={() => handleDelete(tag)}
+              style={[styles.tagItem, index < filtered.length - 1 && { borderBottomColor: theme.border, borderBottomWidth: StyleSheet.hairlineWidth }]}
+            >
+              <View style={[styles.tagColor, { backgroundColor: tag.color }]} />
+              <ThemedText type="default" style={styles.tagName}>{tag.name}</ThemedText>
+              <Pressable onPress={() => handleDelete(tag)} hitSlop={8} style={{ padding: 4 }}>
+                <ThemedText type="small" themeColor="textMuted">Delete</ThemedText>
               </Pressable>
-            </Animated.View>
+            </Pressable>
           ))}
         </ThemedView>
-
-        {/* Add New Tag */}
-        <Animated.View entering={FadeInDown.delay(300).springify()}>
-          <Pressable style={[styles.createButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <IconPlus size={18} color={theme.tint} />
-            <ThemedText type="default" themeColor="tint">New Tag</ThemedText>
-          </Pressable>
-        </Animated.View>
-      </ThemedView>
-    </ScrollView>
+      ) : (
+        <ThemedText type="small" themeColor="textMuted">
+          {tags.length === 0 ? 'No tags yet. Type a name and tap + to create.' : 'No matching tags'}
+        </ThemedText>
+      )}
+    </View>
   );
 }
 

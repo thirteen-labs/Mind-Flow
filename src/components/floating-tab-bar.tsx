@@ -150,7 +150,11 @@ const styles = StyleSheet.create({
   },
   shadowWrap: {
     borderRadius: 999,
-    boxShadow: '0 10px 32px rgba(0, 0, 0, 0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 32,
+    elevation: 8,
   },
   pill: {
     flexDirection: 'row',
