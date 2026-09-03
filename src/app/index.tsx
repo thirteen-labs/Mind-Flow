@@ -2,15 +2,28 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { documentDirectory, getInfoAsync } from 'expo-file-system/legacy';
+import { File, Paths } from 'expo-file-system';
 
-const ONBOARDING_FLAG = (() => {
+function getOnboardingFlagPath(): string | null {
   try {
-    return `${documentDirectory}.onboarded`;
+    // Use new FileSystem API; fall back to null on web or if unavailable
+    if (!Paths?.document?.uri) return null;
+    return `${Paths.document.uri}.onboarded`;
   } catch {
     return null;
   }
-})();
+}
+
+const ONBOARDING_FLAG = getOnboardingFlagPath();
+
+async function checkFlagExists(path: string): Promise<boolean> {
+  try {
+    const f = new File(path);
+    return f.exists;
+  } catch {
+    return false;
+  }
+}
 
 export default function Index() {
   const db = useSQLiteContext();
@@ -26,13 +39,13 @@ export default function Index() {
       try {
         const row = await db.getFirstAsync<{ value: string }>(
           "SELECT value FROM settings WHERE key = ?", 'onboarded'
-        );
+        ).catch(() => null as any);
         if (!mounted) return;
         if (row?.value === '1') {
           setOnboarded(true);
         } else if (ONBOARDING_FLAG) {
-          const info = await getInfoAsync(ONBOARDING_FLAG);
-          if (mounted) setOnboarded(info.exists);
+          const exists = await checkFlagExists(ONBOARDING_FLAG);
+          if (mounted) setOnboarded(exists);
         }
       } catch {
         if (mounted) setOnboarded(false);

@@ -109,7 +109,6 @@ export function FloatingTabBar({ state, navigation }: { state: any; navigation: 
         <BlurView
           tint={theme.isDark ? 'dark' : 'light'}
           intensity={75}
-          blurMethod="dimezisBlurViewSdk31Plus"
           style={[styles.pill, { width: pillWidth, borderColor: theme.border }]}
         >
           <Animated.View

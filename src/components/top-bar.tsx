@@ -93,7 +93,6 @@ export default function TopBar() {
     <BlurView
       tint={theme.isDark ? 'dark' : 'light'}
       intensity={75}
-      blurMethod="dimezisBlurViewSdk31Plus"
       style={styles.container}
     >
       <View style={styles.brand}>

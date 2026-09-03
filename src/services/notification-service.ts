@@ -7,22 +7,27 @@ const STREAK_ID = 'mindflow-streak-reminder';
 
 export const NotificationService = {
   async setup(): Promise<void> {
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-      }),
-    });
-
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('mindflow-reminders', {
-        name: 'Reminders',
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
+    try {
+      if (Platform.OS === 'web') return;
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        }),
       });
-    }
+
+      if (Platform.OS === 'android') {
+        try {
+          await Notifications.setNotificationChannelAsync('mindflow-reminders', {
+            name: 'Reminders',
+            importance: Notifications.AndroidImportance.HIGH,
+            vibrationPattern: [0, 250, 250, 250],
+          });
+        } catch {}
+      }
+    } catch {}
   },
 
   async requestPermissions(): Promise<boolean> {

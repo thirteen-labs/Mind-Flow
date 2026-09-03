@@ -1,10 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View, Text } from 'react-native';
 import { router } from 'expo-router';
 import { IconChevronLeft, IconCheck, IconEraser, IconPencil, IconTrash } from '@tabler/icons-react-native';
-import RNSketchCanvas from '@sourcetoad/react-native-sketch-canvas';
 import * as Haptics from 'expo-haptics';
 import { Directory, File, Paths } from 'expo-file-system';
+
+let RNSketchCanvas: any = null;
+try {
+  // Lazy require so app doesn't crash on web or if native module is missing
+  RNSketchCanvas = require('@sourcetoad/react-native-sketch-canvas').default;
+} catch {}
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -98,6 +103,19 @@ export default function CanvasScreen() {
 
   const currentStrokeColor = tool === 'eraser' ? theme.background : penColor;
   const currentStrokeWidth = tool === 'eraser' ? penSize * 4 : penSize;
+
+  if (!RNSketchCanvas) {
+    return (
+      <ThemedView style={[styles.container, styles.centered]}>
+        <Text style={{ color: theme.textMuted, textAlign: 'center', padding: 24 }}>
+          Sketch canvas is not available on this device.
+        </Text>
+        <Pressable onPress={() => router.back()} style={[styles.headerAction, { marginTop: 16 }]}>
+          <ThemedText themeColor="tint">Go back</ThemedText>
+        </Pressable>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -194,6 +212,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingTop: 6,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',

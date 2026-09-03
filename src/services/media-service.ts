@@ -6,7 +6,9 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { Media, MediaType } from '@/constants/media';
 import { MEDIA_DIRECTORY } from '@/constants/media';
 
-const MEDIA_DIR = new Directory(Paths.document, ...MEDIA_DIRECTORY.split('/'));
+function getMediaDir(): Directory {
+  return new Directory(Paths.document, ...MEDIA_DIRECTORY.split('/'));
+}
 
 function uuid(): string {
   return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
@@ -48,9 +50,12 @@ function typeFromMime(mime: string): MediaType {
 }
 
 async function ensureDir(): Promise<void> {
-  if (!MEDIA_DIR.exists) {
-    MEDIA_DIR.create({ intermediates: true, idempotent: true });
-  }
+  try {
+    const dir = getMediaDir();
+    if (!dir.exists) {
+      dir.create({ intermediates: true, idempotent: true });
+    }
+  } catch {}
 }
 
 function fileForUri(uri: string): File {
@@ -71,7 +76,7 @@ export const MediaService = {
 
     const id = uuid();
     const filename = `${id}.${ext}`;
-    const dest = new File(MEDIA_DIR, filename);
+    const dest = new File(getMediaDir(), filename);
 
     const src = fileForUri(sourceUri);
     if (src.uri !== dest.uri) {
@@ -221,9 +226,10 @@ export const MediaService = {
 
 export async function scanAllMedia(): Promise<Media[]> {
   try {
-    if (!MEDIA_DIR.exists) return [];
+    const dir = getMediaDir();
+    if (!dir.exists) return [];
 
-    const files = MEDIA_DIR.list();
+    const files = dir.list();
     const items: Media[] = [];
 
     for (const entry of files) {

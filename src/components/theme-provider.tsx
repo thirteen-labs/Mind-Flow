@@ -28,16 +28,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
     if (!db) return;
-    Promise.all([
-      db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'followSystemTheme'),
-      db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'themeId'),
-      db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'fontOverride'),
-    ]).then(([followRow, savedThemeId, fontRow]) => {
-      if (!mounted) return;
-      if (followRow?.value === 'false') setFollowSystemState(false);
-      if (savedThemeId?.value) setThemeIdState(savedThemeId.value);
-      if (fontRow?.value) setFontOverrideState(fontRow.value);
-    }).catch(() => {});
+    (async () => {
+      try {
+        const [followRow, savedThemeId, fontRow] = await Promise.all([
+          db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'followSystemTheme').catch(() => null),
+          db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'themeId').catch(() => null),
+          db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'fontOverride').catch(() => null),
+        ]);
+        if (!mounted) return;
+        if (followRow?.value === 'false') setFollowSystemState(false);
+        if (savedThemeId?.value) setThemeIdState(savedThemeId.value);
+        if (fontRow?.value) setFontOverrideState(fontRow.value);
+      } catch {}
+    })();
     return () => { mounted = false; };
   }, [db]);
 

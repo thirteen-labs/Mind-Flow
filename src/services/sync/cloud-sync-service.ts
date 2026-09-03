@@ -26,13 +26,20 @@ const DEFAULT_SYNC_STATE: SyncState = {
   isAuthenticated: false,
 };
 
-const DB_FILE = new File(Paths.document, 'SQLite', 'mindflow.db');
-const BACKUP_DIR = new Directory(Paths.cache, 'backups');
+function getDbFile(): File {
+  return new File(Paths.document, 'SQLite', 'mindflow.db');
+}
+function getBackupDir(): Directory {
+  return new Directory(Paths.cache, 'backups');
+}
 
 async function ensureBackupDir(): Promise<void> {
-  if (!BACKUP_DIR.exists) {
-    BACKUP_DIR.create({ intermediates: true, idempotent: true });
-  }
+  try {
+    const dir = getBackupDir();
+    if (!dir.exists) {
+      dir.create({ intermediates: true, idempotent: true });
+    }
+  } catch {}
 }
 
 export const CloudSyncService = {
@@ -74,8 +81,8 @@ export const CloudSyncService = {
     try {
       await ensureBackupDir();
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const backupFile = new File(BACKUP_DIR, `mindflow-backup-${timestamp}.db`);
-      await DB_FILE.copy(backupFile, { overwrite: true });
+      const backupFile = new File(getBackupDir(), `mindflow-backup-${timestamp}.db`);
+      await getDbFile().copy(backupFile, { overwrite: true });
 
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(backupFile.uri);

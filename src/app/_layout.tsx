@@ -1,9 +1,13 @@
-import { Suspense, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import 'react-native-gesture-handler';
+import 'react-native-reanimated';
+import { Component, Suspense, useEffect, useState, type ErrorInfo, type ReactNode } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View, Pressable } from 'react-native';
 import { Stack } from 'expo-router/stack';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppLockGate } from '@/components/app-lock-gate';
 import { ThemeProvider as MindFlowThemeProvider } from '@/components/theme-provider';
@@ -29,8 +33,84 @@ const fallbackStyles = StyleSheet.create({
   },
 });
 
+class RootErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
+  state = { hasError: false, error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.warn('RootErrorBoundary caught:', error.message, info.componentStack);
+    // Ensure splash is hidden so user sees the error recovery UI instead of infinite splash
+    SplashScreen.hideAsync().catch(() => {});
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={errorStyles.container}>
+          <Text style={errorStyles.title}>Something went wrong</Text>
+          <Text style={errorStyles.message}>{this.state.error?.message ?? 'Unexpected error'}</Text>
+          <Pressable style={errorStyles.button} onPress={this.handleRetry}>
+            <Text style={errorStyles.buttonText}>Try again</Text>
+          </Pressable>
+          <Text style={errorStyles.hint}>If this keeps happening, reinstall the app. Your notes are preserved.</Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const errorStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000000',
+    padding: 24,
+    gap: 12,
+  },
+  title: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  message: {
+    color: '#98989D',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  button: {
+    marginTop: 8,
+    backgroundColor: '#208AEF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  hint: {
+    color: '#636366',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+});
+
 function onDatabaseError(e: Error) {
   console.warn('Database init failed:', e.message);
+  // Critical: hide splash so app doesn't appear frozen on black screen
+  SplashScreen.hideAsync().catch(() => {});
 }
 
 function AppContent() {
@@ -135,6 +215,10 @@ export default function RootLayout() {
 
   const appReady = fontsLoaded || fontError || forceReady;
 
+  if (fontError) {
+    console.warn('Font loading error:', fontError);
+  }
+
   // Hard safety net: if AppContent never mounts (DB fails to init), hide
   // the splash after a delay so the app doesn't stay stuck on it forever.
   // The primary splash hide lives in AppContent — this is just the fallback.
@@ -150,10 +234,22 @@ export default function RootLayout() {
   if (!appReady) return null;
 
   return (
-    <Suspense fallback={<DbFallback />}>
-      <SQLiteProvider databaseName="mindflow.db" onInit={migrateDbIfNeeded} onError={onDatabaseError} useSuspense>
-        <AppContent />
-      </SQLiteProvider>
-    </Suspense>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <RootErrorBoundary>
+          <Suspense fallback={<DbFallback />}>
+            <SQLiteProvider databaseName="mindflow.db" onInit={migrateDbIfNeeded} onError={onDatabaseError} useSuspense>
+              <AppContent />
+            </SQLiteProvider>
+          </Suspense>
+        </RootErrorBoundary>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

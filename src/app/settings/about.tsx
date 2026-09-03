@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { IconChevronLeft, IconArrowUpRight, IconWorld, IconMail, IconLock, IconFileText } from '@tabler/icons-react-native';
@@ -68,6 +69,32 @@ export default function AboutScreen() {
           <InfoRow label="Engines" value="Expo SDK 56, React Native" />
         </ThemedView>
 
+        <View style={styles.developersSection}>
+          <ThemedText type="default" style={styles.developersTitle}>Developers</ThemedText>
+          <View style={styles.devGrid}>
+            <View style={[styles.devCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              <Image
+                source={require('@/assets/images/thirteen-labs.png')}
+                style={styles.devImage}
+                contentFit="contain"
+                transition={150}
+              />
+              <ThemedText type="default" style={styles.devName}>Thirteen Labs</ThemedText>
+              <ThemedText type="small" themeColor="textMuted" style={styles.devRole}>Development Studio</ThemedText>
+            </View>
+            <View style={[styles.devCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              <Image
+                source={require('@/assets/images/obsidian-northern.png')}
+                style={styles.devImage}
+                contentFit="contain"
+                transition={150}
+              />
+              <ThemedText type="default" style={styles.devName}>Obsidian Northern</ThemedText>
+              <ThemedText type="small" themeColor="textMuted" style={styles.devRole}>Development Studio</ThemedText>
+            </View>
+          </View>
+        </View>
+
         <View style={styles.links}>
           <LinkRow icon={IconWorld} label="Website" url="https://mindflow.app" />
           <LinkRow icon={IconMail} label="Support" url="mailto:support@mindflow.app" />
@@ -135,6 +162,44 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.four,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  developersSection: {
+    width: '100%',
+    gap: Spacing.three,
+  },
+  developersTitle: {
+    fontWeight: '700',
+    fontSize: 13,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    textAlign: 'center',
+  },
+  devGrid: {
+    flexDirection: 'row',
+    gap: Spacing.three,
+  },
+  devCard: {
+    flex: 1,
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.four,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+  },
+  devImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#FFFFFF',
+  },
+  devName: {
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  devRole: {
+    textAlign: 'center',
+    fontSize: 12,
   },
   links: {
     width: '100%',

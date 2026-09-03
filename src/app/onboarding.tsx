@@ -3,17 +3,20 @@ import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { documentDirectory, writeAsStringAsync } from 'expo-file-system/legacy';
+import { File, Paths } from 'expo-file-system';
 
 const { width } = Dimensions.get('window');
 
-const ONBOARDING_FLAG = (() => {
+function getOnboardingFlagPath(): string | null {
   try {
-    return `${documentDirectory}.onboarded`;
+    if (!Paths?.document?.uri) return null;
+    return `${Paths.document.uri}.onboarded`;
   } catch {
     return null;
   }
-})();
+}
+
+const ONBOARDING_FLAG = getOnboardingFlagPath();
 
 const pages = [
   {
@@ -69,7 +72,9 @@ export default function OnboardingScreen() {
     }
     try {
       if (ONBOARDING_FLAG) {
-        await writeAsStringAsync(ONBOARDING_FLAG, '1');
+        const f = new File(ONBOARDING_FLAG);
+        try { f.create({ intermediates: true }); } catch {}
+        try { f.write('1'); } catch {}
       }
     } catch {
       // filesystem write failed, continuing anyway
