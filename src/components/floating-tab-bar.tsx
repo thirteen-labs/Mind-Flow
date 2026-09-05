@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Keyboard, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -83,6 +83,17 @@ export function FloatingTabBar({ state, navigation }: { state: any; navigation: 
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
+  // Hide the tab pill while the keyboard is open so bottom-docked UI
+  // (e.g. the editor formatting strip) gets the full keyboard-top edge.
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const pillWidth = windowWidth * PILL_WIDTH_RATIO;
   const tabWidth = (pillWidth - PILL_PADDING_X * 2) / TABS.length;
@@ -102,6 +113,8 @@ export function FloatingTabBar({ state, navigation }: { state: any; navigation: 
     left: indicatorX.value,
     width: indicatorW.value,
   }));
+
+  if (keyboardVisible) return null;
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom + 8 }]}>

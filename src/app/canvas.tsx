@@ -1,15 +1,19 @@
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View, Text } from 'react-native';
+import { Alert, Pressable, StyleSheet, View, Text, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { IconChevronLeft, IconCheck, IconEraser, IconPencil, IconTrash } from '@tabler/icons-react-native';
 import * as Haptics from 'expo-haptics';
 import { Directory, File, Paths } from 'expo-file-system';
 
 let RNSketchCanvas: any = null;
-try {
-  // Lazy require so app doesn't crash on web or if native module is missing
-  RNSketchCanvas = require('@sourcetoad/react-native-sketch-canvas').default;
-} catch {}
+if (Platform.OS !== 'web') {
+  try {
+    // Lazy require so app doesn't crash on web or if native module is missing.
+    // NOTE: this still runs at import time (expo-router statically imports all
+    // routes), so it must never throw — the null fallback renders instead.
+    RNSketchCanvas = require('@sourcetoad/react-native-sketch-canvas').default;
+  } catch {}
+}
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -23,7 +27,7 @@ const COLORS = ['#000000', '#666666', '#999999', '#208AEF', '#FF453A', '#30D158'
 
 export default function CanvasScreen() {
   const theme = useTheme();
-  const canvasRef = useRef<RNSketchCanvas>(null);
+  const canvasRef = useRef<any>(null);
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen');
   const [penSize, setPenSize] = useState(4);
   const [penColor, setPenColor] = useState('#000000');

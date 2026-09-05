@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -71,52 +71,67 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
   }, [onChange, selection]);
 
   const attachImage = useCallback(async (start: number, end: number) => {
-    const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
-    if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
-    const media = await MediaService.importMedia(asset.uri, 'image', { fileName: asset.fileName, mimeType: asset.mimeType });
-    apply(insertImage(lastTextRef.current, start, end, media.uri));
+    try {
+      const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!granted) return;
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      const media = await MediaService.importMedia(asset.uri, 'image', { fileName: asset.fileName, mimeType: asset.mimeType });
+      apply(insertImage(lastTextRef.current, start, end, media.uri));
+    } catch (e) {
+      console.warn('attachImage failed:', (e as Error)?.message ?? e);
+    }
   }, [apply]);
 
   const attachVideo = useCallback(async (start: number, end: number) => {
-    const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['videos'],
-      quality: 0.8,
-    });
-    if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
-    const media = await MediaService.importMedia(asset.uri, 'video', { fileName: asset.fileName, mimeType: asset.mimeType });
-    apply(insertVideo(lastTextRef.current, start, end, media.uri));
+    try {
+      const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!granted) return;
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'],
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      const media = await MediaService.importMedia(asset.uri, 'video', { fileName: asset.fileName, mimeType: asset.mimeType });
+      apply(insertVideo(lastTextRef.current, start, end, media.uri));
+    } catch (e) {
+      console.warn('attachVideo failed:', (e as Error)?.message ?? e);
+    }
   }, [apply]);
 
   const attachAudio = useCallback(async (start: number, end: number) => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: 'audio/*',
-      copyToCacheDirectory: true,
-    });
-    if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
-    const media = await MediaService.importMedia(asset.uri, 'audio', { fileName: asset.name, mimeType: asset.mimeType });
-    const title = asset.name?.replace(/\.[^/.]+$/, '') || 'audio';
-    apply(insertAudio(lastTextRef.current, start, end, media.uri, title));
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'audio/*',
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      const media = await MediaService.importMedia(asset.uri, 'audio', { fileName: asset.name, mimeType: asset.mimeType });
+      const title = asset.name?.replace(/\.[^/.]+$/, '') || 'audio';
+      apply(insertAudio(lastTextRef.current, start, end, media.uri, title));
+    } catch (e) {
+      console.warn('attachAudio failed:', (e as Error)?.message ?? e);
+    }
   }, [apply]);
 
   const attachFile = useCallback(async (start: number, end: number) => {
-    const result = await DocumentPicker.getDocumentAsync({
-      copyToCacheDirectory: true,
-    });
-    if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
-    const media = await MediaService.importMedia(asset.uri, undefined, { fileName: asset.name, mimeType: asset.mimeType });
-    const title = asset.name?.replace(/\.[^/.]+$/, '') || 'file';
-    apply(insertFile(lastTextRef.current, start, end, media.uri, title));
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      const media = await MediaService.importMedia(asset.uri, undefined, { fileName: asset.name, mimeType: asset.mimeType });
+      const title = asset.name?.replace(/\.[^/.]+$/, '') || 'file';
+      apply(insertFile(lastTextRef.current, start, end, media.uri, title));
+    } catch (e) {
+      console.warn('attachFile failed:', (e as Error)?.message ?? e);
+    }
   }, [apply]);
 
   const showAttachOptions = useCallback((includeSketch: boolean) => {
@@ -262,7 +277,10 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
       ) : (
         <KeyboardAvoidingView
           style={styles.editorWrapper}
-          behavior="padding"
+          // iOS resizes via padding; on Android the window already resizes
+          // (softwareKeyboardLayoutMode=resize) so a nested padding KAV only
+          // double-offsets and breaks the toolbar position — render plain View.
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.editorArea}>
             <TextInput

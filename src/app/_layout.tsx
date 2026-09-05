@@ -107,6 +107,12 @@ const errorStyles = StyleSheet.create({
   },
 });
 
+function onDatabaseError(e: Error) {
+  console.warn('Database init failed:', e.message);
+  // Critical: hide splash so app doesn't appear frozen on black screen (ANR → "keeps stopping")
+  SplashScreen.hideAsync().catch(() => {});
+}
+
 function AppContent() {
   const db = useSQLiteContext();
 
@@ -232,7 +238,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <RootErrorBoundary>
           <Suspense fallback={<DbFallback />}>
-            <SQLiteProvider databaseName="mindflow.db" onInit={migrateDbIfNeeded} useSuspense>
+            <SQLiteProvider databaseName="mindflow.db" onInit={migrateDbIfNeeded} onError={onDatabaseError} useSuspense>
               <AppContent />
             </SQLiteProvider>
           </Suspense>
