@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dimensions, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { IconX } from '@tabler/icons-react-native';
 
@@ -12,23 +12,26 @@ interface ImageViewerProps {
   aspectRatio?: number;
 }
 
-const SCREEN = Dimensions.get('window');
-
 export function ImageViewer({ uri, aspectRatio }: ImageViewerProps) {
   const [fullscreen, setFullscreen] = useState(false);
   const theme = useTheme();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   return (
     <>
       <Pressable
         onPress={() => setFullscreen(true)}
         style={[styles.wrap, { borderCurve: 'continuous' }]}
+        accessibilityRole="button"
+        accessibilityLabel="View image fullscreen"
+        accessibilityHint="Opens the image in fullscreen viewer"
       >
         <Image
           source={{ uri }}
-          style={[styles.image, aspectRatio ? { aspectRatio } : undefined]}
+          style={[styles.image, { height: windowHeight * 0.35 }, aspectRatio ? { aspectRatio } : undefined]}
           contentFit="cover"
           transition={200}
+          accessibilityLabel="Journal image"
         />
       </Pressable>
 
@@ -37,14 +40,23 @@ export function ImageViewer({ uri, aspectRatio }: ImageViewerProps) {
           <Pressable
             onPress={() => setFullscreen(false)}
             style={[styles.closeButton, { backgroundColor: theme.surface }]}
+            accessibilityRole="button"
+            accessibilityLabel="Close fullscreen image"
+            accessibilityHint="Returns to the note"
+            hitSlop={8}
           >
             <IconX color={theme.text} size={18} />
           </Pressable>
 
-          <Pressable onPress={() => setFullscreen(false)} style={styles.imageArea}>
+          <Pressable
+            onPress={() => setFullscreen(false)}
+            style={styles.imageArea}
+            accessibilityRole="button"
+            accessibilityLabel="Close fullscreen image"
+          >
             <Image
               source={{ uri }}
-              style={styles.fullImage}
+              style={[styles.fullImage, { width: windowWidth, height: windowHeight * 0.85 }]}
               contentFit="contain"
             />
           </Pressable>
@@ -61,7 +73,6 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '94%',
-    height: SCREEN.height * 0.35,
     alignSelf: 'center',
   },
   overlay: {
@@ -74,9 +85,9 @@ const styles = StyleSheet.create({
     top: 60,
     right: Spacing.four,
     zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -87,7 +98,6 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   fullImage: {
-    width: SCREEN.width,
-    height: SCREEN.height * 0.85,
+    width: '100%',
   },
 });

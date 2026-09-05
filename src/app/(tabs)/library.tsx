@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Pressable,
   StyleSheet,
   useWindowDimensions,
@@ -32,7 +31,6 @@ import { MediaService, scanAllMedia } from '@/services/media-service';
 
 const COLUMNS = 3;
 const GAP = Spacing.two;
-const SCREEN = Dimensions.get('window');
 
 export default function LibraryScreen() {
   const theme = useTheme();
@@ -368,8 +366,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   previewImage: {
-    width: SCREEN.width,
-    height: SCREEN.height,
+    width: '100%',
+    aspectRatio: 1,
   },
   previewInfo: {
     flex: 1,

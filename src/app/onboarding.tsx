@@ -1,11 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { File, Paths } from 'expo-file-system';
-
-const { width } = Dimensions.get('window');
 
 function getOnboardingFlagPath(): string | null {
   try {
@@ -52,6 +50,7 @@ export default function OnboardingScreen() {
   const db = useSQLiteContext();
   const [page, setPage] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+  const { width } = useWindowDimensions();
 
   const handleNext = () => {
     if (page < pages.length - 1) {
@@ -149,7 +148,11 @@ export default function OnboardingScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <View style={styles.dots}>
+        <View
+          style={styles.dots}
+          accessibilityRole="tablist"
+          accessibilityLabel={`Onboarding step ${page + 1} of ${pages.length}`}
+        >
           {pages.map((_, i) => (
             <View
               key={i}
@@ -158,23 +161,46 @@ export default function OnboardingScreen() {
                 { backgroundColor: i === page ? '#FFFFFF' : 'rgba(255,255,255,0.3)' },
                 i === page && styles.dotActive,
               ]}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
             />
           ))}
         </View>
 
         <View style={styles.actions}>
           {!isLast && (
-            <Pressable onPress={handleSkip} style={styles.skipButton}>
+            <Pressable
+              onPress={handleSkip}
+              style={styles.skipButton}
+              accessibilityRole="button"
+              accessibilityLabel="Skip onboarding"
+              accessibilityHint="Finishes setup immediately"
+              hitSlop={8}
+            >
               <Text style={styles.skipText}>Skip</Text>
             </Pressable>
           )}
 
           {isLast ? (
-            <Pressable onPress={handleGetStarted} style={styles.startButton}>
+            <Pressable
+              onPress={handleGetStarted}
+              style={styles.startButton}
+              accessibilityRole="button"
+              accessibilityLabel="Get started"
+              accessibilityHint="Completes onboarding and opens the app"
+              hitSlop={8}
+            >
               <Text style={styles.startText}>Get Started</Text>
             </Pressable>
           ) : (
-            <Pressable onPress={handleNext} style={styles.nextButton}>
+            <Pressable
+              onPress={handleNext}
+              style={styles.nextButton}
+              accessibilityRole="button"
+              accessibilityLabel="Next onboarding step"
+              accessibilityHint={`Goes to step ${page + 2} of ${pages.length}`}
+              hitSlop={8}
+            >
               <Text style={styles.nextText}>Next</Text>
             </Pressable>
           )}

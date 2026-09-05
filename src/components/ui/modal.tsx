@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  AccessibilityInfo,
   BackHandler,
-  Dimensions,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
   StyleSheet,
   View,
+  useWindowDimensions,
   type ViewStyle,
 } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
@@ -33,8 +34,6 @@ export interface CustomModalProps {
   showCloseButton?: boolean;
 }
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-
 export function CustomModal({
   visible,
   onClose,
@@ -50,6 +49,7 @@ export function CustomModal({
   showCloseButton = false,
 }: CustomModalProps) {
   const theme = useTheme();
+  const { height: SCREEN_HEIGHT } = useWindowDimensions();
   const handleClose = useMemo(() => onClose ?? onDismiss ?? (() => {}), [onClose, onDismiss]);
   const resolvedVariant =
     variant === 'fullscreen' ? 'fullScreen' : variant === 'sheet' ? 'bottomSheet' : variant;
@@ -110,8 +110,11 @@ export function CustomModal({
       }
       return true;
     });
+    if (title) {
+      AccessibilityInfo.announceForAccessibility(`${title} dialog opened`);
+    }
     return () => backHandler.remove();
-  }, [isVisible, dismissable, handleClose]);
+  }, [isVisible, dismissable, handleClose, title]);
 
   const handleBackdropPress = () => {
     if (dismissable) {
@@ -166,7 +169,13 @@ export function CustomModal({
             },
           ]}
         >
-          <Pressable style={styles.backdrop} onPress={handleBackdropPress} />
+          <Pressable
+            style={styles.backdrop}
+            onPress={handleBackdropPress}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss dialog"
+            accessibilityHint="Closes this dialog"
+          />
           <Animated.View
             style={[
               getContentContainerStyle(),
@@ -178,6 +187,8 @@ export function CustomModal({
               contentStyle,
             ]}
             onStartShouldSetResponder={() => true}
+            accessibilityViewIsModal
+            accessibilityLabel={title ?? 'Dialog'}
           >
             {resolvedVariant === 'bottomSheet' && !title && (
               <View style={styles.handleContainer}>
@@ -216,13 +227,10 @@ const styles = StyleSheet.create({
     maxWidth: 360,
     maxHeight: '85%',
     borderRadius: 20,
+    borderCurve: 'continuous',
     paddingTop: 24,
     paddingBottom: 24,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
   },
   bottomSheetContainer: {
     position: 'absolute',
@@ -231,14 +239,11 @@ const styles = StyleSheet.create({
     right: 0,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderCurve: 'continuous',
     paddingTop: 8,
     paddingBottom: Platform.OS === 'ios' ? 34 : 24,
     maxHeight: '90%',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
+    boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.2)',
   },
   fullScreenContainer: {
     flex: 1,

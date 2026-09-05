@@ -65,6 +65,8 @@ function TopBarButton({ active, icon: Icon, iconActive: IconActive, label, onPre
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       accessibilityLabel={label}
+      accessibilityHint={`${label} screen`}
+      hitSlop={4}
       style={styles.iconButton}
     >
       <Animated.View style={[styles.iconBg, bgStyle]}>
@@ -103,6 +105,8 @@ export default function TopBar() {
           }}
           accessibilityRole="button"
           accessibilityLabel="Toggle notes sidebar"
+          accessibilityHint="Opens the notes sidebar"
+          hitSlop={4}
           style={({ pressed }) => [styles.menuButton, pressed && { backgroundColor: withAlpha(theme.primary, 0.14) }]}
         >
           <IconMenu2 size={20} color={theme.text} />
@@ -169,9 +173,9 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   menuButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.one,
@@ -197,9 +201,9 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   iconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },

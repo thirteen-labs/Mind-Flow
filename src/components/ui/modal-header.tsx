@@ -34,6 +34,9 @@ export function ModalHeader({
           onPress={onClose}
           style={[styles.closeButton, { backgroundColor: theme.backgroundElement }]}
           hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Close ${title}`}
+          accessibilityHint="Dismisses this dialog"
         >
           <IconX size={20} color={theme.text} />
         </Pressable>
@@ -54,9 +57,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },

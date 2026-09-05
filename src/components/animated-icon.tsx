@@ -1,9 +1,11 @@
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
-import { Dimensions, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, Keyframe, runOnJS } from 'react-native-reanimated';
 
-const INITIAL_SCALE_FACTOR = Dimensions.get('screen').height / 90;
+// Responsive scale handled by flex layout; fixed fallback avoids Dimensions.get
+// (building-native-ui prefers useWindowDimensions over Dimensions API).
+const INITIAL_SCALE_FACTOR = 9;
 const DURATION = 600;
 
 export function AnimatedSplashOverlay() {

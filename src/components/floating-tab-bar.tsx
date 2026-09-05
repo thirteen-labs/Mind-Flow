@@ -37,8 +37,8 @@ const TABS: TabDef[] = [
   { name: 'library', label: 'Library', icon: IconLibrary, iconActive: IconLibraryFilled },
 ];
 
-const PILL_HEIGHT = 60;
-const TAB_SIZE = 44;
+const PILL_HEIGHT = 64;
+const TAB_SIZE = 48;
 const INDICATOR_INSET_X = 6;
 const INDICATOR_INSET_Y = 8;
 const PILL_PADDING_X = 8;
@@ -67,9 +67,11 @@ function TabButton({ tab, active, onPress }: TabButtonProps) {
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="button"
+      accessibilityRole="tab"
       accessibilityState={{ selected: active }}
       accessibilityLabel={tab.label}
+      accessibilityHint={`Switch to ${tab.label} tab`}
+      hitSlop={4}
       style={styles.tabButton}
     >
       <Animated.View style={iconStyle}>
@@ -123,6 +125,7 @@ export function FloatingTabBar({ state, navigation }: { state: any; navigation: 
           tint={theme.isDark ? 'dark' : 'light'}
           intensity={75}
           style={[styles.pill, { width: pillWidth, borderColor: theme.border }]}
+          accessibilityRole="tablist"
         >
           <Animated.View
             style={[styles.indicator, indicatorStyle, { backgroundColor: `${theme.primary}22` }]}
@@ -162,11 +165,7 @@ const styles = StyleSheet.create({
   },
   shadowWrap: {
     borderRadius: 999,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 32,
-    elevation: 8,
+    boxShadow: '0 10px 32px rgba(0, 0, 0, 0.25)',
   },
   pill: {
     flexDirection: 'row',
