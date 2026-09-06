@@ -42,7 +42,14 @@ export default function AppTabs() {
 
 function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
   return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
+    <Pressable
+      {...props}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: !!isFocused }}
+      accessibilityLabel={typeof children === 'string' ? children : undefined}
+      hitSlop={8}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
       <ThemedView
         type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
         style={styles.tabButtonView}>
@@ -68,10 +75,24 @@ function CustomTabList(props: TabListProps) {
         {props.children}
 
         <View style={styles.actions}>
-          <Pressable onPress={() => router.push('/search')}>
+          <Pressable
+            onPress={() => router.push('/search')}
+            accessibilityRole="button"
+            accessibilityLabel="Search"
+            accessibilityHint="Open search"
+            hitSlop={8}
+            style={styles.actionButton}
+          >
             <IconSearch size={18} color={theme.textSecondary} />
           </Pressable>
-          <Pressable onPress={() => router.push('/settings')}>
+          <Pressable
+            onPress={() => router.push('/settings')}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            accessibilityHint="Open settings"
+            hitSlop={8}
+            style={styles.actionButton}
+          >
             <IconSettings2 size={18} color={theme.textSecondary} />
           </Pressable>
         </View>
@@ -114,8 +135,16 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   tabButtonView: {
-    paddingVertical: Spacing.one,
+    paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.three,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  actionButton: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

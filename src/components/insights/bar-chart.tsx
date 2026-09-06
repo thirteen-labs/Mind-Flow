@@ -17,8 +17,9 @@ export function BarChart({ data, height = 120, max, showValues = true }: BarChar
   const labelSpace = showValues ? 14 : 0;
   const maxBarHeight = Math.max(height - labelSpace, 2);
 
+  const summary = `Bar chart with ${data.length} bars, max ${Math.max(...data.map((d) => d.value), 0)}`;
   return (
-    <View style={styles.container}>
+    <View style={styles.container} accessible accessibilityRole="image" accessibilityLabel={summary}>
       {data.map((point, i) => {
         const barHeight = point.value > 0 ? Math.max((point.value / chartMax) * maxBarHeight, 2) : 0;
         return (
@@ -89,8 +90,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   value: {
-    fontSize: 9,
-    lineHeight: 12,
+    fontSize: 11,
+    lineHeight: 14,
     marginBottom: 2,
     fontWeight: '600',
     textAlign: 'center',
@@ -101,14 +102,14 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   labelRow: {
-    height: 14,
+    minHeight: 16,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   label: {
-    fontSize: 9,
-    lineHeight: 12,
+    fontSize: 11,
+    lineHeight: 14,
     textAlign: 'center',
   },
 });

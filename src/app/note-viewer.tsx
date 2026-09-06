@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { IconChevronLeft, IconEye, IconPencil, IconStar, IconPin, IconShare, IconFileText, IconCopy, IconTrash, IconFileExport, IconCheck } from '@tabler/icons-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MarkdownRenderer } from '@/components/markdown-renderer';
 import { ThemedText } from '@/components/themed-text';
@@ -19,6 +20,7 @@ type ViewMode = 'reader' | 'editor' | 'export';
 export default function NoteViewerScreen() {
   const theme = useTheme();
   const db = useSQLiteContext();
+  const insets = useSafeAreaInsets();
   const { date } = useLocalSearchParams<{ date?: string }>();
   const [entry, setEntry] = useState<JournalEntry | null>(null);
   const [loading, setLoading] = useState(true);
@@ -191,15 +193,36 @@ export default function NoteViewerScreen() {
   if (loading) {
     return (
       <ThemedView style={styles.loadingContainer}>
-        <ThemedText type="default" themeColor="textMuted">Loading...</ThemedText>
+        <ActivityIndicator color={theme.textMuted} accessibilityRole="progressbar" accessibilityLabel="Loading entry" />
+        <ThemedText type="default" themeColor="textMuted">Loading entry…</ThemedText>
       </ThemedView>
     );
   }
 
   if (!entry) {
     return (
-      <ThemedView style={styles.loadingContainer}>
-        <ThemedText type="default" themeColor="textMuted">Entry not found</ThemedText>
+      <ThemedView style={[styles.loadingContainer, { gap: 12, padding: 24 }]}>
+        <ThemedText type="default" themeColor="textMuted" accessibilityLiveRegion="polite">Entry not found</ThemedText>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <Pressable
+            onPress={() => router.back()}
+            style={[styles.tab, { backgroundColor: theme.backgroundElement, paddingHorizontal: 20, minHeight: 44 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            accessibilityHint="Returns to the previous screen"
+          >
+            <ThemedText type="default" themeColor="tint">Back</ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => date && loadEntry(date)}
+            style={[styles.tab, { backgroundColor: theme.primary, paddingHorizontal: 20, minHeight: 44 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading entry"
+            accessibilityHint="Attempts to load the entry again"
+          >
+            <ThemedText type="default" style={{ color: contrastText(theme.primary), fontWeight: '600' }}>Retry</ThemedText>
+          </Pressable>
+        </View>
       </ThemedView>
     );
   }
@@ -450,8 +473,8 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   backButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
@@ -461,8 +484,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   editButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
@@ -493,8 +516,8 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   actionButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
@@ -552,8 +575,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   exportIconWrap: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',

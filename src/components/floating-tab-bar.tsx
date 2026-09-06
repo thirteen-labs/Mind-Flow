@@ -20,7 +20,7 @@ import {
   type Icon,
 } from '@tabler/icons-react-native';
 
-import { Spacing } from '@/constants/theme';
+import { Spacing, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface TabDef {
@@ -71,7 +71,7 @@ function TabButton({ tab, active, onPress }: TabButtonProps) {
       accessibilityState={{ selected: active }}
       accessibilityLabel={tab.label}
       accessibilityHint={`Switch to ${tab.label} tab`}
-      hitSlop={4}
+      hitSlop={8}
       style={styles.tabButton}
     >
       <Animated.View style={iconStyle}>
@@ -128,7 +128,7 @@ export function FloatingTabBar({ state, navigation }: { state: any; navigation: 
           accessibilityRole="tablist"
         >
           <Animated.View
-            style={[styles.indicator, indicatorStyle, { backgroundColor: `${theme.primary}22` }]}
+            style={[styles.indicator, indicatorStyle, { backgroundColor: withAlpha(theme.primary, 0.13) }]}
           />
           {TABS.map((tab, index) => {
             const isActive = index === state.index;

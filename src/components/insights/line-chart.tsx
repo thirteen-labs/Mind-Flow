@@ -35,8 +35,9 @@ export function LineChart({ data, height = 120, max, showValues = true }: LineCh
 
   const showLabels = data.length <= 12;
 
+  const summary = `Chart with ${data.length} points, max ${Math.max(...data.map((d) => d.value), 0)}`;
   return (
-    <View style={styles.container}>
+    <View style={styles.container} accessible accessibilityRole="image" accessibilityLabel={summary}>
       <View style={[styles.chartArea, { height: chartHeight }]}>
         <Svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
           <Polyline
@@ -118,14 +119,14 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(128,128,128,0.2)',
   },
   value: {
-    fontSize: 8,
+    fontSize: 11,
     fontWeight: '600',
     textAlign: 'center',
-    width: 20,
+    width: 28,
   },
   labelRow: {
     flexDirection: 'row',
-    height: 14,
+    minHeight: 16,
     marginTop: 2,
   },
   labelCol: {
@@ -134,8 +135,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontSize: 9,
-    lineHeight: 12,
+    fontSize: 11,
+    lineHeight: 14,
     textAlign: 'center',
   },
 });

@@ -712,8 +712,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   settingIcon: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
     borderRadius: Spacing.two,
     alignItems: 'center',
     justifyContent: 'center',
@@ -741,8 +741,8 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   timeInput: {
-    width: 36,
-    height: 32,
+    width: 44,
+    height: 44,
     borderRadius: Spacing.one,
     borderWidth: 1,
     textAlign: 'center',

@@ -22,12 +22,12 @@ import {
   IconHelp,
   IconSearch,
 } from '@tabler/icons-react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Spacing, contrastText } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { JournalService, type JournalEntry } from '@/services/journal-service';
 import { TagService, type Tag } from '@/services/tag-service';
@@ -86,6 +86,7 @@ function getDateRange(preset: DateRangePreset): { fromDate?: string; toDate?: st
 }
 
 export default function SearchScreen() {
+  const reducedMotion = useReducedMotion();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const db = useSQLiteContext();
@@ -140,15 +141,17 @@ export default function SearchScreen() {
         }
 
         rows.sort((a, b) => {
+          const aTitle = (a.title?.trim() || a.content.slice(0, 40) || a.date).toLowerCase();
+          const bTitle = (b.title?.trim() || b.content.slice(0, 40) || b.date).toLowerCase();
           switch (sort) {
             case 'newest':
               return new Date(b.date).getTime() - new Date(a.date).getTime();
             case 'oldest':
               return new Date(a.date).getTime() - new Date(b.date).getTime();
             case 'az':
-              return a.content.localeCompare(b.content);
+              return aTitle.localeCompare(bTitle);
             case 'za':
-              return b.content.localeCompare(a.content);
+              return bTitle.localeCompare(aTitle);
             default:
               return 0;
           }
@@ -202,7 +205,7 @@ export default function SearchScreen() {
 
   const renderItem = useCallback(
     ({ item, index }: { item: JournalEntry; index: number }) => (
-      <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(index * 50).springify()}>
         <Pressable
           onPress={() => handleResultPress(item)}
           style={[styles.result, { borderBottomColor: theme.border }]}
@@ -250,7 +253,7 @@ export default function SearchScreen() {
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top + 6 }]}>
       {/* Header */}
-      <Animated.View entering={FadeInDown.springify()}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInDown.springify()}>
         <ThemedView style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.headerAction}>
             <IconChevronLeft size={20} color={theme.tint} />
@@ -271,7 +274,7 @@ export default function SearchScreen() {
 
       {/* Search Bar — hidden until triggered */}
       {showSearch && (
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
+        <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(100).springify()}>
           <View style={[styles.searchBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <IconSearch size={16} color={theme.textMuted} />
             <TextInput
@@ -296,7 +299,7 @@ export default function SearchScreen() {
 
       {/* Filters Toggle — only visible when search is open */}
       {showSearch && (
-        <Animated.View entering={FadeInDown.delay(200).springify()}>
+        <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).springify()}>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -313,7 +316,7 @@ export default function SearchScreen() {
 
       {/* Filters Section */}
       {showFilters && (
-        <Animated.View entering={FadeInDown.delay(300).springify()} style={[styles.filtersContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(300).springify()} style={[styles.filtersContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           {/* Type Filter */}
           <View style={styles.filterSection}>
             <ThemedText type="small" themeColor="textSecondary" style={styles.filterLabel}>Type</ThemedText>
@@ -332,7 +335,7 @@ export default function SearchScreen() {
                 >
                   {(() => {
                     const isSelected = selectedTypes.includes(type.key);
-                    const color = isSelected ? '#FFFFFF' : theme.textSecondary;
+                    const color = isSelected ? contrastText(theme.primary) : theme.textSecondary;
                     if (React.isValidElement(type.icon)) {
                       return React.cloneElement(type.icon as React.ReactElement<{ color?: string }>, { color });
                     }
@@ -340,7 +343,7 @@ export default function SearchScreen() {
                   })()}
                   <ThemedText
                     type="small"
-                    style={{ color: selectedTypes.includes(type.key) ? '#FFFFFF' : theme.textSecondary, fontWeight: '500' }}
+                    style={{ color: selectedTypes.includes(type.key) ? contrastText(theme.primary) : theme.textSecondary, fontWeight: '500' }}
                   >
                     {type.label}
                   </ThemedText>
@@ -374,7 +377,7 @@ export default function SearchScreen() {
                     >
                       <ThemedText
                         type="small"
-                        style={{ color: active ? '#FFFFFF' : theme.textSecondary, fontWeight: '500' }}
+                        style={{ color: active ? contrastText(theme.primary) : theme.textSecondary, fontWeight: '500' }}
                       >
                         {tag.name}
                       </ThemedText>
@@ -403,7 +406,7 @@ export default function SearchScreen() {
                 >
                   <ThemedText
                     type="small"
-                    style={{ color: datePreset === preset.key ? '#FFFFFF' : theme.textSecondary, fontWeight: '500' }}
+                    style={{ color: datePreset === preset.key ? contrastText(theme.primary) : theme.textSecondary, fontWeight: '500' }}
                   >
                     {preset.label}
                   </ThemedText>
@@ -430,7 +433,7 @@ export default function SearchScreen() {
                 >
                   <ThemedText
                     type="small"
-                    style={{ color: sortBy === option.key ? '#FFFFFF' : theme.textSecondary, fontWeight: '500' }}
+                    style={{ color: sortBy === option.key ? contrastText(theme.primary) : theme.textSecondary, fontWeight: '500' }}
                   >
                     {option.label}
                   </ThemedText>
@@ -454,7 +457,7 @@ export default function SearchScreen() {
           <ActivityIndicator color={theme.textMuted} />
         </ThemedView>
       ) : !searched && results.length === 0 ? (
-        <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.centered}>
+        <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(400).springify()} style={styles.centered}>
           <IconSearch size={48} color={theme.textMuted} />
           <ThemedText type="default" themeColor="textSecondary">
             Search your journals
@@ -464,7 +467,7 @@ export default function SearchScreen() {
           </ThemedText>
         </Animated.View>
       ) : results.length === 0 ? (
-        <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.centered}>
+        <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(400).springify()} style={styles.centered}>
           <IconHelp size={48} color={theme.textMuted} />
           <ThemedText type="default" themeColor="textSecondary">
             No results

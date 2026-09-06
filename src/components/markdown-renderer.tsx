@@ -1,6 +1,6 @@
 import { Linking, StyleSheet, Text, View } from 'react-native';
 
-import { Spacing } from '@/constants/theme';
+import { Spacing, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ImageViewer } from '@/components/media/image-viewer';
 import { VideoPlayer } from '@/components/media/video-player';
@@ -267,7 +267,7 @@ function InlineContent({ nodes, theme }: { nodes: InlineNode[]; theme: any }) {
           case 'strikethrough':
             return <Text key={i} style={{ textDecorationLine: 'line-through' }}>{node.text}</Text>;
           case 'highlight':
-            return <Text key={i} style={[styles.highlight, { backgroundColor: `${theme.accent}30` }]}>{node.text}</Text>;
+            return <Text key={i} style={[styles.highlight, { backgroundColor: withAlpha(theme.accent, 0.18) }]}>{node.text}</Text>;
           case 'code':
             return (
               <Text key={i} style={[styles.inlineCode, { backgroundColor: theme.backgroundElement, color: theme.primary }]}>
@@ -281,7 +281,10 @@ function InlineContent({ nodes, theme }: { nodes: InlineNode[]; theme: any }) {
               <Text
                 key={i}
                 style={{ color: theme.primary }}
-                onPress={() => Linking.openURL(node.url)}
+                accessibilityRole="link"
+                accessibilityLabel={`Link: ${node.text}`}
+                accessibilityHint={`Opens ${node.url}`}
+                onPress={() => Linking.openURL(node.url).catch(() => {})}
               >
                 {node.text}
               </Text>
@@ -311,19 +314,19 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
 
           case 'h1':
             return (
-              <Text key={bi} style={[styles.h1, { color: theme.text, fontFamily: theme.fontFamily }]}>
+              <Text key={bi} accessibilityRole="header" style={[styles.h1, { color: theme.text, fontFamily: theme.fontFamily }]}>
                 <InlineContent nodes={parseInline(block.text)} theme={theme} />
               </Text>
             );
           case 'h2':
             return (
-              <Text key={bi} style={[styles.h2, { color: theme.text, fontFamily: theme.fontFamily }]}>
+              <Text key={bi} accessibilityRole="header" style={[styles.h2, { color: theme.text, fontFamily: theme.fontFamily }]}>
                 <InlineContent nodes={parseInline(block.text)} theme={theme} />
               </Text>
             );
           case 'h3':
             return (
-              <Text key={bi} style={[styles.h3, { color: theme.text, fontFamily: theme.fontFamily }]}>
+              <Text key={bi} accessibilityRole="header" style={[styles.h3, { color: theme.text, fontFamily: theme.fontFamily }]}>
                 <InlineContent nodes={parseInline(block.text)} theme={theme} />
               </Text>
             );
@@ -331,7 +334,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
           case 'h5':
           case 'h6':
             return (
-              <Text key={bi} style={[styles.h4, { color: theme.text, fontFamily: theme.fontFamily }]}>
+              <Text key={bi} accessibilityRole="header" style={[styles.h4, { color: theme.text, fontFamily: theme.fontFamily }]}>
                 <InlineContent nodes={parseInline(block.text)} theme={theme} />
               </Text>
             );

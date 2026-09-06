@@ -307,8 +307,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   formatIcon: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },

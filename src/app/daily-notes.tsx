@@ -4,17 +4,18 @@ import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { IconChevronLeft, IconChevronRight, IconCalendarEvent, IconFileText, IconPlus } from '@tabler/icons-react-native';
-import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
+import Animated, { FadeInDown, useReducedMotion, FadeInRight } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { JournalService, type JournalEntry } from '@/services/journal-service';
 import { openJournal } from '@/services/journal-nav';
 
-const DAYS_OF_WEEK = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
@@ -29,6 +30,8 @@ function getFirstDayOfMonth(year: number, month: number): number {
 }
 
 export default function DailyNotesScreen() {
+  const reducedMotion = useReducedMotion();
+  const insets = useSafeAreaInsets();
   const theme = useTheme();
   const db = useSQLiteContext();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -128,7 +131,7 @@ export default function DailyNotesScreen() {
     
     return (
       <Animated.View
-        entering={FadeInDown.delay(index * 50).springify()}
+        entering={reducedMotion ? undefined : FadeInDown.delay(index * 50).springify()}
       >
         <Pressable
           onPress={() => {
@@ -167,7 +170,7 @@ export default function DailyNotesScreen() {
   return (
     <ThemedView style={styles.container}>
       {/* Header */}
-      <Animated.View entering={FadeInDown.springify()}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInDown.springify()}>
         <ThemedView style={styles.header}>
           <Pressable onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -180,7 +183,7 @@ export default function DailyNotesScreen() {
       </Animated.View>
 
       {/* Calendar */}
-      <Animated.View entering={FadeInDown.delay(100).springify()}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(100).springify()}>
         <ThemedView style={[styles.calendarContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           {/* Month Navigation */}
           <View style={styles.monthNavigation}>
@@ -224,7 +227,7 @@ export default function DailyNotesScreen() {
       </Animated.View>
 
       {/* Entries List */}
-      <Animated.View entering={FadeInDown.delay(200).springify()}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).springify()}>
         <View style={styles.entriesHeader}>
           <ThemedText type="default" style={styles.entriesTitle}>
             {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -243,7 +246,7 @@ export default function DailyNotesScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           !loading ? (
-            <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.emptyState}>
+            <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(300).springify()} style={styles.emptyState}>
               <IconFileText size={48} color={theme.textMuted} />
               <ThemedText type="default" themeColor="textSecondary">
                 No entries for this day
@@ -257,13 +260,16 @@ export default function DailyNotesScreen() {
       />
 
       {/* FAB */}
-      <Animated.View entering={FadeInRight.delay(400).springify()}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInRight.delay(400).springify()}>
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             openJournal({ date: selectedDate.toISOString().split('T')[0], type: 'note' });
           }}
-          style={[styles.fab, { backgroundColor: theme.primary }]}
+          accessibilityRole="button"
+          accessibilityLabel="Create entry"
+          hitSlop={8}
+          style={[styles.fab, { backgroundColor: theme.primary, bottom: insets.bottom + Spacing.four }]}
         >
           <IconPlus size={24} color="#FFFFFF" />
         </Pressable>
@@ -286,8 +292,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.three,
   },
   backButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
@@ -306,8 +312,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
   },
   navButton: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
@@ -326,7 +332,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   dayHeader: {
-    width: 32,
+    width: 44,
     textAlign: 'center',
     fontWeight: '600',
   },
@@ -336,21 +342,21 @@ const styles = StyleSheet.create({
   },
   dayContainer: {
     width: '14.28%',
-    height: 40,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
   calendarDay: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     borderCurve: 'continuous',
   },
   emptyDay: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
   },
   dayText: {
     fontSize: 14,

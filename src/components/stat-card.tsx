@@ -29,8 +29,11 @@ export function StatCard({ icon, value, label, color, style }: StatCardProps) {
         { borderColor: theme.border },
         style,
       ]}
+      accessible
+      accessibilityLabel={`${label}: ${value}`}
+      accessibilityRole="summary"
     >
-      <ThemedView style={[styles.iconBubble, { backgroundColor: withAlpha(tint, 0.14) }]}>
+      <ThemedView style={[styles.iconBubble, { backgroundColor: withAlpha(tint, 0.14) }]} accessible={false}>
         {iconNode}
       </ThemedView>
       <ThemedText

@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Spacing } from '@/constants/theme';
+import { contrastText, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const MOODS = [
@@ -29,22 +29,34 @@ export function MoodPicker({ selected, onSelect }: MoodPickerProps) {
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.scroll}
+      accessibilityRole="radiogroup"
+      accessibilityLabel="Mood options"
     >
       <Pressable
         onPress={() => onSelect(null)}
+        accessibilityRole="radio"
+        accessibilityLabel="Clear mood"
+        accessibilityHint="Clears the selected mood"
+        accessibilityState={{ checked: !selected }}
+        hitSlop={8}
         style={[
           styles.mood,
           { borderColor: theme.border, backgroundColor: !selected ? theme.primary : theme.backgroundElement },
         ]}
       >
-        <View style={styles.emojiWrap}>
-          <Text style={styles.clearText}>✕</Text>
+        <View style={styles.emojiWrap} accessible={false}>
+          <Text style={[styles.clearText, { color: !selected ? contrastText(theme.primary) : theme.text }]}>✕</Text>
         </View>
       </Pressable>
       {MOODS.map((mood) => (
         <Pressable
           key={mood.value}
           onPress={() => onSelect(mood.value === selected ? null : mood.value)}
+          accessibilityRole="radio"
+          accessibilityLabel={`Mood: ${mood.label}`}
+          accessibilityHint={`Selects ${mood.label} mood`}
+          accessibilityState={{ checked: selected === mood.value }}
+          hitSlop={8}
           style={[
             styles.mood,
             {
@@ -53,7 +65,7 @@ export function MoodPicker({ selected, onSelect }: MoodPickerProps) {
             },
           ]}
         >
-          <Text style={styles.emoji}>{mood.emoji}</Text>
+          <Text style={styles.emoji} accessible={false}>{mood.emoji}</Text>
           <Text
             style={[
               styles.label,
@@ -81,6 +93,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.three,
     borderWidth: 1,
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
   },
   emojiWrap: {
     width: 28,
@@ -90,14 +105,13 @@ const styles = StyleSheet.create({
   },
   clearText: {
     fontSize: 16,
-    color: '#FFFFFF',
     fontWeight: '600',
   },
   emoji: {
     fontSize: 24,
   },
   label: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '500',
   },
 });

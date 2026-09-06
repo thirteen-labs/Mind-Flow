@@ -5,6 +5,7 @@ import { IconX } from '@tabler/icons-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/constants/theme';
 
 export interface ModalHeaderProps {
   title: string;
@@ -24,8 +25,8 @@ export function ModalHeader({
   const theme = useTheme();
 
   return (
-    <View style={[styles.container, style]}>
-      <ThemedText type="subtitle" style={styles.title} numberOfLines={1}>
+    <View style={[styles.container, style]} accessibilityRole="header">
+      <ThemedText type="subtitle" style={styles.title} numberOfLines={1} accessibilityRole="header">
         {title}
       </ThemedText>
       {rightElement}

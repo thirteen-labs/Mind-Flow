@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { File, Paths } from 'expo-file-system';
@@ -47,6 +48,7 @@ const pages = [
 ];
 
 export default function OnboardingScreen() {
+  const insets = useSafeAreaInsets();
   const db = useSQLiteContext();
   const [page, setPage] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
@@ -147,7 +149,7 @@ export default function OnboardingScreen() {
         ))}
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { bottom: insets.bottom + 16 }]}>
         <View
           style={styles.dots}
           accessibilityRole="tablist"
@@ -273,7 +275,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     position: 'absolute',
-    bottom: 60,
+    bottom: 16,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -300,6 +302,10 @@ const styles = StyleSheet.create({
   skipButton: {
     paddingVertical: 12,
     paddingHorizontal: 24,
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   skipText: {
     color: 'rgba(255,255,255,0.6)',

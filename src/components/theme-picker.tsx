@@ -17,8 +17,9 @@ function ThemeCard({ theme, isSelected }: { theme: Theme; isSelected: boolean })
           borderWidth: 2,
         },
       ]}
+      accessible={false}
     >
-        <View style={[styles.previewRow]}>
+        <View style={[styles.previewRow]} accessible={false}>
           <View style={[styles.previewCircle, { backgroundColor: theme.primary }]} />
           <View style={[styles.previewCircle, { backgroundColor: theme.secondary }]} />
           <View style={[styles.previewCircle, { backgroundColor: theme.accent }]} />
@@ -28,6 +29,7 @@ function ThemeCard({ theme, isSelected }: { theme: Theme; isSelected: boolean })
             styles.previewBar,
             { backgroundColor: theme.backgroundElement },
           ]}
+          accessible={false}
         >
           <View
             style={[styles.previewDot, { backgroundColor: theme.tabActive }]}
@@ -95,9 +97,19 @@ export function ThemePicker() {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        accessibilityRole="radiogroup"
+        accessibilityLabel="Theme options"
       >
         {themeList.map((t) => (
-          <Pressable key={t.id} onPress={() => setThemeId(t.id)}>
+          <Pressable
+            key={t.id}
+            onPress={() => setThemeId(t.id)}
+            accessibilityRole="radio"
+            accessibilityLabel={`Theme: ${t.name}`}
+            accessibilityHint={`Applies the ${t.name} theme`}
+            accessibilityState={{ checked: t.id === themeId }}
+            hitSlop={8}
+          >
             <ThemeCard theme={t} isSelected={t.id === themeId} />
           </Pressable>
         ))}
@@ -167,6 +179,6 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.one,
   },
   darkBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
   },
 });

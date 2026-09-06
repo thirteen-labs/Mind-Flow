@@ -162,8 +162,9 @@ export default function WriterScreen() {
 
   if (loading) {
     return (
-      <ThemedView style={styles.centered}>
-        <ActivityIndicator size="large" color={theme.textMuted} />
+      <ThemedView style={styles.centered} accessible accessibilityLabel="Loading entry">
+        <ActivityIndicator size="large" color={theme.textMuted} accessibilityLabel="Loading entry" />
+        <ThemedText type="small" themeColor="textMuted">Loading entry…</ThemedText>
       </ThemedView>
     );
   }
@@ -174,7 +175,13 @@ export default function WriterScreen() {
         <ThemedText type="default" themeColor="textSecondary">
           {error}
         </ThemedText>
-        <Pressable onPress={retry} style={[styles.retryButton, { backgroundColor: theme.primary }]}>
+        <Pressable
+          onPress={retry}
+          style={[styles.retryButton, { backgroundColor: theme.primary }]}
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading entry"
+          hitSlop={8}
+        >
           <ThemedText type="default" style={{ color: contrastText(theme.primary) }}>Retry</ThemedText>
         </Pressable>
       </ThemedView>
@@ -196,10 +203,18 @@ export default function WriterScreen() {
           }}
           hitSlop={8}
           style={({ pressed }) => [styles.headerAction, pressed && { backgroundColor: theme.backgroundElement }]}
+          accessibilityRole="button"
+          accessibilityLabel="Open notes sidebar"
         >
           <IconMenu2 size={20} color={theme.tint} />
         </Pressable>
-        <Pressable onPress={handleBack} style={styles.headerAction}>
+        <Pressable
+          onPress={handleBack}
+          style={styles.headerAction}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={8}
+        >
           <IconChevronLeft size={20} color={theme.tint} />
           <ThemedText type="default" themeColor="tint">Back</ThemedText>
         </Pressable>
@@ -231,6 +246,9 @@ export default function WriterScreen() {
           <Pressable
             onPress={handleSaveToggle}
             style={[styles.headerIconButton, readOnly && { backgroundColor: theme.backgroundElement }]}
+            accessibilityRole="button"
+            accessibilityLabel={readOnly ? 'Edit entry' : 'Save entry'}
+            hitSlop={8}
           >
             {readOnly
               ? <IconPencil size={20} color={theme.tint} />
@@ -244,6 +262,9 @@ export default function WriterScreen() {
                 setShowMoodPicker(!showMoodPicker);
               }}
               style={styles.headerIconButton}
+              accessibilityRole="button"
+              accessibilityLabel={selectedMood ? `Change mood, current ${selectedMood}` : 'Select mood'}
+              hitSlop={8}
             >
               <IconMoodHappy size={20} color={selectedMood ? theme.primary : theme.tint} />
             </Pressable>
@@ -295,7 +316,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
-    paddingVertical: Spacing.half,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.two,
   },
   headerCenter: {
     flex: 1,
@@ -332,9 +356,11 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   headerIconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    minWidth: 44,
+    minHeight: 44,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -345,6 +371,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   retryButton: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
     borderRadius: Spacing.two,

@@ -14,7 +14,7 @@ function LayoutContent() {
   const { isOpen, close } = useSidebar();
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+    <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
       <TopBar />
       <AppTabs />
       <NotesSidebar visible={isOpen} onClose={close} />

@@ -37,6 +37,9 @@ export function VideoPlayer({ uri }: VideoPlayerProps) {
             onPress={() => {
               if (isPlaying) { player.pause(); } else { player.play(); }
             }}
+            accessibilityRole="button"
+            accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'}
+            hitSlop={8}
             style={[styles.barButton, { backgroundColor: theme.backgroundElement }]}
           >
             {isPlaying
@@ -46,6 +49,9 @@ export function VideoPlayer({ uri }: VideoPlayerProps) {
           </Pressable>
           <Pressable
             onPress={() => { player.pause(); setExpanded(false); }}
+            accessibilityRole="button"
+            accessibilityLabel="Close video"
+            hitSlop={8}
             style={[styles.barButton, { backgroundColor: theme.backgroundElement }]}
           >
             <IconX color={theme.textSecondary} size={14} />
@@ -58,9 +64,13 @@ export function VideoPlayer({ uri }: VideoPlayerProps) {
   return (
     <Pressable
       onPress={() => setExpanded(true)}
+      accessibilityRole="button"
+      accessibilityLabel="Play video"
+      accessibilityHint="Opens video player"
+      hitSlop={8}
       style={[styles.container, styles.thumbnail, { backgroundColor: theme.surface, borderCurve: 'continuous' }]}
     >
-      <View style={[styles.playOverlay, { backgroundColor: theme.primary }]}>
+      <View style={[styles.playOverlay, { backgroundColor: theme.primary }]} accessible={false}>
         <IconPlayerPlay color={theme.background} size={20} />
       </View>
     </Pressable>
@@ -96,9 +106,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
   },
   barButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },

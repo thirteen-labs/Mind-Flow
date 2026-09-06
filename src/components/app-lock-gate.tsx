@@ -70,8 +70,14 @@ export function AppLockGate({ db, children }: AppLockGateProps) {
   const theme = getThemeById('midnight');
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <IconLock size={48} color={theme.textMuted} />
+    <View
+      style={[styles.container, { backgroundColor: theme.background }]}
+      accessible
+      accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={checking ? 'Checking authentication' : 'Authentication required'}
+    >
+      <IconLock size={48} color={theme.textMuted} accessible={false} />
       <Text style={[styles.text, { color: theme.text }]}>MindFlow</Text>
       <Text style={[styles.subtext, { color: theme.textMuted }]}>
         {checking ? 'Checking...' : 'Authenticate to continue'}

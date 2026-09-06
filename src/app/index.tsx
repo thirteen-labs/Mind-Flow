@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { File, Paths } from 'expo-file-system';
+
+import { useTheme } from '@/hooks/use-theme';
 
 function getOnboardingFlagPath(): string | null {
   try {
@@ -27,6 +29,7 @@ async function checkFlagExists(path: string): Promise<boolean> {
 
 export default function Index() {
   const db = useSQLiteContext();
+  const theme = useTheme();
   const [checked, setChecked] = useState(false);
   const [onboarded, setOnboarded] = useState(false);
 
@@ -58,8 +61,18 @@ export default function Index() {
 
   if (!checked) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#636366" />
+      <View style={[styles.loading, { backgroundColor: theme.background }]}>
+        <ActivityIndicator
+          size="large"
+          color={theme.textMuted}
+          accessibilityLabel="Loading app"
+        />
+        <Text
+          style={[styles.loadingText, { color: theme.textMuted }]}
+          accessibilityLiveRegion="polite"
+        >
+          Loading…
+        </Text>
       </View>
     );
   }
@@ -76,6 +89,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000000',
+    // backgroundColor resolved from theme at runtime
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
   },
 });

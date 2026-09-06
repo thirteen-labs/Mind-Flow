@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { IconX } from '@tabler/icons-react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/theme';
 import { CustomModal } from '@/components/ui/modal';
@@ -15,6 +16,7 @@ interface ImageViewerProps {
 export function ImageViewer({ uri, aspectRatio }: ImageViewerProps) {
   const [fullscreen, setFullscreen] = useState(false);
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   return (
@@ -25,6 +27,7 @@ export function ImageViewer({ uri, aspectRatio }: ImageViewerProps) {
         accessibilityRole="button"
         accessibilityLabel="View image fullscreen"
         accessibilityHint="Opens the image in fullscreen viewer"
+        hitSlop={8}
       >
         <Image
           source={{ uri }}
@@ -39,7 +42,7 @@ export function ImageViewer({ uri, aspectRatio }: ImageViewerProps) {
         <View style={[styles.overlay, { backgroundColor: theme.background }]}>
           <Pressable
             onPress={() => setFullscreen(false)}
-            style={[styles.closeButton, { backgroundColor: theme.surface }]}
+            style={[styles.closeButton, { backgroundColor: theme.surface, top: insets.top + 12 }]}
             accessibilityRole="button"
             accessibilityLabel="Close fullscreen image"
             accessibilityHint="Returns to the note"
@@ -51,13 +54,14 @@ export function ImageViewer({ uri, aspectRatio }: ImageViewerProps) {
           <Pressable
             onPress={() => setFullscreen(false)}
             style={styles.imageArea}
-            accessibilityRole="button"
-            accessibilityLabel="Close fullscreen image"
+            accessibilityLabel="Fullscreen image, tap to close"
+            accessibilityRole="image"
           >
             <Image
               source={{ uri }}
               style={[styles.fullImage, { width: windowWidth, height: windowHeight * 0.85 }]}
               contentFit="contain"
+              accessibilityLabel="Fullscreen journal image"
             />
           </Pressable>
         </View>

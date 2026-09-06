@@ -1,9 +1,10 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { IconBulb, IconChartBar, IconChevronRight, IconFileText, IconFlame, IconBook2, IconPencil, IconSettings2, IconShare, IconUser, IconCalendarEvent, IconBrain } from '@tabler/icons-react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { IconBulb, IconChartBar, IconChevronRight, IconFileText, IconFlame, IconBook2, IconPencil, IconSettings2, IconShare, IconUser, IconCalendarEvent, IconBrain, IconAlertCircle, IconPlus } from '@tabler/icons-react-native';
+import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 import { ThemedText } from '@/components/themed-text';
@@ -36,52 +37,50 @@ function getTimeEmoji(): string {
 }
 
 export default function HomeScreen() {
+  const reducedMotion = useReducedMotion();
   const theme = useTheme();
   const db = useSQLiteContext();
   const { stats, loading, error, retry } = useJournalStats();
   const [recentEntries, setRecentEntries] = useState<JournalEntry[]>([]);
   const [todayEntry, setTodayEntry] = useState<JournalEntry | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [homeLoading, setHomeLoading] = useState(true);
+  const [homeError, setHomeError] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
     return () => { mountedRef.current = false; };
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [entries, todayEntries] = await Promise.all([
-          JournalService.getRecentJournals(db, 5),
-          JournalService.getTodayEntries(db),
-        ]);
-        if (!mountedRef.current) return;
-        setRecentEntries(entries.filter((e) => e.content.trim()));
-        setTodayEntry(todayEntries.find((e) => e.content.trim()) ?? todayEntries[0] ?? null);
-      } catch {
-        // silently fail
-      }
-    })();
+  const loadHome = useCallback(async () => {
+    try {
+      if (mountedRef.current) setHomeError(null);
+      const [entries, todayEntries] = await Promise.all([
+        JournalService.getRecentJournals(db, 5),
+        JournalService.getTodayEntries(db),
+      ]);
+      if (!mountedRef.current) return;
+      setRecentEntries(entries.filter((e) => e.content.trim()));
+      setTodayEntry(todayEntries.find((e) => e.content.trim()) ?? todayEntries[0] ?? null);
+    } catch {
+      if (mountedRef.current) setHomeError('Could not load recent entries');
+    } finally {
+      if (mountedRef.current) setHomeLoading(false);
+    }
   }, [db]);
+
+  useEffect(() => {
+    loadHome();
+  }, [loadHome]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([
-      (async () => {
-        try {
-          const [entries, todayEntries] = await Promise.all([
-            JournalService.getRecentJournals(db, 5),
-            JournalService.getTodayEntries(db),
-          ]);
-          if (!mountedRef.current) return;
-          setRecentEntries(entries.filter((e) => e.content.trim()));
-          setTodayEntry(todayEntries.find((e) => e.content.trim()) ?? todayEntries[0] ?? null);
-        } catch { /* silently fail */ }
-      })(),
+      loadHome(),
       retry(),
     ]);
     if (mountedRef.current) setRefreshing(false);
-  }, [db, retry]);
+  }, [loadHome, retry]);
 
   const renderEntry = useCallback(({ item, index }: { item: JournalEntry; index: number }) => {
     const date = new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', {
@@ -89,7 +88,7 @@ export default function HomeScreen() {
     });
     const moodEmoji = item.mood ? MOOD_EMOJIS[item.mood] : null;
     return (
-      <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(index * 50).springify()}>
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -147,7 +146,7 @@ export default function HomeScreen() {
     >
       <ThemedView style={styles.container}>
         {/* Greeting Header */}
-        <Animated.View entering={FadeInDown.springify()}>
+        <Animated.View entering={reducedMotion ? undefined : FadeInDown.springify()}>
           <ThemedView style={styles.header}>
             <ThemedView style={styles.greetingRow}>
               <View>
@@ -160,6 +159,10 @@ export default function HomeScreen() {
                   router.push('/settings');
                 }}
                 style={[styles.profileButton, { backgroundColor: theme.surface }]}
+                accessibilityRole="button"
+                accessibilityLabel="Open settings"
+                accessibilityHint="Opens app settings"
+                hitSlop={8}
               >
                 <IconUser size={20} color={theme.text} />
               </Pressable>
@@ -168,7 +171,7 @@ export default function HomeScreen() {
         </Animated.View>
 
         {/* Daily Note Card */}
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
+        <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(100).springify()}>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -189,7 +192,7 @@ export default function HomeScreen() {
         </Animated.View>
 
         {/* Quick Actions Grid */}
-        <Animated.View entering={FadeInDown.delay(200).springify()}>
+        <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).springify()}>
           <ThemedView style={styles.section}>
             <ThemedText type="default" themeColor="textSecondary" style={styles.sectionTitle}>
               Quick Actions
@@ -231,23 +234,27 @@ export default function HomeScreen() {
         </Animated.View>
 
         {/* Stats Section */}
-        <Animated.View entering={FadeInDown.delay(300).springify()}>
+        <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(300).springify()}>
           <ThemedView style={styles.section}>
             <ThemedText type="default" themeColor="textSecondary" style={styles.sectionTitle}>
               Your Progress
             </ThemedText>
             {loading ? (
-              <ThemedView style={styles.statsRow}>
-                {[1, 2, 3].map((i) => (
-                  <ThemedView key={i} type="backgroundElement" style={styles.statLoading}>
-                    <ThemedText type="small" themeColor="textMuted">Loading...</ThemedText>
-                  </ThemedView>
-                ))}
+              <ThemedView style={styles.statsRow} accessible accessibilityLabel="Loading statistics">
+                <ActivityIndicator size="small" color={theme.textMuted} accessibilityLabel="Loading statistics" />
+                <ThemedText type="small" themeColor="textMuted">Loading stats…</ThemedText>
               </ThemedView>
             ) : error ? (
               <ThemedView style={styles.errorCard}>
+                <IconAlertCircle size={20} color={theme.error} accessibilityLabel="Stats load error" />
                 <ThemedText type="small" themeColor="error">Could not load stats</ThemedText>
-                <Pressable onPress={retry}>
+                <Pressable
+                  onPress={retry}
+                  style={styles.retryButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry loading stats"
+                  hitSlop={8}
+                >
                   <ThemedText type="small" themeColor="tint">Tap to retry</ThemedText>
                 </Pressable>
               </ThemedView>
@@ -265,7 +272,7 @@ export default function HomeScreen() {
 
         {/* Today's Mood */}
         {todayEntry?.mood && (
-          <Animated.View entering={FadeInDown.delay(400).springify()}>
+          <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(400).springify()}>
             <ThemedView type="backgroundElement" style={[styles.moodRow, { borderColor: theme.border }]}>
               <ThemedText type="default">Today&apos;s mood: {MOOD_EMOJIS[todayEntry.mood] ?? ''} {todayEntry.mood}</ThemedText>
             </ThemedView>
@@ -273,17 +280,48 @@ export default function HomeScreen() {
         )}
 
         {/* Recent Entries */}
-        {recentEntries.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(500).springify()}>
+        {homeLoading ? (
+          <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(500).springify()}>
+            <ThemedView style={styles.section}>
+              <View style={styles.loadingRow} accessible accessibilityLabel="Loading recent entries">
+                <ActivityIndicator size="small" color={theme.textMuted} accessibilityLabel="Loading recent entries" />
+                <ThemedText type="small" themeColor="textMuted">Loading recent entries…</ThemedText>
+              </View>
+            </ThemedView>
+          </Animated.View>
+        ) : homeError ? (
+          <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(500).springify()}>
+            <ThemedView style={[styles.section, styles.errorCard, { borderColor: theme.border }]}>
+              <IconAlertCircle size={20} color={theme.error} accessibilityLabel="Recent entries load error" />
+              <ThemedText type="small" themeColor="error">{homeError}</ThemedText>
+              <Pressable
+                onPress={loadHome}
+                style={styles.retryButton}
+                accessibilityRole="button"
+                accessibilityLabel="Retry loading recent entries"
+                hitSlop={8}
+              >
+                <ThemedText type="small" themeColor="tint">Tap to retry</ThemedText>
+              </Pressable>
+            </ThemedView>
+          </Animated.View>
+        ) : recentEntries.length > 0 ? (
+          <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(500).springify()}>
             <ThemedView style={styles.section}>
               <ThemedView style={styles.sectionHeader}>
                 <ThemedText type="default" themeColor="textSecondary" style={styles.sectionTitle}>
                   Recent
                 </ThemedText>
-                <Pressable onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/search');
-                }}>
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push('/search');
+                  }}
+                  style={styles.viewAllButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="View all entries"
+                  hitSlop={8}
+                >
                   <ThemedText type="small" themeColor="tint">View all</ThemedText>
                 </Pressable>
               </ThemedView>
@@ -294,10 +332,34 @@ export default function HomeScreen() {
               </View>
             </ThemedView>
           </Animated.View>
+        ) : (
+          <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(500).springify()}>
+            <ThemedView style={[styles.section, styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <IconFileText size={48} color={theme.textMuted} accessibilityLabel="No entries illustration" />
+              <ThemedText type="default" themeColor="textSecondary" style={styles.emptyTitle}>
+                No entries yet
+              </ThemedText>
+              <ThemedText type="small" themeColor="textMuted" style={styles.emptySubtitle}>
+                Start writing your first note to see it here.
+              </ThemedText>
+              <Pressable
+                onPress={() => openJournal({ type: 'note' })}
+                style={[styles.emptyCta, { backgroundColor: theme.primary }]}
+                accessibilityRole="button"
+                accessibilityLabel="Create your first entry"
+                hitSlop={8}
+              >
+                <IconPlus size={16} color={contrastText(theme.primary)} />
+                <ThemedText type="small" style={{ color: contrastText(theme.primary), fontWeight: '600' }}>
+                  Write your first entry
+                </ThemedText>
+              </Pressable>
+            </ThemedView>
+          </Animated.View>
         )}
 
         {/* Quick Links */}
-        <Animated.View entering={FadeInDown.delay(600).springify()}>
+        <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(600).springify()}>
           <ThemedView style={styles.linksSection}>
             <Pressable
               onPress={() => {
@@ -365,9 +427,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   profileButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    minWidth: 44,
+    minHeight: 44,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -421,8 +485,8 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
   },
   quickActionIcon: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -450,6 +514,56 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
     padding: Spacing.four,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+    borderCurve: 'continuous',
+  },
+  retryButton: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  viewAllButton: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.two,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    padding: Spacing.four,
+  },
+  emptyCard: {
+    alignItems: 'center',
+    gap: Spacing.two,
+    padding: Spacing.four,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+    borderCurve: 'continuous',
+  },
+  emptyTitle: {
+    fontWeight: '600',
+  },
+  emptySubtitle: {
+    textAlign: 'center',
+  },
+  emptyCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    minHeight: 44,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two,
+    marginTop: Spacing.one,
   },
   moodRow: {
     flexDirection: 'row',
@@ -484,8 +598,8 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   entryAvatar: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',

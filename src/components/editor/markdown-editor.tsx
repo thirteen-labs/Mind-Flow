@@ -248,21 +248,33 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
       <View style={styles.modeBar}>
         <Pressable
           onPress={handleAttach}
+          accessibilityRole="button"
+          accessibilityLabel="Attach media"
+          accessibilityHint="Opens media picker"
+          hitSlop={8}
           style={[styles.modeButton, { backgroundColor: theme.backgroundElement }]}
         >
           <IconPaperclip size={16} color={theme.text} />
         </Pressable>
         <Pressable
           onPress={togglePreview}
+          accessibilityRole="button"
+          accessibilityLabel={preview ? 'Exit preview' : 'Preview markdown'}
+          accessibilityState={{ selected: preview }}
+          hitSlop={8}
           style={[styles.modeButton, preview && { backgroundColor: theme.primary }]}
         >
-          <IconSearch size={16} color={preview ? '#FFFFFF' : theme.text} />
+          <IconSearch size={16} color={preview ? theme.background : theme.text} />
         </Pressable>
         <Pressable
           onPress={() => { setPreview(false); inputRef.current?.focus(); }}
+          accessibilityRole="button"
+          accessibilityLabel="Edit"
+          accessibilityState={{ selected: !preview }}
+          hitSlop={8}
           style={[styles.modeButton, !preview && { backgroundColor: theme.primary }]}
         >
-          <IconPencil size={16} color={!preview ? '#FFFFFF' : theme.text} />
+          <IconPencil size={16} color={!preview ? theme.background : theme.text} />
         </Pressable>
       </View>
 
@@ -290,6 +302,8 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
               onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
               placeholder={placeholder ?? 'Start writing...'}
               placeholderTextColor={theme.textMuted}
+              accessibilityLabel="Journal content"
+              accessibilityHint="Enter your journal entry in markdown"
               multiline
               textAlignVertical="top"
               style={[
@@ -308,16 +322,30 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
                 onChangeText={setLinkUrl}
                 placeholder="Paste link URL..."
                 placeholderTextColor={theme.textMuted}
+                accessibilityLabel="Link URL"
+                accessibilityHint="Enter the URL for the link"
                 style={[styles.linkInput, { color: theme.text, backgroundColor: theme.surface }]}
                 autoCapitalize="none"
                 autoCorrect={false}
                 returnKeyType="done"
                 onSubmitEditing={handleLinkSubmit}
               />
-              <Pressable onPress={handleLinkSubmit} style={styles.linkDone}>
+              <Pressable
+                onPress={handleLinkSubmit}
+                accessibilityRole="button"
+                accessibilityLabel="Confirm link"
+                hitSlop={8}
+                style={styles.linkDone}
+              >
                 <IconCheck color={theme.tint} size={18} />
               </Pressable>
-              <Pressable onPress={() => { setShowLinkInput(false); setLinkUrl(''); }} style={styles.linkDone}>
+              <Pressable
+                onPress={() => { setShowLinkInput(false); setLinkUrl(''); }}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel link"
+                hitSlop={8}
+                style={styles.linkDone}
+              >
                 <IconX color={theme.textSecondary} size={18} />
               </Pressable>
             </View>
@@ -325,69 +353,69 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
 
           <View style={[styles.toolbar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarScroll}>
-              <Pressable onPress={() => handleAction('undo')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('undo')} accessibilityRole="button" accessibilityLabel="undo" hitSlop={8} style={styles.toolbarButton}>
                 <IconArrowBackUp size={18} color={theme.text} />
               </Pressable>
-              <Pressable onPress={() => handleAction('redo')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('redo')} accessibilityRole="button" accessibilityLabel="redo" hitSlop={8} style={styles.toolbarButton}>
                 <IconArrowForwardUp size={18} color={theme.text} />
               </Pressable>
               <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
-              <Pressable onPress={() => handleAction('bold')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('bold')} accessibilityRole="button" accessibilityLabel="bold" hitSlop={8} style={styles.toolbarButton}>
                 <IconBold size={18} color={theme.text} />
               </Pressable>
-              <Pressable onPress={() => handleAction('italic')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('italic')} accessibilityRole="button" accessibilityLabel="italic" hitSlop={8} style={styles.toolbarButton}>
                 <IconItalic size={18} color={theme.text} />
               </Pressable>
-              <Pressable onPress={() => handleAction('underline')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('underline')} accessibilityRole="button" accessibilityLabel="underline" hitSlop={8} style={styles.toolbarButton}>
                 <IconUnderline size={18} color={theme.text} />
               </Pressable>
-              <Pressable onPress={() => handleAction('strikethrough')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('strikethrough')} accessibilityRole="button" accessibilityLabel="strikethrough" hitSlop={8} style={styles.toolbarButton}>
                 <IconStrikethrough size={18} color={theme.text} />
               </Pressable>
-              <Pressable onPress={() => handleAction('highlight')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('highlight')} accessibilityRole="button" accessibilityLabel="highlight" hitSlop={8} style={styles.toolbarButton}>
                 <IconHighlight size={18} color={theme.text} />
               </Pressable>
-              <Pressable onPress={() => handleAction('code')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('code')} accessibilityRole="button" accessibilityLabel="code" hitSlop={8} style={styles.toolbarButton}>
                 <IconCode size={18} color={theme.text} />
               </Pressable>
               <Pressable onPress={handleColorPicker} style={styles.toolbarButton}>
                 <IconColorSwatch size={18} color={theme.text} />
               </Pressable>
               <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
-              <Pressable onPress={() => handleAction('heading1')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('heading1')} accessibilityRole="button" accessibilityLabel="heading 1" hitSlop={8} style={styles.toolbarButton}>
                 <IconH1 size={18} color={theme.text} />
               </Pressable>
-              <Pressable onPress={() => handleAction('heading2')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('heading2')} accessibilityRole="button" accessibilityLabel="heading 2" hitSlop={8} style={styles.toolbarButton}>
                 <IconH2 size={18} color={theme.text} />
               </Pressable>
-              <Pressable onPress={() => handleAction('heading3')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('heading3')} accessibilityRole="button" accessibilityLabel="heading 3" hitSlop={8} style={styles.toolbarButton}>
                 <IconH3 size={18} color={theme.text} />
               </Pressable>
               <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
-              <Pressable onPress={() => handleAction('list')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('list')} accessibilityRole="button" accessibilityLabel="list" hitSlop={8} style={styles.toolbarButton}>
                 <IconList size={18} color={theme.text} />
               </Pressable>
-              <Pressable onPress={() => handleAction('numberedlist')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('numberedlist')} accessibilityRole="button" accessibilityLabel="numbered list" hitSlop={8} style={styles.toolbarButton}>
                 <IconListNumbers size={18} color={theme.text} />
               </Pressable>
-              <Pressable onPress={() => handleAction('checklist')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('checklist')} accessibilityRole="button" accessibilityLabel="checklist" hitSlop={8} style={styles.toolbarButton}>
                 <IconCheckbox size={18} color={theme.text} />
               </Pressable>
               <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
-              <Pressable onPress={() => handleAction('quote')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('quote')} accessibilityRole="button" accessibilityLabel="quote" hitSlop={8} style={styles.toolbarButton}>
                 <IconQuote size={18} color={theme.text} />
               </Pressable>
-              <Pressable onPress={() => handleAction('codeblock')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('codeblock')} accessibilityRole="button" accessibilityLabel="code block" hitSlop={8} style={styles.toolbarButton}>
                 <IconCodePlus size={18} color={theme.text} />
               </Pressable>
-              <Pressable onPress={() => handleAction('divider')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('divider')} accessibilityRole="button" accessibilityLabel="divider" hitSlop={8} style={styles.toolbarButton}>
                 <IconMinus size={18} color={theme.text} />
               </Pressable>
-              <Pressable onPress={() => handleAction('table')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('table')} accessibilityRole="button" accessibilityLabel="table" hitSlop={8} style={styles.toolbarButton}>
                 <IconTable size={18} color={theme.text} />
               </Pressable>
               <View style={[styles.toolbarDivider, { backgroundColor: theme.border }]} />
-              <Pressable onPress={() => handleAction('link')} style={styles.toolbarButton}>
+              <Pressable onPress={() => handleAction('link')} accessibilityRole="button" accessibilityLabel="link" hitSlop={8} style={styles.toolbarButton}>
                 <IconLink size={18} color={theme.text} />
               </Pressable>
             </ScrollView>
@@ -528,9 +556,9 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
   },
   modeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -563,14 +591,18 @@ const styles = StyleSheet.create({
   },
   linkInput: {
     flex: 1,
-    height: 36,
+    minHeight: 44,
     borderRadius: 8,
     paddingHorizontal: Spacing.two,
     fontSize: 14,
   },
   linkDone: {
-    paddingVertical: Spacing.one,
+    paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.two,
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   fab: {
     position: 'absolute',
@@ -597,8 +629,8 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   toolbarButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',

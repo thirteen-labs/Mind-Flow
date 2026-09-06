@@ -51,16 +51,29 @@ export default function TemplatesScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     Alert.alert(
       'Delete Template',
-      `Delete "${template.title}"? This cannot be undone.`,
+      `Delete "${template.title}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            const backup = { ...template };
             try {
               await TemplateService.deleteTemplate(db, template.id);
               await load();
+              Alert.alert('Deleted', `"${backup.title}" deleted`, [
+                { text: 'Dismiss', style: 'cancel' },
+                {
+                  text: 'Undo',
+                  onPress: async () => {
+                    try {
+                      await TemplateService.createTemplate(db, backup.title, backup.content);
+                      await load();
+                    } catch {}
+                  },
+                },
+              ]);
             } catch {
               Alert.alert('Error', 'Could not delete template');
             }
@@ -197,8 +210,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.three,
   },
   backButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
@@ -218,8 +231,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   cardIcon: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
@@ -233,15 +246,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   useButton: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
   deleteButton: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',

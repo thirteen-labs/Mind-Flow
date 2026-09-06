@@ -7,6 +7,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import {
@@ -33,6 +34,7 @@ const COLUMNS = 3;
 const GAP = Spacing.two;
 
 export default function LibraryScreen() {
+  const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const CELL_SIZE = (screenWidth - Spacing.four * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
@@ -44,19 +46,17 @@ export default function LibraryScreen() {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const result = await scanAllMedia();
-    setItems(result);
-    setLoading(false);
+    try { const result = await scanAllMedia(); setItems(result); } catch { /* keep previous items, surface via empty state */ } finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const result = await scanAllMedia();
-      if (!cancelled) {
-        setItems(result);
-        setLoading(false);
-      }
+      try {
+        const result = await scanAllMedia();
+        if (!cancelled) { setItems(result); }
+      } catch { /* show empty/permission hint via list empty */ }
+      finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
   }, []);
@@ -97,6 +97,10 @@ export default function LibraryScreen() {
             key={media.id}
             onPress={() => setPreview(media)}
             onLongPress={() => handleDelete(media)}
+            accessibilityRole="button"
+            accessibilityLabel={`${media.type} ${media.id}`}
+            accessibilityHint="Tap to preview, long press to delete"
+            hitSlop={8}
             style={[styles.cell, { width: CELL_SIZE, height: CELL_SIZE }]}
           >
             {media.type === 'image' ? (
@@ -179,7 +183,7 @@ export default function LibraryScreen() {
         <View style={[styles.overlay, { backgroundColor: theme.background }]}>
           <Pressable
             onPress={() => setPreview(null)}
-            style={[styles.closeButton, { backgroundColor: theme.surface }]}
+            style={[styles.closeButton, { backgroundColor: theme.surface, top: insets.top + Spacing.four }]}
           >
             <IconX size={18} color={theme.text} />
           </Pressable>
@@ -217,7 +221,7 @@ export default function LibraryScreen() {
           {preview && (
             <Pressable
               onPress={() => handleDelete(preview)}
-              style={[styles.deleteButton, { backgroundColor: theme.error }]}
+              style={[styles.deleteButton, { backgroundColor: theme.error, bottom: insets.bottom + Spacing.four }]}
             >
               <IconTrash size={16} color="#FFFFFF" />
               <ThemedText style={styles.deleteText}>Delete</ThemedText>
@@ -298,8 +302,8 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
   importBtn: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
@@ -350,11 +354,11 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: 60,
+    top: Spacing.four,
     right: Spacing.four,
     zIndex: 10,
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
@@ -381,7 +385,7 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     position: 'absolute',
-    bottom: 100,
+    bottom: Spacing.four,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,

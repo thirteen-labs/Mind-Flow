@@ -14,7 +14,7 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import { useTheme } from '@/hooks/use-theme';
-import { withAlpha } from '@/constants/theme';
+import { Spacing, withAlpha } from '@/constants/theme';
 import { ModalHeader } from './modal-header';
 
 export type ModalVariant = 'dialog' | 'bottomSheet' | 'fullScreen';
@@ -188,10 +188,12 @@ export function CustomModal({
             ]}
             onStartShouldSetResponder={() => true}
             accessibilityViewIsModal
+            accessibilityRole={"dialog" as any}
             accessibilityLabel={title ?? 'Dialog'}
+            accessibilityHint={title ? `${title} dialog. Swipe or use back to dismiss.` : 'Dialog window'}
           >
             {resolvedVariant === 'bottomSheet' && !title && (
-              <View style={styles.handleContainer}>
+              <View style={styles.handleContainer} accessible={false} importantForAccessibility="no-hide-descendants">
                 <View style={[styles.handle, { backgroundColor: theme.textMuted }]} />
               </View>
             )}
@@ -226,10 +228,10 @@ const styles = StyleSheet.create({
     width: '85%',
     maxWidth: 360,
     maxHeight: '85%',
-    borderRadius: 20,
+    borderRadius: Spacing.three,
     borderCurve: 'continuous',
-    paddingTop: 24,
-    paddingBottom: 24,
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.four,
     boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
   },
   bottomSheetContainer: {
@@ -237,11 +239,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: Spacing.four,
+    borderTopRightRadius: Spacing.four,
     borderCurve: 'continuous',
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    paddingTop: Spacing.two,
+    paddingBottom: Platform.OS === 'ios' ? 34 : Spacing.four,
     maxHeight: '90%',
     boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.2)',
   },
@@ -252,7 +254,7 @@ const styles = StyleSheet.create({
   },
   handleContainer: {
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: Spacing.two,
   },
   handle: {
     width: 40,

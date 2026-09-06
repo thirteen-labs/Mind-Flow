@@ -105,18 +105,23 @@ export default function FormattingSheet({ sheetRef, onAction }: FormattingSheetP
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: theme.background }}
       handleIndicatorStyle={{ backgroundColor: theme.textMuted }}
+      accessibilityLabel="Formatting options"
     >
       <ThemedView style={styles.container}>
         {sections.map((section) => (
-          <ThemedView key={section.title} style={styles.section}>
-            <ThemedText type="small" themeColor="textMuted" style={styles.sectionTitle}>
+          <ThemedView key={section.title} style={styles.section} accessible={false}>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.sectionTitle}>
               {section.title}
             </ThemedText>
-            <View style={styles.toolsRow}>
+            <View style={styles.toolsRow} accessibilityRole="toolbar" accessibilityLabel={`${section.title} formatting tools`}>
               {section.tools.map((tool) => (
                 <Pressable
                   key={tool.key}
                   onPress={() => handleAction(tool.key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Apply ${tool.label} formatting`}
+                  accessibilityHint={`Applies ${tool.label} to selected text`}
+                  hitSlop={8}
                   style={[styles.toolButton, { backgroundColor: theme.backgroundElement }]}
                 >
                   <tool.icon size={20} color={theme.text} />
@@ -155,8 +160,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.two,
+    minHeight: 44,
+    minWidth: 44,
   },
 });

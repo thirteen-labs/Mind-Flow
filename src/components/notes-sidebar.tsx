@@ -275,6 +275,10 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
       >
         <Pressable
           onPress={() => openViewer(item)}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${name}`}
+          accessibilityHint="Opens the note"
+          hitSlop={8}
           style={({ pressed }) => [
             styles.rowMain,
             pressed && { opacity: 0.7 },
@@ -292,6 +296,8 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setMenuEntry(item);
           }}
+          accessibilityRole="button"
+          accessibilityLabel={`More options for ${name}`}
           hitSlop={10}
           style={({ pressed }) => [styles.rowDots, pressed && { backgroundColor: theme.backgroundSelected }]}
         >
@@ -334,6 +340,8 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               onClose();
             }}
+            accessibilityRole="button"
+            accessibilityLabel="Close sidebar"
             hitSlop={8}
             style={({ pressed }) => [styles.closeButton, pressed && { backgroundColor: theme.backgroundElement }]}
           >
@@ -343,11 +351,12 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
 
         {/* List */}
         {loading && notes.length === 0 ? (
-          <View style={styles.centered}>
+          <View style={styles.centered} accessibilityLiveRegion="polite" accessibilityLabel="Loading notes">
             <ActivityIndicator color={theme.textMuted} />
+            <ThemedText type="small" themeColor="textMuted">Loading notes…</ThemedText>
           </View>
         ) : notes.length === 0 ? (
-          <View style={styles.centered}>
+          <View style={styles.centered} accessibilityLiveRegion="polite">
             <ThemedText type="small" themeColor="textMuted">No notes yet</ThemedText>
             <ThemedText type="small" themeColor="textMuted">Write your first note to see it here</ThemedText>
           </View>
@@ -366,15 +375,21 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
       </Animated.View>
 
       {/* Note action sheet */}
-      <Modal visible={!!menuEntry} transparent animationType="fade" onRequestClose={closeSheet}>
-        <Pressable style={styles.sheetBackdrop} onPress={closeSheet}>
+      <Modal visible={!!menuEntry} transparent animationType="fade" onRequestClose={closeSheet} accessibilityViewIsModal>
+        <Pressable style={styles.sheetBackdrop} onPress={closeSheet} accessibilityRole="button" accessibilityLabel="Dismiss options">
           <Pressable style={[styles.sheet, { backgroundColor: theme.surface }]}>
             <Animated.View entering={FadeInDown.springify()}>
               <View style={[styles.sheetHeader, { borderBottomColor: theme.border }]}>
                 <ThemedText type="default" numberOfLines={1} style={styles.sheetTitle}>
                   {menuEntry ? getNoteName(menuEntry) : ''}
                 </ThemedText>
-                <Pressable onPress={closeSheet} hitSlop={8} style={styles.sheetClose}>
+                <Pressable
+                  onPress={closeSheet}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close options"
+                  hitSlop={8}
+                  style={styles.sheetClose}
+                >
                   <IconX size={16} color={theme.textMuted} />
                 </Pressable>
               </View>
@@ -382,6 +397,9 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
                 <Pressable
                   key={action.key}
                   onPress={action.onPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={action.label}
+                  hitSlop={8}
                   style={({ pressed }) => [styles.sheetAction, pressed && { backgroundColor: theme.backgroundElement }]}
                 >
                   <action.icon size={19} color={action.color} />
@@ -399,8 +417,8 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
       </Modal>
 
       {/* Rename modal */}
-      <Modal visible={!!renameEntry} transparent animationType="fade" onRequestClose={closeRename}>
-        <Pressable style={styles.renameBackdrop} onPress={closeRename}>
+      <Modal visible={!!renameEntry} transparent animationType="fade" onRequestClose={closeRename} accessibilityViewIsModal>
+        <Pressable style={styles.renameBackdrop} onPress={closeRename} accessibilityRole="button" accessibilityLabel="Dismiss rename">
           <Pressable style={[styles.renameCard, { backgroundColor: theme.surface }]}>
             <Animated.View entering={FadeInDown.springify()}>
               <ThemedText type="default" style={styles.renameTitle}>Rename Note</ThemedText>
@@ -410,17 +428,28 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
                 onChangeText={setRenameValue}
                 placeholder="Note name"
                 placeholderTextColor={theme.textMuted}
+                accessibilityLabel="Note name"
+                accessibilityHint="Enter a new name for this note"
                 maxLength={80}
                 selectTextOnFocus
                 onSubmitEditing={handleRenameSave}
                 style={[styles.renameInput, { color: theme.text, backgroundColor: theme.backgroundElement, fontFamily: theme.fontFamily }]}
               />
               <View style={styles.renameActions}>
-                <Pressable onPress={closeRename} style={({ pressed }) => [styles.renameButton, pressed && { opacity: 0.7 }]}>
+                <Pressable
+                  onPress={closeRename}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel rename"
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.renameButton, pressed && { opacity: 0.7 }]}
+                >
                   <ThemedText type="default" themeColor="textMuted">Cancel</ThemedText>
                 </Pressable>
                 <Pressable
                   onPress={handleRenameSave}
+                  accessibilityRole="button"
+                  accessibilityLabel="Save new name"
+                  hitSlop={8}
                   style={({ pressed }) => [styles.renameButton, styles.renameSave, { backgroundColor: theme.primary }, pressed && { opacity: 0.85 }]}
                 >
                   <ThemedText type="default" style={[styles.renameSaveText, { color: contrastText(theme.primary) }]}>Save</ThemedText>
@@ -472,9 +501,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -517,9 +546,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   rowDots: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -555,9 +584,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sheetClose: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -598,8 +627,12 @@ const styles = StyleSheet.create({
   },
   renameButton: {
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing.three,
     borderRadius: Spacing.two,
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   renameSave: {
     minWidth: 88,

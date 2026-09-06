@@ -40,7 +40,7 @@ export function AnimatedSplashOverlay() {
     },
   });
 
-  const image = <Image style={styles.image} source={require('@/assets/images/icon.png')} />;
+  const image = <Image style={styles.image} source={require('@/assets/images/icon.png')} accessible={false} />;
 
   const overlayProps = { pointerEvents: 'none' as const };
 
@@ -108,14 +108,14 @@ const glowKeyframe = new Keyframe({
 
 export function AnimatedIcon() {
   return (
-    <View style={styles.iconContainer}>
+    <View style={styles.iconContainer} accessible={false} importantForAccessibility="no-hide-descendants">
       <Animated.View entering={glowKeyframe.duration(60 * 1000 * 4)} style={styles.glow}>
-        <Image style={styles.glow} source={require('@/assets/images/icon.png')} />
+        <Image style={styles.glow} source={require('@/assets/images/icon.png')} accessible={false} />
       </Animated.View>
 
-      <Animated.View entering={keyframe.duration(DURATION)} style={styles.background} />
+      <Animated.View entering={keyframe.duration(DURATION)} style={styles.background} accessible={false} />
       <Animated.View style={styles.imageContainer} entering={logoKeyframe.duration(DURATION)}>
-         <Image style={styles.image} source={require('@/assets/images/icon.png')} />
+         <Image style={styles.image} source={require('@/assets/images/icon.png')} accessible={false} />
       </Animated.View>
     </View>
   );

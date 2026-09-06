@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { StatCard } from '@/components/stat-card';
-import { Spacing, withAlpha } from '@/constants/theme';
+import { Spacing, contrastText, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { JournalService, type JournalEntry } from '@/services/journal-service';
 import { TagService, type Tag } from '@/services/tag-service';
@@ -45,11 +45,13 @@ export default function CalendarDayScreen() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [tagsByEntry, setTagsByEntry] = useState<Record<string, Tag[]>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (!date) return;
     let mounted = true;
     (async () => {
+      if (mounted) { setLoading(true); setLoadError(false); }
       try {
         const result = await JournalService.getJournalsByDate(db, date);
         if (!mounted) return;
@@ -64,7 +66,7 @@ export default function CalendarDayScreen() {
         }));
         if (mounted) setTagsByEntry(tags);
       } catch {
-        if (mounted) setEntries([]);
+        if (mounted) { setEntries([]); setLoadError(true); }
       }
       if (mounted) setLoading(false);
     })();
@@ -78,7 +80,39 @@ export default function CalendarDayScreen() {
   if (loading) {
     return (
       <ThemedView style={styles.centered}>
-        <ActivityIndicator color={theme.textMuted} />
+        <ActivityIndicator
+          color={theme.textMuted}
+          accessibilityRole="progressbar"
+          accessibilityLabel="Loading entries"
+        />
+        <ThemedText type="default" themeColor="textMuted">Loading entries…</ThemedText>
+      </ThemedView>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <ThemedView style={[styles.centered, { paddingTop: insets.top + 6, gap: Spacing.three }]}>
+        <ThemedText type="default" themeColor="error" accessibilityLiveRegion="polite">
+          Could not load entries
+        </ThemedText>
+        <Pressable
+          onPress={() => { setLoading(true); setLoadError(false); JournalService.getJournalsByDate(db, date as string).then(setEntries).catch(() => setLoadError(true)).finally(() => setLoading(false)); }}
+          style={[styles.createBtn, { backgroundColor: theme.primary, minHeight: 44 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading entries"
+          accessibilityHint="Attempts to load this day's entries again"
+        >
+          <ThemedText type="default" style={{ color: '#FFFFFF', fontWeight: '600' }}>Retry</ThemedText>
+        </Pressable>
+        <Pressable
+          onPress={() => router.back()}
+          style={[styles.addBtn, { borderColor: theme.primary, minHeight: 44, alignSelf: 'stretch' }]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <ThemedText type="default" style={{ color: theme.primary, fontWeight: '600' }}>Go back</ThemedText>
+        </Pressable>
       </ThemedView>
     );
   }
@@ -86,7 +120,13 @@ export default function CalendarDayScreen() {
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top + 6 }]}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Pressable onPress={() => router.back()} style={styles.headerAction}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.headerAction}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          accessibilityHint="Returns to the previous screen"
+        >
           <IconChevronLeft size={20} color={theme.tint} />
           <ThemedText type="default" themeColor="tint">Back</ThemedText>
         </Pressable>
@@ -94,7 +134,7 @@ export default function CalendarDayScreen() {
 
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: Spacing.six + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.titleRow}>
@@ -122,6 +162,9 @@ export default function CalendarDayScreen() {
             <Pressable
               onPress={() => openJournal({ date: date as string, type: 'note' })}
               style={[styles.createBtn, { backgroundColor: theme.primary }]}
+              accessibilityRole="button"
+              accessibilityLabel="Write entry"
+              accessibilityHint="Creates a new journal entry for this day"
             >
               <IconPencil size={16} color="#FFFFFF" />
               <ThemedText type="default" style={{ color: '#FFFFFF', fontWeight: '600' }}>Write Entry</ThemedText>
@@ -136,7 +179,7 @@ export default function CalendarDayScreen() {
                   <View style={styles.entryHeader}>
                     <View style={styles.entryTitleWrap}>
                       <ThemedText type="default" numberOfLines={1} style={styles.entryTitle}>
-                        {entry.title || formatTime(entry.date)}
+                        {entry.title || displayDate}
                       </ThemedText>
                       {entry.entry_type === 'idea' && (
                         <View style={[styles.typeChip, { backgroundColor: withAlpha(theme.warning, 0.14) }]}>
@@ -150,10 +193,10 @@ export default function CalendarDayScreen() {
                   </View>
 
                   {entryTags.length > 0 && (
-                    <View style={styles.tagRow}>
+                    <View style={styles.tagRow} accessibilityRole="list" accessibilityLabel="Entry tags">
                       {entryTags.map((tag) => (
-                        <View key={tag.id} style={[styles.tagChip, { backgroundColor: tag.color }]}>
-                          <ThemedText type="small" style={{ color: '#FFFFFF' }}>{tag.name}</ThemedText>
+                        <View key={tag.id} style={[styles.tagChip, { backgroundColor: tag.color }]} accessibilityRole="text" accessibilityLabel={`Tag ${tag.name}`}>
+                          <ThemedText type="small" style={{ color: contrastText(tag.color) }}>{tag.name}</ThemedText>
                         </View>
                       ))}
                     </View>
@@ -167,6 +210,8 @@ export default function CalendarDayScreen() {
                     <Pressable
                       onPress={() => router.push(`/reading?id=${entry.id}` as any)}
                       style={[styles.actionBtn, { backgroundColor: theme.primary }]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Read entry ${entry.title || displayDate}`}
                     >
                       <IconBook size={18} color="#FFFFFF" />
                       <ThemedText type="default" style={{ color: '#FFFFFF', fontWeight: '600' }}>Read</ThemedText>
@@ -174,6 +219,8 @@ export default function CalendarDayScreen() {
                     <Pressable
                       onPress={() => openJournal({ entryId: entry.id })}
                       style={[styles.actionBtn, { backgroundColor: theme.backgroundElement, borderColor: theme.primary, borderWidth: 1 }]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Edit entry ${entry.title || displayDate}`}
                     >
                       <IconPencil size={18} color={theme.primary} />
                       <ThemedText type="default" style={{ color: theme.primary, fontWeight: '600' }}>Edit</ThemedText>
@@ -186,6 +233,9 @@ export default function CalendarDayScreen() {
             <Pressable
               onPress={() => openJournal({ date: date as string, type: 'note' })}
               style={[styles.addBtn, { borderColor: theme.primary }]}
+              accessibilityRole="button"
+              accessibilityLabel="Add another entry"
+              accessibilityHint="Creates another journal entry for this day"
             >
               <IconPlus size={16} color={theme.primary} />
               <ThemedText type="default" style={{ color: theme.primary, fontWeight: '600' }}>Add another entry</ThemedText>
@@ -218,6 +268,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.one,
     paddingVertical: Spacing.half,
+    minHeight: 44,
+    minWidth: 44,
   },
   content: {
     padding: Spacing.four,
@@ -311,6 +363,7 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
     paddingVertical: Spacing.two,
     borderRadius: Spacing.two,
+    minHeight: 44,
   },
   addBtn: {
     flexDirection: 'row',
@@ -321,6 +374,7 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     borderWidth: 1,
     borderStyle: 'dashed',
+    minHeight: 44,
   },
   emptyCard: {
     alignItems: 'center',
@@ -332,9 +386,11 @@ const styles = StyleSheet.create({
   createBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.one,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.four,
     borderRadius: Spacing.three,
+    minHeight: 44,
   },
 });

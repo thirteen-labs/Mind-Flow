@@ -52,6 +52,8 @@ export default function EventDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
@@ -75,9 +77,9 @@ export default function EventDetailScreen() {
     (async () => {
       try {
         const result = await PlannerService.getEventById(db, id);
-        if (mounted) setEvent(result);
+        if (mounted) { setEvent(result); setLoadError(false); }
       } catch {
-        if (mounted) setEvent(null);
+        if (mounted) { setEvent(null); setLoadError(true); }
       }
       if (mounted) setLoading(false);
     })();
@@ -101,6 +103,7 @@ export default function EventDetailScreen() {
   const handleSave = useCallback(async () => {
     if (!event || !id) return;
     setSaving(true);
+    setSaveError(null);
     try {
       await PlannerService.updateEvent(db, id, {
         title: title || 'Untitled Event',
@@ -131,6 +134,7 @@ export default function EventDetailScreen() {
       setIsEditing(false);
       await reloadEvent();
     } catch {
+      setSaveError('Could not save event. Please try again.');
       Alert.alert('Error', 'Could not save event');
     }
     setSaving(false);
@@ -162,7 +166,8 @@ export default function EventDetailScreen() {
   if (loading) {
     return (
       <ThemedView style={[styles.centered, { paddingTop: insets.top }]}>
-        <ActivityIndicator color={theme.textMuted} />
+        <ActivityIndicator color={theme.textMuted} accessibilityRole="progressbar" accessibilityLabel="Loading event" />
+        <ThemedText type="default" themeColor="textMuted">Loading event…</ThemedText>
       </ThemedView>
     );
   }
@@ -170,8 +175,16 @@ export default function EventDetailScreen() {
   if (!event) {
     return (
       <ThemedView style={[styles.centered, { paddingTop: insets.top }]}>
-        <ThemedText type="default" themeColor="textMuted">Event not found</ThemedText>
-        <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: theme.backgroundElement }]}>
+        <ThemedText type="default" themeColor="textMuted" accessibilityLiveRegion="polite">
+          {loadError ? 'Could not load event' : 'Event not found'}
+        </ThemedText>
+        <Pressable
+          onPress={() => router.back()}
+          style={[styles.backButton, { backgroundColor: theme.backgroundElement, minHeight: 44, justifyContent: 'center' }]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          accessibilityHint="Returns to the previous screen"
+        >
           <ThemedText type="default" themeColor="tint">Go Back</ThemedText>
         </Pressable>
       </ThemedView>
@@ -194,7 +207,14 @@ export default function EventDetailScreen() {
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top + 6 }]}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Pressable onPress={() => router.back()} style={styles.headerAction} hitSlop={8}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.headerAction}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          accessibilityHint="Returns to the previous screen"
+        >
           <IconChevronLeft size={20} color={theme.tint} />
           <ThemedText type="default" themeColor="tint">Back</ThemedText>
         </Pressable>
@@ -202,11 +222,25 @@ export default function EventDetailScreen() {
           {isEditing ? 'Edit Event' : 'Event Details'}
         </ThemedText>
         {isEditing ? (
-          <Pressable onPress={startEditing} style={styles.headerAction} hitSlop={8}>
+          <Pressable
+            onPress={() => { Keyboard.dismiss(); setIsEditing(false); setSaveError(null); }}
+            style={styles.headerAction}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel editing"
+            accessibilityHint="Discards unsaved changes and exits edit mode"
+          >
             <IconX size={20} color={theme.text} />
           </Pressable>
         ) : (
-          <Pressable onPress={startEditing} style={styles.headerAction} hitSlop={8}>
+          <Pressable
+            onPress={startEditing}
+            style={styles.headerAction}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Edit event"
+            accessibilityHint="Opens the event editor"
+          >
             <IconPencil size={18} color={theme.tint} />
           </Pressable>
         )}
@@ -247,7 +281,12 @@ export default function EventDetailScreen() {
               <ThemedText type="default">All Day</ThemedText>
               <Pressable
                 onPress={() => setIsAllDay(prev => !prev)}
-                style={[styles.toggle, isAllDay && { backgroundColor: theme.primary }]}
+                style={[styles.toggleHit, styles.toggle, isAllDay && { backgroundColor: theme.primary }]}
+                accessibilityRole="switch"
+                accessibilityLabel="All day event"
+                accessibilityHint="Toggles whether the event lasts all day"
+                accessibilityState={{ checked: isAllDay }}
+                hitSlop={8}
               >
                 <View style={[styles.toggleThumb, isAllDay && { marginLeft: 20 }]} />
               </Pressable>
@@ -291,7 +330,7 @@ export default function EventDetailScreen() {
 
             <View style={styles.inputGroup}>
               <ThemedText type="small" themeColor="textSecondary">Repeat</ThemedText>
-              <View style={styles.chipRow}>
+              <View style={styles.chipRow} accessibilityRole="radiogroup" accessibilityLabel="Repeat options">
                 {REPEAT_OPTIONS.map((opt) => (
                   <Pressable
                     key={opt.value}
@@ -301,6 +340,9 @@ export default function EventDetailScreen() {
                       { backgroundColor: theme.backgroundElement, borderColor: theme.border },
                       repeat === opt.value && { backgroundColor: theme.primary, borderColor: theme.primary },
                     ]}
+                    accessibilityRole="radio"
+                    accessibilityLabel={`Repeat ${opt.label}`}
+                    accessibilityState={{ checked: repeat === opt.value, selected: repeat === opt.value }}
                   >
                     <ThemedText type="small" style={repeat === opt.value ? { color: '#FFFFFF' } : undefined}>
                       {opt.label}
@@ -312,7 +354,7 @@ export default function EventDetailScreen() {
 
             <View style={styles.inputGroup}>
               <ThemedText type="small" themeColor="textSecondary">Reminder</ThemedText>
-              <View style={styles.chipRow}>
+              <View style={styles.chipRow} accessibilityRole="radiogroup" accessibilityLabel="Reminder options">
                 {REMINDER_OPTIONS.map((opt) => (
                   <Pressable
                     key={String(opt.value)}
@@ -322,6 +364,9 @@ export default function EventDetailScreen() {
                       { backgroundColor: theme.backgroundElement, borderColor: theme.border },
                       reminder === opt.value && { backgroundColor: theme.primary, borderColor: theme.primary },
                     ]}
+                    accessibilityRole="radio"
+                    accessibilityLabel={`Reminder ${opt.label}`}
+                    accessibilityState={{ checked: reminder === opt.value, selected: reminder === opt.value }}
                   >
                     <ThemedText type="small" style={reminder === opt.value ? { color: '#FFFFFF' } : undefined}>
                       {opt.label}
@@ -345,21 +390,33 @@ export default function EventDetailScreen() {
             </View>
           </ScrollView>
 
-          <View style={[styles.footer, { borderTopColor: theme.border }]}>
+          {saveError ? (
+            <ThemedText type="small" themeColor="error" style={{ paddingHorizontal: Spacing.four }} accessibilityLiveRegion="polite">
+              {saveError}
+            </ThemedText>
+          ) : null}
+          <View style={[styles.footer, { borderTopColor: theme.border, paddingBottom: Math.max(Spacing.five, insets.bottom + Spacing.two) }]}>
             <Pressable
-              onPress={() => { Keyboard.dismiss(); setIsEditing(false); }}
-              style={[styles.footerButton, { backgroundColor: theme.backgroundElement }]}
+              onPress={() => { Keyboard.dismiss(); setIsEditing(false); setSaveError(null); }}
+              style={[styles.footerButton, { backgroundColor: theme.backgroundElement }, saving && { opacity: 0.5 }]}
               disabled={saving}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel editing"
+              accessibilityState={{ disabled: saving }}
             >
               <ThemedText type="default" themeColor="textMuted">Cancel</ThemedText>
             </Pressable>
             <Pressable
               onPress={handleSave}
-              style={[styles.footerButton, styles.footerPrimary, { backgroundColor: theme.primary }]}
+              style={[styles.footerButton, styles.footerPrimary, { backgroundColor: theme.primary }, saving && { opacity: 0.6 }]}
               disabled={saving}
+              accessibilityRole="button"
+              accessibilityLabel={saving ? 'Saving event' : 'Save event'}
+              accessibilityHint={saving ? 'Save in progress' : 'Saves your changes'}
+              accessibilityState={{ disabled: saving, busy: saving }}
             >
               {saving ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color="#FFFFFF" accessibilityLabel="Saving event" />
               ) : (
                 <>
                   <IconCheck size={18} color="#FFFFFF" />
@@ -405,10 +462,13 @@ export default function EventDetailScreen() {
             ) : null}
           </ScrollView>
 
-          <View style={[styles.footer, { borderTopColor: theme.border }]}>
+          <View style={[styles.footer, { borderTopColor: theme.border, paddingBottom: Math.max(Spacing.five, insets.bottom + Spacing.two) }]}>
             <Pressable
               onPress={handleDelete}
               style={[styles.footerButton, { backgroundColor: theme.backgroundElement }]}
+              accessibilityRole="button"
+              accessibilityLabel="Delete event"
+              accessibilityHint="Asks for confirmation before deleting"
             >
               <IconTrash size={18} color={theme.error} />
               <ThemedText type="default" themeColor="error">Delete</ThemedText>
@@ -416,6 +476,8 @@ export default function EventDetailScreen() {
             <Pressable
               onPress={startEditing}
               style={[styles.footerButton, styles.footerPrimary, { backgroundColor: theme.primary }]}
+              accessibilityRole="button"
+              accessibilityLabel="Edit event"
             >
               <IconPencil size={18} color="#FFFFFF" />
               <ThemedText type="default" style={styles.footerPrimaryText}>Edit</ThemedText>
@@ -459,6 +521,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.one,
     minWidth: 72,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   headerTitle: {
     fontWeight: '600',
@@ -497,7 +561,7 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
   },
   detailIcon: {
-    width: 28,
+    width: 44,
     alignItems: 'center',
   },
   detailText: {
@@ -537,6 +601,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  toggleHit: {
+    minHeight: 44,
+    minWidth: 56,
+    justifyContent: 'center',
+  },
   toggle: {
     width: 44,
     height: 24,
@@ -568,6 +637,8 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
     borderWidth: 1,
     borderCurve: 'continuous',
+    minHeight: 44,
+    justifyContent: 'center',
   },
   footer: {
     flexDirection: 'row',
@@ -585,6 +656,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
     borderRadius: Spacing.two,
     borderCurve: 'continuous',
+    minHeight: 44,
   },
   footerPrimary: {
     backgroundColor: undefined,

@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 import { useSQLiteContext } from 'expo-sqlite';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { contrastText, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { TagService, type Tag } from '@/services/tag-service';
 
@@ -54,11 +54,22 @@ export function TagInput({ journalId, selectedTags, onTagsChange }: TagInputProp
 
   return (
     <View style={styles.container}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        accessibilityRole="list"
+        accessibilityLabel="Tags"
+      >
         {allTags.map((tag) => (
           <Pressable
             key={tag.id}
             onPress={() => toggleTag(tag)}
+            accessibilityRole="checkbox"
+            accessibilityLabel={`Tag: ${tag.name}`}
+            accessibilityHint={selectedIds.has(tag.id) ? 'Removes tag' : 'Adds tag'}
+            accessibilityState={{ checked: selectedIds.has(tag.id) }}
+            hitSlop={8}
             style={[
               styles.chip,
               {
@@ -69,7 +80,7 @@ export function TagInput({ journalId, selectedTags, onTagsChange }: TagInputProp
           >
             <ThemedText
               type="small"
-              style={{ color: selectedIds.has(tag.id) ? '#FFFFFF' : theme.text }}
+              style={{ color: selectedIds.has(tag.id) ? contrastText(tag.color) : theme.text }}
             >
               {tag.name}
             </ThemedText>
@@ -77,6 +88,10 @@ export function TagInput({ journalId, selectedTags, onTagsChange }: TagInputProp
         ))}
         <Pressable
           onPress={() => setShowNew(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Add tag"
+          accessibilityHint="Creates a new tag"
+          hitSlop={8}
           style={[styles.addChip, { borderColor: theme.border }]}
         >
           <ThemedText type="small" themeColor="textMuted">+</ThemedText>
@@ -90,15 +105,29 @@ export function TagInput({ journalId, selectedTags, onTagsChange }: TagInputProp
             onChangeText={setNewTagName}
             placeholder="Tag name..."
             placeholderTextColor={theme.textMuted}
+            accessibilityLabel="New tag name"
+            accessibilityHint="Enter a name for the new tag"
             style={[styles.newInput, { color: theme.text }]}
             autoFocus
             returnKeyType="done"
             onSubmitEditing={createAndAdd}
           />
-          <Pressable onPress={createAndAdd} style={styles.newDone}>
+          <Pressable
+            onPress={createAndAdd}
+            accessibilityRole="button"
+            accessibilityLabel="Add new tag"
+            hitSlop={8}
+            style={styles.newDone}
+          >
             <ThemedText type="default" themeColor="tint">Add</ThemedText>
           </Pressable>
-          <Pressable onPress={() => { setShowNew(false); setNewTagName(''); }}>
+          <Pressable
+            onPress={() => { setShowNew(false); setNewTagName(''); }}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel new tag"
+            hitSlop={8}
+            style={styles.newDone}
+          >
             <ThemedText type="default" themeColor="textMuted">Cancel</ThemedText>
           </Pressable>
         </View>
@@ -116,15 +145,18 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   chip: {
-    paddingVertical: Spacing.one,
+    paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.three,
     borderWidth: 1,
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
   },
   addChip: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
     borderStyle: 'dashed',
     justifyContent: 'center',
@@ -143,10 +175,14 @@ const styles = StyleSheet.create({
   newInput: {
     flex: 1,
     fontSize: 14,
-    height: 32,
+    minHeight: 44,
     paddingHorizontal: Spacing.two,
   },
   newDone: {
     paddingHorizontal: Spacing.two,
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

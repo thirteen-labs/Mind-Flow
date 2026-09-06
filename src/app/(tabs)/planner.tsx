@@ -3,9 +3,10 @@ import { Alert, Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View } f
 import { FlashList } from '@shopify/flash-list';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { IconChevronLeft, IconChevronRight, IconCalendar, IconCalendarEvent, IconPlus, IconPencil, IconTrash, IconLink } from '@tabler/icons-react-native';
-import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
+import { IconChevronLeft, IconChevronRight, IconCalendar, IconCalendarEvent, IconPlus, IconPencil, IconTrash, IconLink, IconAlertCircle } from '@tabler/icons-react-native';
+import Animated, { FadeInDown, useReducedMotion, FadeInRight } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -64,12 +65,15 @@ interface NewEventForm {
 }
 
 export default function PlannerScreen() {
+  const reducedMotion = useReducedMotion();
   const theme = useTheme();
   const db = useSQLiteContext();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabType>('day');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [events, setEvents] = useState<PlannerEvent[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [showNewEventModal, setShowNewEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<PlannerEvent | null>(null);
@@ -92,12 +96,13 @@ export default function PlannerScreen() {
 
   const loadEvents = async () => {
     try {
+      setLoadError(null);
       const startOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-01`;
       const endOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
       const loaded = await PlannerService.getEventsByDateRange(db, startOfMonth, endOfMonth);
       setEvents(loaded);
     } catch {
-      // Silently fail
+      setLoadError('Could not load events');
     }
   };
 
@@ -289,11 +294,16 @@ export default function PlannerScreen() {
       <Pressable
         key={index}
         onPress={() => selectDay(day)}
-        style={[
+        style={({ pressed }) => [
           styles.calendarDay,
           isSelected && { backgroundColor: theme.primary },
           isToday && !isSelected && { borderColor: theme.tint, borderWidth: 1 },
+          pressed && { opacity: 0.7 },
         ]}
+        accessibilityRole="button"
+        accessibilityLabel={`Select day ${day}${hasEvents ? ', has events' : ''}${isToday ? ', today' : ''}`}
+        accessibilityState={{ selected: isSelected }}
+        hitSlop={8}
       >
         <ThemedText
           type="small"
@@ -375,11 +385,16 @@ export default function PlannerScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setSelectedDate(day);
               }}
-              style={[
+              style={({ pressed }) => [
                 styles.weekDay,
                 isSelected && { backgroundColor: theme.primary },
                 isToday && !isSelected && { borderColor: theme.tint, borderWidth: 1 },
+                pressed && { opacity: 0.7 },
               ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Select ${DAYS_OF_WEEK[day.getDay()]} ${day.getDate()}${hasEvents ? ', has events' : ''}`}
+              accessibilityState={{ selected: isSelected }}
+              hitSlop={8}
             >
               <ThemedText type="small" themeColor="textMuted">
                 {DAYS_OF_WEEK[day.getDay()]}
@@ -429,14 +444,14 @@ export default function PlannerScreen() {
   return (
     <ThemedView style={styles.container}>
       {/* Header */}
-      <Animated.View entering={FadeInDown.springify()}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInDown.springify()}>
         <ThemedView style={styles.header}>
           <ThemedText style={styles.pageTitle}>Planner</ThemedText>
         </ThemedView>
       </Animated.View>
 
       {/* Tabs */}
-      <Animated.View entering={FadeInDown.delay(100).springify()}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(100).springify()}>
         <View style={[styles.tabBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           {tabs.map((tab) => (
             <Pressable
@@ -445,10 +460,15 @@ export default function PlannerScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setActiveTab(tab.key);
               }}
-              style={[
+              style={({ pressed }) => [
                 styles.tab,
                 activeTab === tab.key && { backgroundColor: theme.primary },
+                pressed && { opacity: 0.7 },
               ]}
+              accessibilityRole="tab"
+              accessibilityLabel={`${tab.label} view`}
+              accessibilityState={{ selected: activeTab === tab.key }}
+              hitSlop={4}
             >
               <ThemedText
                 type="small"
@@ -465,9 +485,15 @@ export default function PlannerScreen() {
       </Animated.View>
 
       {/* Date Navigation */}
-      <Animated.View entering={FadeInDown.delay(200).springify()}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).springify()}>
         <View style={styles.dateNavigation}>
-          <Pressable onPress={() => navigateDate('prev')} style={styles.navButton}>
+          <Pressable
+            onPress={() => navigateDate('prev')}
+            style={({ pressed }) => [styles.navButton, pressed && { opacity: 0.7 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Previous date range"
+            hitSlop={8}
+          >
             <IconChevronLeft size={20} color={theme.text} />
           </Pressable>
           <View style={styles.dateTitleContainer}>
@@ -475,7 +501,13 @@ export default function PlannerScreen() {
               {getDateDisplay()}
             </ThemedText>
           </View>
-          <Pressable onPress={() => navigateDate('next')} style={styles.navButton}>
+          <Pressable
+            onPress={() => navigateDate('next')}
+            style={({ pressed }) => [styles.navButton, pressed && { opacity: 0.7 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Next date range"
+            hitSlop={8}
+          >
             <IconChevronRight size={20} color={theme.text} />
           </Pressable>
         </View>
@@ -483,7 +515,7 @@ export default function PlannerScreen() {
 
       {/* Calendar Views */}
       {activeTab === 'month' && (
-        <Animated.View entering={FadeInDown.delay(300).springify()}>
+        <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(300).springify()}>
           <ThemedView style={[styles.calendarContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.dayHeaders}>
               {DAYS_OF_WEEK.map((day, index) => (
@@ -509,15 +541,39 @@ export default function PlannerScreen() {
       {activeTab === 'week' && renderWeekView()}
 
       {/* Today Button */}
-      <Animated.View entering={FadeInDown.delay(400).springify()}>
-        <Pressable onPress={goToToday} style={[styles.todayButton, { backgroundColor: theme.backgroundElement }]}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(400).springify()}>
+        <Pressable
+          onPress={goToToday}
+          style={({ pressed }) => [styles.todayButton, { backgroundColor: theme.backgroundElement }, pressed && { opacity: 0.7 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Go to today"
+          hitSlop={8}
+        >
           <IconCalendarEvent size={14} color={theme.tint} />
           <ThemedText type="small" themeColor="tint">Today</ThemedText>
         </Pressable>
       </Animated.View>
 
+      {loadError ? (
+        <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(450).springify()}>
+          <View style={[styles.errorBanner, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+            <IconAlertCircle size={18} color={theme.error} accessibilityLabel="Events load error" />
+            <ThemedText type="small" themeColor="error" style={styles.errorBannerText}>{loadError}</ThemedText>
+            <Pressable
+              onPress={loadEvents}
+              style={styles.errorRetry}
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading events"
+              hitSlop={8}
+            >
+              <ThemedText type="small" themeColor="tint">Retry</ThemedText>
+            </Pressable>
+          </View>
+        </Animated.View>
+      ) : null}
+
       {/* Events List */}
-      <Animated.View entering={FadeInDown.delay(500).springify()}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(500).springify()}>
         <View style={styles.eventsHeader}>
           <ThemedText type="default" style={styles.eventsTitle}>
             Events for {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -528,6 +584,28 @@ export default function PlannerScreen() {
       {activeTab === 'day' ? (
         <ScrollView style={styles.timeSlotsContainer}>
           {HOURS.map(hour => renderTimeSlot(hour))}
+          {dayEvents.length === 0 && (
+            <View style={styles.emptyState} accessible accessibilityLabel="No events for this day">
+              <IconCalendar size={48} color={theme.textMuted} />
+              <ThemedText type="default" themeColor="textSecondary">
+                No events for this day
+              </ThemedText>
+              <ThemedText type="small" themeColor="textMuted">
+                Tap the + button to create one
+              </ThemedText>
+              <Pressable
+                onPress={openCreateModal}
+                style={[styles.emptyCta, { backgroundColor: theme.primary }]}
+                accessibilityRole="button"
+                accessibilityLabel="Create event for this day"
+                hitSlop={8}
+              >
+                <ThemedText type="small" style={{ color: '#FFFFFF', fontWeight: '600' }}>
+                  Create event
+                </ThemedText>
+              </Pressable>
+            </View>
+          )}
         </ScrollView>
       ) : (
         <FlashList
@@ -536,7 +614,7 @@ export default function PlannerScreen() {
           contentContainerStyle={styles.eventsList}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <Animated.View entering={FadeInDown.delay(600).springify()} style={styles.emptyState}>
+            <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(600).springify()} style={styles.emptyState}>
               <IconCalendar size={48} color={theme.textMuted} />
               <ThemedText type="default" themeColor="textSecondary">
                 No events for this day
@@ -547,7 +625,7 @@ export default function PlannerScreen() {
             </Animated.View>
           }
           renderItem={({ item, index }) => (
-            <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+            <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(index * 50).springify()}>
               <Pressable
                 onPress={() => openEventDetails(item.id)}
                 onLongPress={() => openEditModal(item)}
@@ -559,14 +637,32 @@ export default function PlannerScreen() {
                     <ThemedText type="default" style={styles.eventCardTitle}>{item.title}</ThemedText>
                     <View style={styles.eventActions}>
                       {item.journalId && (
-                        <Pressable onPress={() => handleOpenJournal(item.journalId!)} style={styles.eventAction}>
+                        <Pressable
+                          onPress={() => handleOpenJournal(item.journalId!)}
+                          style={({ pressed }) => [styles.eventAction, pressed && { opacity: 0.7 }]}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Open linked journal for ${item.title}`}
+                          hitSlop={8}
+                        >
                           <IconLink size={14} color={theme.tint} />
                         </Pressable>
                       )}
-                      <Pressable onPress={() => openEventDetails(item.id)} style={styles.eventAction}>
+                      <Pressable
+                        onPress={() => openEventDetails(item.id)}
+                        style={({ pressed }) => [styles.eventAction, pressed && { opacity: 0.7 }]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Edit ${item.title}`}
+                        hitSlop={8}
+                      >
                         <IconPencil size={14} color={theme.textMuted} />
                       </Pressable>
-                      <Pressable onPress={() => handleDeleteEvent(item)} style={styles.eventAction}>
+                      <Pressable
+                        onPress={() => handleDeleteEvent(item)}
+                        style={({ pressed }) => [styles.eventAction, pressed && { opacity: 0.7 }]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Delete ${item.title}`}
+                        hitSlop={8}
+                      >
                         <IconTrash size={14} color={theme.error} />
                       </Pressable>
                     </View>
@@ -589,13 +685,16 @@ export default function PlannerScreen() {
       )}
 
       {/* FAB */}
-      <Animated.View entering={FadeInRight.delay(700).springify()}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInRight.delay(700).springify()}>
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             openCreateModal();
           }}
-          style={[styles.fab, { backgroundColor: theme.primary }]}
+          style={({ pressed }) => [styles.fab, { backgroundColor: theme.primary, bottom: Spacing.four + insets.bottom }, pressed && { opacity: 0.85 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Create new event"
+          hitSlop={8}
         >
           <IconPlus size={24} color="#FFFFFF" />
         </Pressable>
@@ -641,9 +740,16 @@ export default function PlannerScreen() {
             <ThemedText type="default">All Day</ThemedText>
             <Pressable
               onPress={() => setNewEvent(prev => ({ ...prev, isAllDay: !prev.isAllDay }))}
-              style={[styles.toggle, newEvent.isAllDay && { backgroundColor: theme.primary }]}
+              style={styles.toggleHitArea}
+              accessibilityRole="switch"
+              accessibilityLabel="All day event"
+              accessibilityState={{ checked: newEvent.isAllDay }}
+              accessibilityHint="Toggles whether the event lasts all day"
+              hitSlop={8}
             >
-              <View style={[styles.toggleThumb, newEvent.isAllDay && { marginLeft: 20 }]} />
+              <View style={[styles.toggle, newEvent.isAllDay && { backgroundColor: theme.primary }]}>
+                <View style={[styles.toggleThumb, newEvent.isAllDay && { marginLeft: 20 }]} />
+              </View>
             </Pressable>
           </View>
 
@@ -690,11 +796,16 @@ export default function PlannerScreen() {
                 <Pressable
                   key={opt.value}
                   onPress={() => setNewEvent(prev => ({ ...prev, repeat: opt.value }))}
-                  style={[
+                  style={({ pressed }) => [
                     styles.chip,
                     { backgroundColor: theme.backgroundElement, borderColor: theme.border },
                     newEvent.repeat === opt.value && { backgroundColor: theme.primary, borderColor: theme.primary },
+                    pressed && { opacity: 0.7 },
                   ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Repeat ${opt.label}`}
+                  accessibilityState={{ selected: newEvent.repeat === opt.value }}
+                  hitSlop={4}
                 >
                   <ThemedText
                     type="small"
@@ -714,11 +825,16 @@ export default function PlannerScreen() {
                 <Pressable
                   key={String(opt.value)}
                   onPress={() => setNewEvent(prev => ({ ...prev, reminder: opt.value }))}
-                  style={[
+                  style={({ pressed }) => [
                     styles.chip,
                     { backgroundColor: theme.backgroundElement, borderColor: theme.border },
                     newEvent.reminder === opt.value && { backgroundColor: theme.primary, borderColor: theme.primary },
+                    pressed && { opacity: 0.7 },
                   ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Reminder ${opt.label}`}
+                  accessibilityState={{ selected: newEvent.reminder === opt.value }}
+                  hitSlop={4}
                 >
                   <ThemedText
                     type="small"
@@ -807,8 +923,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
   },
   navButton: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
@@ -834,7 +950,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   dayHeader: {
-    width: 32,
+    width: 44,
     textAlign: 'center',
     fontWeight: '600',
   },
@@ -844,13 +960,13 @@ const styles = StyleSheet.create({
   },
   dayContainer: {
     width: '14.28%',
-    height: 40,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
   calendarDay: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1077,5 +1193,39 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    padding: Spacing.three,
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    marginHorizontal: Spacing.four,
+    marginTop: Spacing.two,
+  },
+  errorBannerText: {
+    flex: 1,
+  },
+  errorRetry: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyCta: {
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three,
+    borderRadius: Spacing.two,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: Spacing.two,
+  },
+  toggleHitArea: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
   },
 });

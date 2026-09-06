@@ -7,7 +7,7 @@ import { IconMusic, IconPlayerPause, IconPlayerPlay } from '@tabler/icons-react-
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import { MediaService } from '@/services/media-service';
-import { Spacing } from '@/constants/theme';
+import { Spacing, withAlpha, contrastText } from '@/constants/theme';
 
 interface AudioPlayerProps {
   uri: string;
@@ -38,23 +38,29 @@ export function AudioPlayer({ uri, title, artworkUri, durationSeconds }: AudioPl
   }, [player]);
 
   return (
-    <View style={[styles.card, { backgroundColor: `${theme.accent}15`, borderColor: `${theme.accent}30` }]}>
-      <View style={[styles.artworkWrap, { backgroundColor: `${theme.accent}20` }]}>
+    <View
+      style={[styles.card, { backgroundColor: withAlpha(theme.accent, 0.08), borderColor: withAlpha(theme.accent, 0.18) }]}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={`Audio: ${title ?? 'Untitled'}${durationSeconds ? `, ${MediaService.getDurationLabel(durationSeconds)}` : ''}, ${isPlaying ? 'playing' : 'paused'}`}
+    >
+      <View style={[styles.artworkWrap, { backgroundColor: withAlpha(theme.accent, 0.12) }]} accessible={false}>
         {artworkUri ? (
           <Image
             source={{ uri: artworkUri }}
             style={styles.artwork}
             contentFit="cover"
             transition={200}
+            accessible={false}
           />
         ) : (
-          <View style={styles.placeholderIcon}>
+          <View style={styles.placeholderIcon} accessible={false}>
             <IconMusic color={theme.accent} size={32} />
           </View>
         )}
       </View>
 
-      <View style={styles.body}>
+      <View style={styles.body} accessible={false}>
         <ThemedText
           type="small"
           style={[styles.title, { color: theme.text }]}
@@ -76,11 +82,16 @@ export function AudioPlayer({ uri, title, artworkUri, durationSeconds }: AudioPl
       <View style={styles.controls}>
         <Pressable
           onPress={togglePlay}
+          accessibilityRole="button"
+          accessibilityLabel={isPlaying ? 'Pause audio' : 'Play audio'}
+          accessibilityHint={isPlaying ? 'Pauses playback' : 'Starts playback'}
+          accessibilityState={{ selected: isPlaying }}
+          hitSlop={8}
           style={[styles.playButton, { backgroundColor: theme.accent }]}
         >
           {isPlaying
-            ? <IconPlayerPause color={theme.background} size={18} />
-            : <IconPlayerPlay color={theme.background} size={18} />
+            ? <IconPlayerPause color={contrastText(theme.accent)} size={18} />
+            : <IconPlayerPlay color={contrastText(theme.accent)} size={18} />
           }
         </Pressable>
       </View>
@@ -122,8 +133,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   duration: {
-    fontSize: 12,
-    opacity: 0.6,
+    fontSize: 13,
+    opacity: 0.85,
   },
   controls: {
     paddingTop: Spacing.one,

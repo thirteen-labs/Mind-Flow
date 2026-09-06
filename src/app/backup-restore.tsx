@@ -13,11 +13,13 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { BackupService } from '@/services/backup-service';
 import { CloudSyncService } from '@/services/sync/cloud-sync-service';
 
 export default function BackupRestoreScreen() {
+  const insets = useSafeAreaInsets();
   const theme = useTheme();
   const db = useSQLiteContext();
   const [lastBackup, setLastBackup] = useState<Date | null>(null);
@@ -111,7 +113,7 @@ export default function BackupRestoreScreen() {
         </Pressable>
 
         <Pressable
-          onPress={handleRestore}
+          onPress={handleRestore} disabled accessibilityState={{ disabled: true }}
           style={[styles.actionButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
         >
           <IconDownload size={20} color={theme.text} />
@@ -155,15 +157,15 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.three,
   },
   backButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',

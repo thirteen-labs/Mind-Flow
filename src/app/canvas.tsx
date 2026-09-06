@@ -18,6 +18,7 @@ if (Platform.OS !== 'web') {
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { MediaService } from '@/services/media-service';
 import { openJournal } from '@/services/journal-nav';
@@ -26,11 +27,12 @@ const PEN_SIZES = [2, 4, 8, 16];
 const COLORS = ['#000000', '#666666', '#999999', '#208AEF', '#FF453A', '#30D158', '#FF9F0A'];
 
 export default function CanvasScreen() {
+  const insets = useSafeAreaInsets();
   const theme = useTheme();
   const canvasRef = useRef<any>(null);
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen');
   const [penSize, setPenSize] = useState(4);
-  const [penColor, setPenColor] = useState('#000000');
+  const [penColor, setPenColor] = useState('#3A3A3A');
   const [pathsCount, setPathsCount] = useState(0);
   const [saving, setSaving] = useState(false);
   const pendingBase64Ref = useRef<string | null>(null);
@@ -151,7 +153,7 @@ export default function CanvasScreen() {
       </View>
 
       {/* Toolbar */}
-      <ThemedView style={[styles.toolbar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+      <ThemedView style={[styles.toolbar, { paddingBottom: insets.bottom, backgroundColor: theme.surface, borderTopColor: theme.border }]}>
         {/* Tool toggle */}
         <View style={styles.toolGroup}>
           <Pressable
@@ -245,7 +247,7 @@ const styles = StyleSheet.create({
   canvas: {
     flex: 1,
   },
-  toolbar: {
+  toolbar: { flexWrap: 'wrap',
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
@@ -259,16 +261,16 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   toolButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(128,128,128,0.1)',
   },
   sizeButton: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
@@ -279,8 +281,8 @@ const styles = StyleSheet.create({
     borderRadius: 99,
   },
   colorButton: {
-    width: 28,
-    height: 28,
+    width: 44,
+    height: 44,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
