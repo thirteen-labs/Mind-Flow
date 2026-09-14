@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   code: {
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
+    fontWeight: Platform.select({ ios: 700, android: 700, default: 500 }),
     fontSize: 12,
   },
 });

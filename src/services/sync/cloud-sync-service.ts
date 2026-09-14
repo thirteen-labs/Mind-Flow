@@ -37,7 +37,7 @@ async function ensureBackupDir(): Promise<void> {
   try {
     const dir = getBackupDir();
     if (!dir.exists) {
-      dir.create({ intermediates: true, idempotent: true });
+      await dir.create({ intermediates: true, idempotent: true });
     }
   } catch {}
 }

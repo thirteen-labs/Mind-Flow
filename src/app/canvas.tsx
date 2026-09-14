@@ -73,10 +73,10 @@ export default function CanvasScreen() {
         const filename = `sketch-${timestamp}.png`;
         const dir = new Directory(Paths.document, 'media');
         if (!dir.exists) {
-          dir.create({ intermediates: true, idempotent: true });
+          await dir.create({ intermediates: true, idempotent: true });
         }
         const file = new File(dir, filename);
-        file.write(result.base64, { encoding: 'base64' });
+        await file.write(result.base64, { encoding: 'base64' });
         const filePath = file.uri;
 
         const media = await MediaService.importMedia(filePath, 'image');
@@ -247,8 +247,9 @@ const styles = StyleSheet.create({
   canvas: {
     flex: 1,
   },
-  toolbar: { flexWrap: 'wrap',
+  toolbar: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: Spacing.three,
     paddingHorizontal: Spacing.three,

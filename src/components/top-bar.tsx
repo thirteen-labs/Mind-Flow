@@ -21,19 +21,9 @@ import {
   type Icon,
 } from '@tabler/icons-react-native';
 
-import { Spacing } from '@/constants/theme';
+import { Spacing, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { toggleSidebar } from '@/store/sidebar';
-
-function withAlpha(hex: string, alpha: number): string {
-  if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
-  const h = hex.replace('#', '');
-  if (h.length !== 6) return hex;
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 interface TopBarButtonProps {
   active: boolean;

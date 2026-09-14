@@ -874,7 +874,8 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontWeight: '600',
-  },  createButton: {
+  },
+  createButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
