@@ -5,6 +5,9 @@ const MORNING_ID = 'mindflow-morning-reminder';
 const EVENING_ID = 'mindflow-evening-reminder';
 const STREAK_ID = 'mindflow-streak-reminder';
 
+export const DEFAULT_STREAK_REMINDER_HOUR = 19;
+export const DEFAULT_STREAK_REMINDER_MINUTE = 0;
+
 export const NotificationService = {
   async setup(): Promise<void> {
     try {
@@ -83,7 +86,7 @@ export const NotificationService = {
         body: "You haven't written today. A single sentence is enough.",
         sound: undefined,
       },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: 19, minute: 0 },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: DEFAULT_STREAK_REMINDER_HOUR, minute: DEFAULT_STREAK_REMINDER_MINUTE },
     });
   },
 

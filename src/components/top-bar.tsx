@@ -77,9 +77,9 @@ export default function TopBar() {
   const theme = useTheme();
   const pathname = usePathname();
 
-  const isCalendar = pathname.includes('calendar');
-  const isSearch = pathname.includes('search');
-  const isSettings = pathname.includes('settings');
+  const isCalendar = pathname === '/calendar' || pathname.startsWith('/calendar/');
+  const isSearch = pathname === '/search' || pathname.startsWith('/search/');
+  const isSettings = pathname === '/settings' || pathname.startsWith('/settings/');
 
   return (
     <BlurView

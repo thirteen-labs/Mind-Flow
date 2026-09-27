@@ -23,47 +23,46 @@ export function useSettings() {
   const update = useCallback(
     async (updates: Partial<AppSettings>) => {
       await SettingsService.setMany(db, updates);
-      let nextSettings: AppSettings | null = null;
+      // Update settings state first
       setSettings((prev) => {
         if (!prev) return prev;
-        nextSettings = { ...prev, ...updates };
-        return nextSettings;
+        return { ...prev, ...updates };
       });
-      // Use fresh state for notification scheduling to avoid stale closure
-      const s = nextSettings ?? (settings ? { ...settings, ...updates } : null);
-      if (!s) return;
+      // Read fresh settings from DB after state update to avoid stale closures
+      const fresh = await SettingsService.getAll(db);
+      if (!fresh) return;
 
       if (updates.morningReminderEnabled !== undefined) {
-        if (updates.morningReminderEnabled) {
-          await NotificationService.scheduleMorning(s.morningReminderHour ?? 7, s.morningReminderMinute ?? 0);
+        if (fresh.morningReminderEnabled) {
+          await NotificationService.scheduleMorning(fresh.morningReminderHour ?? 7, fresh.morningReminderMinute ?? 0);
         } else {
           await NotificationService.cancelMorning();
         }
       } else if (updates.morningReminderHour !== undefined || updates.morningReminderMinute !== undefined) {
-        if (s.morningReminderEnabled) {
-          await NotificationService.scheduleMorning(s.morningReminderHour ?? 7, s.morningReminderMinute ?? 0);
+        if (fresh.morningReminderEnabled) {
+          await NotificationService.scheduleMorning(fresh.morningReminderHour ?? 7, fresh.morningReminderMinute ?? 0);
         }
       }
       if (updates.eveningReminderEnabled !== undefined) {
-        if (updates.eveningReminderEnabled) {
-          await NotificationService.scheduleEvening(s.eveningReminderHour ?? 18, s.eveningReminderMinute ?? 0);
+        if (fresh.eveningReminderEnabled) {
+          await NotificationService.scheduleEvening(fresh.eveningReminderHour ?? 18, fresh.eveningReminderMinute ?? 0);
         } else {
           await NotificationService.cancelEvening();
         }
       } else if (updates.eveningReminderHour !== undefined || updates.eveningReminderMinute !== undefined) {
-        if (s.eveningReminderEnabled) {
-          await NotificationService.scheduleEvening(s.eveningReminderHour ?? 18, s.eveningReminderMinute ?? 0);
+        if (fresh.eveningReminderEnabled) {
+          await NotificationService.scheduleEvening(fresh.eveningReminderHour ?? 18, fresh.eveningReminderMinute ?? 0);
         }
       }
       if (updates.streakReminderEnabled !== undefined) {
-        if (updates.streakReminderEnabled) {
+        if (fresh.streakReminderEnabled) {
           await NotificationService.scheduleStreak();
         } else {
           await NotificationService.cancelStreak();
         }
       }
     },
-    [db, settings]
+    [db]
   );
 
   return { settings, loading, update };

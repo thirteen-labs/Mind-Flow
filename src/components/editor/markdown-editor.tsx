@@ -292,7 +292,7 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
           // iOS resizes via padding; on Android the window already resizes
           // (softwareKeyboardLayoutMode=resize) so a nested padding KAV only
           // double-offsets and breaks the toolbar position — render plain View.
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.editorArea}>
             <TextInput
@@ -564,7 +564,6 @@ const styles = StyleSheet.create({
   },
   editorArea: {
     flex: 1,
-    paddingTop: Spacing.three,
   },
   previewArea: {
     flex: 1,

@@ -76,7 +76,7 @@ export function useTemplate(options?: { templateId?: string; sessionKey?: string
     } catch {
       // silently fail — next auto-save will retry
     }
-  }, [db, content, title]);
+  }, [db]);
 
   useEffect(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);

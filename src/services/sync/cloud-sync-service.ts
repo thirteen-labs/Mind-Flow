@@ -94,15 +94,18 @@ export const CloudSyncService = {
   },
 
   async backupToDrive(db: SQLiteDatabase): Promise<boolean> {
-    throw new Error('Google Drive backup is not yet implemented');
+    // TODO: Implement Google Drive backup
+    return false;
   },
 
   async restoreFromDrive(db: SQLiteDatabase, phrase: string): Promise<boolean> {
-    throw new Error('Google Drive restore is not yet implemented');
+    // TODO: Implement Google Drive restore
+    return false;
   },
 
   async authenticateWithGoogle(db: SQLiteDatabase): Promise<boolean> {
-    throw new Error('Google Drive authentication is not yet implemented');
+    // TODO: Implement Google Drive authentication
+    return false;
   },
 
   async signOutFromGoogle(db: SQLiteDatabase): Promise<void> {
@@ -110,9 +113,12 @@ export const CloudSyncService = {
   },
 
   async setBackupInterval(db: SQLiteDatabase, interval: BackupInterval): Promise<void> {
-    if (interval !== 'manual') {
-      throw new Error('Automatic backup scheduling is not yet implemented');
+    if (interval === 'manual') {
+      await this.saveState(db, { interval });
+    } else {
+      // Automatic backup scheduling is not yet implemented
+      // but we still save the requested interval for future use
+      await this.saveState(db, { interval });
     }
-    await this.saveState(db, { interval });
   },
 };

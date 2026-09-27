@@ -35,20 +35,30 @@ export default function Index() {
 
   useEffect(() => {
     let mounted = true;
+    // Show loading state until DB check completes or timeout fires
     const timeout = setTimeout(() => {
       if (mounted) setChecked(true);
-    }, 2500);
-    (async () => {
+    }, 5000);
+    ;(async () => {
       try {
         const row = await db.getFirstAsync<{ value: string }>(
           "SELECT value FROM settings WHERE key = ?", 'onboarded'
         ).catch(() => null as any);
         if (!mounted) return;
+        // If DB says onboarded, proceed; otherwise check flag file
         if (row?.value === '1') {
           setOnboarded(true);
-        } else if (ONBOARDING_FLAG) {
-          const exists = await checkFlagExists(ONBOARDING_FLAG);
-          if (mounted) setOnboarded(exists);
+        } else {
+          // Use file-based flag as fallback (new API)
+          let fileExists = false;
+          try {
+            if (Paths?.document?.uri) {
+              const flagPath = `${Paths.document.uri}.onboarded`;
+              const f = new File(flagPath);
+              fileExists = await f.exists;
+            }
+          } catch {}
+          if (mounted) setOnboarded(fileExists);
         }
       } catch {
         if (mounted) setOnboarded(false);

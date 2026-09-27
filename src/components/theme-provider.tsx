@@ -28,7 +28,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
     if (!db) return;
-    (async () => {
+    ;(async () => {
       try {
         const [followRow, savedThemeId, fontRow] = await Promise.all([
           db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'followSystemTheme').catch(() => null),
@@ -42,6 +42,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       } catch {}
     })();
     return () => { mounted = false; };
+  }, [db]);
+
+  // Re-read settings from DB whenever db changes to pick up any persisted changes
+  useEffect(() => {
+    if (!db) return;
+    ;(async () => {
+      try {
+        const [followRow, savedThemeId, fontRow] = await Promise.all([
+          db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'followSystemTheme').catch(() => null),
+          db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'themeId').catch(() => null),
+          db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', 'fontOverride').catch(() => null),
+        ]);
+        if (followRow?.value === 'false') setFollowSystemState(false);
+        if (savedThemeId?.value) setThemeIdState(savedThemeId.value);
+        if (fontRow?.value) setFontOverrideState(fontRow.value);
+      } catch {}
+    })();
   }, [db]);
 
   const effectiveThemeId = useMemo(() => {

@@ -91,28 +91,28 @@ export function useJournal({ entryId, type = 'note', date, sessionKey }: UseJour
     const entry = journalRef.current;
     if (!entry) return;
     try {
-      const words = content.trim() ? content.trim().split(/\s+/).length : 0;
+      const words = entry.content.trim().split(/\s+/).length;
       const persistedId = persistedRef.current;
       if (persistedId) {
-        await JournalService.saveJournal(db, persistedId, content, words, title);
-        journalRef.current = { ...entry, title, content, word_count: words, updated_at: nowISO() };
-      } else if (content.trim()) {
+        await JournalService.saveJournal(db, persistedId, entry.content, words, entry.title);
+        journalRef.current = { ...entry, content, word_count: words, updated_at: nowISO() };
+      } else if (entry.content.trim()) {
         const created = await JournalService.createJournalEntry(db, {
           date: entry.date,
           type: entry.entry_type,
-          title,
-          content,
-          mood: moodRef.current,
+          title: entry.title,
+          content: entry.content,
+          mood: entry.mood,
         });
         persistedRef.current = created.id;
-        journalRef.current = { ...created, mood: moodRef.current };
-        setJournal({ ...created, mood: moodRef.current });
+        journalRef.current = { ...created, mood: entry.mood };
+        setJournal({ ...created, mood: entry.mood });
       }
       WidgetDataService.updateFromDb(db).catch(() => {});
     } catch {
       // silently fail — next auto-save will retry
     }
-  }, [db, content, title]);
+  }, [db]);
 
   useEffect(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);

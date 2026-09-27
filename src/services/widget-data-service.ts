@@ -77,11 +77,31 @@ export const WidgetDataService = {
 
   async getWidgetData(): Promise<WidgetData | null> {
     try {
-      if (Platform.OS !== 'ios') return null;
       const dir = getWidgetDir();
       if (!dir) return null;
       const file = new File(dir, WIDGET_DATA_FILE);
-      if (!file.exists) return null;
+      if (!file.exists) {
+        // Fall back to reading Android prefs file if iOS file doesn't exist
+        if (Platform.OS === 'android') {
+          const prefsFile = new File(Paths.cache, 'widget_prefs.txt');
+          if (prefsFile.exists) {
+            const raw = await prefsFile.text();
+            const lines = raw.split('\n');
+            const data: Partial<WidgetData> = {};
+            for (const line of lines) {
+              const [key, ...valueParts] = line.split('=');
+              const value = valueParts.join('=');
+              if (key === 'streak') data.streak = parseInt(value, 10);
+              if (key === 'totalEntries') data.totalEntries = parseInt(value, 10);
+              if (key === 'totalWords') data.totalWords = parseInt(value, 10);
+              if (key === 'todayWritten') data.todayWritten = value === 'true';
+              if (key === 'lastEntryDate') data.lastEntryDate = value === '' ? null : value;
+            }
+            return data as WidgetData;
+          }
+        }
+        return null;
+      }
       const raw = await file.text();
       return JSON.parse(raw) as WidgetData;
     } catch {
