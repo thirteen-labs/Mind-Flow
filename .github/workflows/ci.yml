@@ -50,14 +50,27 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # Default is "tools platform-tools". The legacy "tools" package is no
+          # longer published in Google's SDK repository, so the action's
+          # `sdkmanager tools` call exits 1 with "Failed to find package 'tools'".
+          # AGP auto-installs the remaining platform/build-tools/NDK components.
+          packages: 'platform-tools'
+          # Silences the full Google SDK license text that otherwise floods logs.
+          log-accepted-android-sdk-licenses: false
 
       - run: npm ci
 
       - name: Prebuild Android project
         run: npx expo prebuild --platform android --clean
+        env:
+          EXPO_NO_TELEMETRY: '1'
+          CI: '1'
 
       - name: Build release APK
-        run: cd android && ./gradlew assembleRelease
+        run: |
+          chmod +x android/gradlew
+          cd android && ./gradlew assembleRelease
 
       - uses: actions/upload-artifact@v4
         with:
