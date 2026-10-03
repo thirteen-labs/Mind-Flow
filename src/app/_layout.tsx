@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppLockGate } from '@/components/app-lock-gate';
 import { ThemeProvider as MindFlowThemeProvider } from '@/components/theme-provider';
+import { useTheme } from '@/hooks/use-theme';
 import { migrateDbIfNeeded } from '@/services/database';
 import { NotificationService } from '@/services/notification-service';
 
@@ -120,7 +121,18 @@ function AppContent() {
   return (
     <AppLockGate db={db}>
       <MindFlowThemeProvider>
-        <Stack screenOptions={{ headerShown: false }}>
+        <AppStack />
+      </MindFlowThemeProvider>
+    </AppLockGate>
+  );
+}
+
+/** Split out so it sits inside the theme provider and can read tokens. */
+function AppStack() {
+  const theme = useTheme();
+
+  return (
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.background } }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
             name="onboarding"
@@ -159,10 +171,6 @@ function AppContent() {
             options={{ animation: 'slide_from_right', presentation: 'card' }}
           />
           <Stack.Screen
-            name="event/[id]"
-            options={{ animation: 'slide_from_right', presentation: 'card' }}
-          />
-          <Stack.Screen
             name="calendar/[date]"
             options={{ animation: 'slide_from_right', presentation: 'card' }}
           />
@@ -187,8 +195,6 @@ function AppContent() {
             options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }}
           />
         </Stack>
-      </MindFlowThemeProvider>
-    </AppLockGate>
   );
 }
 

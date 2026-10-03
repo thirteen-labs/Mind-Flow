@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconBulb, IconChartBar, IconChevronRight, IconFileText, IconFlame, IconBook2, IconPencil, IconSettings2, IconShare, IconUser, IconCalendarEvent, IconBrain, IconAlertCircle, IconPlus } from '@tabler/icons-react-native';
 import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -38,6 +39,7 @@ function getTimeEmoji(): string {
 
 export default function HomeScreen() {
   const reducedMotion = useReducedMotion();
+  const insets = useSafeAreaInsets();
   const theme = useTheme();
   const db = useSQLiteContext();
   const { stats, loading, error, retry } = useJournalStats();
@@ -144,21 +146,25 @@ export default function HomeScreen() {
       }
       showsVerticalScrollIndicator={false}
     >
-      <ThemedView style={styles.container}>
+      <ThemedView style={[styles.container, { paddingBottom: Spacing.four + insets.bottom }]}>
         {/* Greeting Header */}
         <Animated.View entering={reducedMotion ? undefined : FadeInDown.springify()}>
-          <ThemedView style={styles.header}>
-            <ThemedView style={styles.greetingRow}>
+          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+            <View style={styles.greetingRow}>
               <View>
                 <ThemedText style={styles.greetingTitle}>{getGreeting()} {getTimeEmoji()}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">How are you feeling today?</ThemedText>
+                <ThemedText type="small" themeColor="textMuted">How are you feeling today?</ThemedText>
               </View>
-              <Pressable 
+              <Pressable
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/settings');
+                  router.navigate('/settings' as never);
                 }}
-                style={[styles.profileButton, { backgroundColor: theme.surface }]}
+                style={({ pressed }) => [
+                  styles.profileButton,
+                  { backgroundColor: theme.backgroundElement },
+                  pressed && { opacity: 0.7 },
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Open settings"
                 accessibilityHint="Opens app settings"
@@ -166,8 +172,8 @@ export default function HomeScreen() {
               >
                 <IconUser size={20} color={theme.text} />
               </Pressable>
-            </ThemedView>
-          </ThemedView>
+            </View>
+          </View>
         </Animated.View>
 
         {/* Daily Note Card */}
@@ -414,7 +420,11 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
   },
   header: {
-    gap: Spacing.two,
+    marginHorizontal: -Spacing.four,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.three,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   greetingTitle: {
     fontSize: 24,

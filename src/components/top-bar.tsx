@@ -1,209 +1,174 @@
-import { useEffect } from 'react';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { router, usePathname } from 'expo-router';
-import * as Haptics from 'expo-haptics';
-import Animated, {
-  interpolateColor,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
 import {
-  IconCalendar,
-  IconCalendarFilled,
   IconFeather,
   IconMenu2,
+  IconPlus,
   IconSearch,
-  IconSearchFilled,
   IconSettings2,
-  IconSettingsFilled,
-  type Icon,
 } from '@tabler/icons-react-native';
 
+import { IconButton } from '@/components/ui/icon-button';
+import { GlassView } from '@/components/ui/glass-view';
+import { Segmented } from '@/components/ui/segmented';
 import { Spacing, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { PRIMARY_DESTINATIONS, activeDestinationKey } from '@/navigation/destinations';
 import { toggleSidebar } from '@/store/sidebar';
 
-interface TopBarButtonProps {
-  active: boolean;
-  icon: Icon;
-  iconActive: Icon;
-  label: string;
-  onPress: () => void;
-}
-
-function TopBarButton({ active, icon: Icon, iconActive: IconActive, label, onPress }: TopBarButtonProps) {
-  const theme = useTheme();
-  const progress = useSharedValue(active ? 1 : 0);
-
-  useEffect(() => {
-    progress.value = withSpring(active ? 1 : 0, { damping: 15, stiffness: 240 });
-  }, [active, progress]);
-
-  const activeBg = withAlpha(theme.primary, 0.14);
-  const bgStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], ['rgba(0, 0, 0, 0)', activeBg]),
-  }));
-  const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 0.9 + progress.value * 0.14 }],
-  }));
-
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={label}
-      accessibilityHint={active ? `${label} is selected` : `Open ${label}`}
-      hitSlop={8}
-      style={styles.iconButton}
-    >
-      <Animated.View style={[styles.iconBg, bgStyle]}>
-        <Animated.View style={iconStyle}>
-          <View style={styles.iconStack}>
-            <Icon size={20} color={theme.textMuted} />
-            <Animated.View style={[StyleSheet.absoluteFill, { opacity: progress }]}>
-              <IconActive size={20} color={theme.tint} />
-            </Animated.View>
-          </View>
-        </Animated.View>
-      </Animated.View>
-    </Pressable>
-  );
-}
-
+/**
+ * App chrome for the three primary destinations.
+ *
+ * The floating bottom tab bar used to live here. It is gone: navigation now
+ * happens in the top bar via a segmented switcher, and secondary screens live
+ * in the sidebar's "Go to" section. That frees the bottom of the screen for
+ * the editor formatting strip and keeps thumb reach out of the equation.
+ *
+ * The bar renders as a glass material (native Liquid Glass on iOS 26+, blur
+ * elsewhere, tinted translucency on web) with a hairline separator, per the
+ * ECC liquid-glass direction: glass on interactive chrome only, never nested.
+ */
 export default function TopBar() {
   const theme = useTheme();
   const pathname = usePathname();
 
-  const isCalendar = pathname === '/calendar' || pathname.startsWith('/calendar/');
-  const isSearch = pathname === '/search' || pathname.startsWith('/search/');
-  const isSettings = pathname === '/settings' || pathname.startsWith('/settings/');
+  const segments = useMemo(
+    () => PRIMARY_DESTINATIONS.map((d) => ({ key: d.key, label: d.shortLabel })),
+    []
+  );
+
+  const activeKey = activeDestinationKey(pathname) ?? PRIMARY_DESTINATIONS[0].key;
+
+  const handleSegmentChange = (key: string) => {
+    const dest = PRIMARY_DESTINATIONS.find((d) => d.key === key);
+    if (!dest) return;
+    router.navigate(dest.href as never);
+  };
 
   return (
-    <BlurView
-      tint={theme.isDark ? 'dark' : 'light'}
-      intensity={75}
-      style={styles.container}
+    <GlassView
+      tier="regular"
+      intensity={70}
+      bordered={false}
+      style={[
+        styles.container,
+        {
+          // Only the fallback tiers paint a fill; native glass supplies its own.
+          backgroundColor: theme.isDark
+            ? withAlpha(theme.background, 0.78)
+            : withAlpha(theme.background, 0.9),
+          borderBottomColor: theme.border,
+        },
+      ]}
     >
-      <View style={styles.brand}>
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            toggleSidebar();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Toggle notes sidebar"
-          accessibilityHint="Opens the notes sidebar"
-          accessibilityState={{ expanded: false }}
-          hitSlop={8}
-          style={({ pressed }) => [styles.menuButton, pressed && { backgroundColor: withAlpha(theme.primary, 0.14) }]}
+      <View style={styles.row}>
+        <IconButton
+          onPress={toggleSidebar}
+          accessibilityLabel="Open navigation sidebar"
+          accessibilityHint="Shows notes, destinations, and quick actions"
         >
-          <IconMenu2 size={20} color={theme.text} />
+          <IconMenu2 size={21} color={theme.text} />
+        </IconButton>
+
+        <Pressable
+          onPress={() => router.navigate('/(tabs)/home' as never)}
+          accessibilityRole="button"
+          accessibilityLabel="MindFlow home"
+          hitSlop={8}
+          style={({ pressed }) => [styles.brand, pressed && { opacity: 0.7 }]}
+        >
+          <View style={[styles.logo, { backgroundColor: withAlpha(theme.primary, 0.14) }]}>
+            <IconFeather size={15} color={theme.primary} strokeWidth={2.4} />
+          </View>
+          <Text
+            numberOfLines={1}
+            style={[styles.appName, { color: theme.text, fontFamily: theme.fontFamily }]}
+          >
+            Mind<Text style={{ color: theme.primary }}>Flow</Text>
+          </Text>
         </Pressable>
-        <View style={[styles.logo, { backgroundColor: withAlpha(theme.primary, 0.14) }]}>
-          <IconFeather size={16} color={theme.primary} strokeWidth={2.4} />
-        </View>
-        <Text style={[styles.appName, { color: theme.text, fontFamily: theme.fontFamily }]}>
-          Mind
-          <Text style={{ color: theme.primary }}>Flow</Text>
-        </Text>
+
+        <View style={styles.spacer} />
+
+        <IconButton
+          onPress={() => router.navigate('/(tabs)/writer' as never)}
+          accessibilityLabel="New note"
+          accessibilityHint="Opens the writer"
+          prominent
+          size={38}
+          style={styles.newButton}
+        >
+          <IconPlus size={20} color="#FFFFFF" />
+        </IconButton>
+
+        <IconButton
+          onPress={() => router.navigate('/search' as never)}
+          accessibilityLabel="Search notes"
+          accessibilityHint="Search across all notes"
+        >
+          <IconSearch size={20} color={theme.text} />
+        </IconButton>
+
+        <IconButton
+          onPress={() => router.navigate('/settings' as never)}
+          accessibilityLabel="Settings"
+          accessibilityHint="Opens app settings"
+        >
+          <IconSettings2 size={20} color={theme.text} />
+        </IconButton>
       </View>
 
-      <View style={styles.actions}>
-        <TopBarButton
-          active={isCalendar}
-          icon={IconCalendar}
-          iconActive={IconCalendarFilled}
-          label="Calendar"
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push('/calendar');
-          }}
-        />
-        <TopBarButton
-          active={isSearch}
-          icon={IconSearch}
-          iconActive={IconSearchFilled}
-          label="Search"
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push('/search');
-          }}
-        />
-        <TopBarButton
-          active={isSettings}
-          icon={IconSettings2}
-          iconActive={IconSettingsFilled}
-          label="Settings"
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push('/settings');
-          }}
-        />
-      </View>
-    </BlurView>
+      <Segmented
+        items={segments}
+        activeKey={activeKey}
+        onChange={handleSegmentChange}
+        style={styles.segmented}
+        accessibilityLabel="Main sections"
+      />
+    </GlassView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    paddingHorizontal: Spacing.two,
+    paddingTop: Spacing.one,
+    paddingBottom: Spacing.two,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.two,
+    zIndex: 10,
+  },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.three,
-    borderBottomLeftRadius: 6,
-    borderBottomRightRadius: 6,
   },
   brand: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-  },
-  menuButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.one,
+    marginLeft: Spacing.one,
+    minHeight: 44,
   },
   logo: {
-    width: 30,
-    height: 30,
+    width: 28,
+    height: 28,
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
   appName: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     letterSpacing: -0.4,
   },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
+  spacer: {
+    flex: 1,
   },
-  iconButton: {
-    minWidth: 44,
-    minHeight: 44,
-    padding: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
+  newButton: {
+    marginRight: Spacing.one,
   },
-  iconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconStack: {
-    width: 20,
-    height: 20,
+  segmented: {
+    marginHorizontal: Spacing.one,
   },
 });

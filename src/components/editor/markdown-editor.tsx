@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -45,17 +46,27 @@ interface MarkdownEditorProps {
   readOnly?: boolean;
 }
 
+/**
+ * Clears the formatting toolbar: 44px buttons + 8px top padding + 8px bottom
+ * padding, plus an 8px gap so the FAB never kisses the toolbar.
+ */
+const FAB_BOTTOM = 68;
+
 export function MarkdownEditor({ value, onChange, placeholder, readOnly = false }: MarkdownEditorProps) {
+  const insets = useSafeAreaInsets();
   const [selection, setSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [showAttachModal, setShowAttachModal] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [preview, setPreview] = useState(false);
+  const [attaching, setAttaching] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const linkInputRef = useRef<TextInput>(null);
   const undoStack = useRef(createUndoStack());
   const lastTextRef = useRef(value);
+  /** Caret position captured when the attach sheet opens. */
+  const pendingSelection = useRef<{ start: number; end: number } | null>(null);
   const sheetRef = useRef<any>(null);
   const theme = useTheme();
 
@@ -70,74 +81,141 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
     setTimeout(() => inputRef.current?.focus(), 50);
   }, [onChange, selection]);
 
-  const attachImage = useCallback(async (start: number, end: number) => {
-    try {
-      const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!granted) return;
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 0.8,
-      });
-      if (result.canceled || !result.assets?.[0]) return;
-      const asset = result.assets[0];
-      const media = await MediaService.importMedia(asset.uri, 'image', { fileName: asset.fileName, mimeType: asset.mimeType });
-      apply(insertImage(lastTextRef.current, start, end, media.uri));
-    } catch (e) {
-      console.warn('attachImage failed:', (e as Error)?.message ?? e);
-    }
-  }, [apply]);
+  /**
+   * Wraps an attach flow with consistent loading state and error reporting.
+   *
+   * Previously each attach handler caught errors into `console.warn`, so a
+   * failed import was completely invisible to the user — the note simply never
+   * received the attachment.
+   */
+  const runAttach = useCallback(
+    async (label: string, fn: () => Promise<{ applied: boolean }>) => {
+      if (attaching) return;
+      setAttaching(true);
+      try {
+        await fn();
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        console.warn(`attach ${label} failed:`, message);
+        Alert.alert(
+          `Could not attach ${label}`,
+          'Something went wrong while importing the file. The original file was not modified — please try again.'
+        );
+      } finally {
+        setAttaching(false);
+      }
+    },
+    [attaching]
+  );
 
-  const attachVideo = useCallback(async (start: number, end: number) => {
-    try {
-      const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!granted) return;
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['videos'],
-      });
-      if (result.canceled || !result.assets?.[0]) return;
-      const asset = result.assets[0];
-      const media = await MediaService.importMedia(asset.uri, 'video', { fileName: asset.fileName, mimeType: asset.mimeType });
-      apply(insertVideo(lastTextRef.current, start, end, media.uri));
-    } catch (e) {
-      console.warn('attachVideo failed:', (e as Error)?.message ?? e);
-    }
-  }, [apply]);
+  const attachImage = useCallback(
+    (start: number, end: number) =>
+      runAttach('image', async () => {
+        const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!granted) {
+          Alert.alert(
+            'Permission needed',
+            'Allow photo library access in Settings to attach an image.'
+          );
+          return { applied: false };
+        }
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          quality: 0.8,
+        });
+        if (result.canceled || !result.assets?.[0]) return { applied: false };
+        const asset = result.assets[0];
+        const media = await MediaService.importMedia(asset.uri, 'image', {
+          fileName: asset.fileName,
+          mimeType: asset.mimeType,
+          fileSize: asset.fileSize ?? null,
+        });
+        apply(insertImage(lastTextRef.current, start, end, media.uri));
+        return { applied: true };
+      }),
+    [apply, runAttach]
+  );
 
-  const attachAudio = useCallback(async (start: number, end: number) => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'audio/*',
-        copyToCacheDirectory: true,
-      });
-      if (result.canceled || !result.assets?.[0]) return;
-      const asset = result.assets[0];
-      const media = await MediaService.importMedia(asset.uri, 'audio', { fileName: asset.name, mimeType: asset.mimeType });
-      const title = asset.name?.replace(/\.[^/.]+$/, '') || 'audio';
-      apply(insertAudio(lastTextRef.current, start, end, media.uri, title));
-    } catch (e) {
-      console.warn('attachAudio failed:', (e as Error)?.message ?? e);
-    }
-  }, [apply]);
+  const attachVideo = useCallback(
+    (start: number, end: number) =>
+      runAttach('video', async () => {
+        const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!granted) {
+          Alert.alert(
+            'Permission needed',
+            'Allow photo library access in Settings to attach a video.'
+          );
+          return { applied: false };
+        }
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['videos'],
+        });
+        if (result.canceled || !result.assets?.[0]) return { applied: false };
+        const asset = result.assets[0];
+        const media = await MediaService.importMedia(asset.uri, 'video', {
+          fileName: asset.fileName,
+          mimeType: asset.mimeType,
+          fileSize: asset.fileSize ?? null,
+        });
+        apply(insertVideo(lastTextRef.current, start, end, media.uri));
+        return { applied: true };
+      }),
+    [apply, runAttach]
+  );
 
-  const attachFile = useCallback(async (start: number, end: number) => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        copyToCacheDirectory: true,
-      });
-      if (result.canceled || !result.assets?.[0]) return;
-      const asset = result.assets[0];
-      const media = await MediaService.importMedia(asset.uri, undefined, { fileName: asset.name, mimeType: asset.mimeType });
-      const title = asset.name?.replace(/\.[^/.]+$/, '') || 'file';
-      apply(insertFile(lastTextRef.current, start, end, media.uri, title));
-    } catch (e) {
-      console.warn('attachFile failed:', (e as Error)?.message ?? e);
-    }
-  }, [apply]);
+  const attachAudio = useCallback(
+    (start: number, end: number) =>
+      runAttach('audio', async () => {
+        const result = await DocumentPicker.getDocumentAsync({
+          type: 'audio/*',
+          copyToCacheDirectory: true,
+        });
+        if (result.canceled || !result.assets?.[0]) return { applied: false };
+        const asset = result.assets[0];
+        // Type is resolved from the MIME type rather than forced to 'audio',
+        // so an audio picker that yields something else is labelled correctly.
+        const media = await MediaService.importMedia(asset.uri, undefined, {
+          fileName: asset.name,
+          mimeType: asset.mimeType,
+          fileSize: asset.size ?? null,
+        });
+        const title = asset.name?.replace(/\.[^/.]+$/, '') || 'audio';
+        apply(insertAudio(lastTextRef.current, start, end, media.uri, title));
+        return { applied: true };
+      }),
+    [apply, runAttach]
+  );
+
+  const attachFile = useCallback(
+    (start: number, end: number) =>
+      runAttach('file', async () => {
+        const result = await DocumentPicker.getDocumentAsync({
+          copyToCacheDirectory: true,
+          multiple: false,
+        });
+        if (result.canceled || !result.assets?.[0]) return { applied: false };
+        const asset = result.assets[0];
+        const media = await MediaService.importMedia(asset.uri, undefined, {
+          fileName: asset.name,
+          mimeType: asset.mimeType,
+          fileSize: asset.size ?? null,
+        });
+        // The full filename (with extension) is preserved as the link text so
+        // the attachment is identifiable in the note.
+        apply(insertFile(lastTextRef.current, start, end, media.uri, asset.name || 'file'));
+        return { applied: true };
+      }),
+    [apply, runAttach]
+  );
 
   const showAttachOptions = useCallback((includeSketch: boolean) => {
+    // Same caret snapshot as the paperclip button: opening the sheet blurs
+    // the input and resets onSelectionChange, so without this an attachment
+    // added via the formatting toolbar lands at the top of the document.
+    pendingSelection.current = { start: selection.start, end: selection.end };
     setShowAttachModal(true);
     void includeSketch;
-  }, []);
+  }, [selection]);
 
   const handleAction = useCallback((key: string) => {
     const { start, end } = selection;
@@ -219,8 +297,13 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
   }, []);
 
   const handleAttach = useCallback(() => {
+    // Snapshot the caret *before* the modal steals focus. Opening a modal
+    // dismisses the keyboard, which resets `onSelectionChange` to 0 — the
+    // previous code read `selection` at press time inside the option handler
+    // and inserted attachments at the top of the document.
+    pendingSelection.current = { start: selection.start, end: selection.end };
     setShowAttachModal(true);
-  }, []);
+  }, [selection]);
 
   const handleColorPicker = useCallback(() => {
     setShowColorPicker(true);
@@ -248,13 +331,17 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
       <View style={styles.modeBar}>
         <Pressable
           onPress={handleAttach}
+          disabled={attaching}
           accessibilityRole="button"
-          accessibilityLabel="Attach media"
+          accessibilityLabel={attaching ? 'Attaching file' : 'Attach media'}
           accessibilityHint="Opens media picker"
+          accessibilityState={{ disabled: attaching }}
           hitSlop={8}
-          style={[styles.modeButton, { backgroundColor: theme.backgroundElement }]}
+          style={[styles.modeButton, { backgroundColor: theme.backgroundElement }, attaching && styles.disabled]}
         >
-          <IconPaperclip size={16} color={theme.text} />
+          {attaching
+            ? <ActivityIndicator size="small" color={theme.text} />
+            : <IconPaperclip size={16} color={theme.text} />}
         </Pressable>
         <Pressable
           onPress={togglePreview}
@@ -352,7 +439,14 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
           )}
 
           <View style={[styles.toolbar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarScroll}>
+            {/* The floating tab bar is gone, so this toolbar owns the bottom
+                edge: its background reaches the screen edge while the buttons
+                inset above the home indicator. */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[styles.toolbarScroll, { paddingBottom: Spacing.one + insets.bottom }]}
+            >
               <Pressable onPress={() => handleAction('undo')} accessibilityRole="button" accessibilityLabel="undo" hitSlop={8} style={styles.toolbarButton}>
                 <IconArrowBackUp size={18} color={theme.text} />
               </Pressable>
@@ -425,7 +519,9 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
 
       <Pressable
         onPress={preview ? togglePreview : openSheet}
-        style={[styles.fab, { backgroundColor: theme.primary }]}
+        accessibilityRole="button"
+        accessibilityLabel={preview ? 'Back to editing' : 'Formatting options'}
+        style={[styles.fab, { backgroundColor: theme.primary, bottom: FAB_BOTTOM + insets.bottom }]}
       >
         {preview
           ? <IconPencil color="#FFFFFF" size={22} />
@@ -445,38 +541,47 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
           <AttachOption
             icon={IconPhoto}
             label="Image"
+            hint="From your photo library"
             onPress={() => {
+              const range = pendingSelection.current ?? selection;
               setShowAttachModal(false);
-              attachImage(selection.start, selection.end);
+              attachImage(range.start, range.end);
             }}
           />
           <AttachOption
             icon={IconVideo}
             label="Video"
+            hint="From your photo library"
             onPress={() => {
+              const range = pendingSelection.current ?? selection;
               setShowAttachModal(false);
-              attachVideo(selection.start, selection.end);
+              attachVideo(range.start, range.end);
             }}
           />
           <AttachOption
             icon={IconMusic}
             label="Audio"
+            hint="Any audio file"
             onPress={() => {
+              const range = pendingSelection.current ?? selection;
               setShowAttachModal(false);
-              attachAudio(selection.start, selection.end);
+              attachAudio(range.start, range.end);
             }}
           />
           <AttachOption
             icon={IconFile}
             label="File"
+            hint="Documents, PDFs, anything"
             onPress={() => {
+              const range = pendingSelection.current ?? selection;
               setShowAttachModal(false);
-              attachFile(selection.start, selection.end);
+              attachFile(range.start, range.end);
             }}
           />
           <AttachOption
             icon={IconPencilPlus}
             label="Sketch"
+            hint="Draw something new"
             onPress={() => {
               setShowAttachModal(false);
               router.push('/canvas' as any);
@@ -502,20 +607,33 @@ export function MarkdownEditor({ value, onChange, placeholder, readOnly = false 
 interface AttachOptionProps {
   icon: React.ComponentType<{ size: number; color: string }>;
   label: string;
+  /** Sub-label explaining what the picker will offer. */
+  hint?: string;
   onPress: () => void;
 }
 
-function AttachOption({ icon: Icon, label, onPress }: AttachOptionProps) {
+function AttachOption({ icon: Icon, label, hint, onPress }: AttachOptionProps) {
   const theme = useTheme();
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.attachCard, { backgroundColor: theme.backgroundElement }]}
+      accessibilityRole="button"
+      accessibilityLabel={hint ? `Attach ${label}, ${hint}` : `Attach ${label}`}
+      style={({ pressed }) => [
+        styles.attachCard,
+        { backgroundColor: theme.backgroundElement },
+        pressed && { opacity: 0.7 },
+      ]}
     >
       <View style={[styles.attachIconWrap, { backgroundColor: withAlpha(theme.accent, 0.15) }]}>
         <Icon size={22} color={theme.accent} />
       </View>
-      <ThemedText type="default" style={styles.attachLabel}>{label}</ThemedText>
+      <View style={styles.attachText}>
+        <ThemedText type="default" style={styles.attachLabel}>{label}</ThemedText>
+        {hint ? (
+          <ThemedText type="small" themeColor="textMuted">{hint}</ThemedText>
+        ) : null}
+      </View>
     </Pressable>
   );
 }
@@ -605,8 +723,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: Spacing.five,
-    right: Spacing.five,
+    right: Spacing.four,
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -624,7 +741,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
+    paddingTop: Spacing.one,
+    paddingBottom: Spacing.one,
     gap: Spacing.one,
   },
   toolbarButton: {
@@ -640,19 +758,18 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.one,
   },
   attachList: {
-    paddingHorizontal: '4%',
-    paddingBottom: 24,
-    gap: 8,
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.four,
+    gap: Spacing.two,
   },
   attachCard: {
-    width: '92%',
-    height: 56,
-    alignSelf: 'center',
+    width: '100%',
+    minHeight: 56,
     borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    gap: 14,
+    paddingHorizontal: Spacing.three,
+    gap: Spacing.three,
   },
   attachIconWrap: {
     width: 36,
@@ -661,8 +778,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  attachLabel: {
+  attachText: {
     flex: 1,
+    gap: 1,
+  },
+  attachLabel: {
+    fontWeight: '500',
+  },
+  disabled: {
+    opacity: 0.5,
   },
   colorGrid: {
     flexDirection: 'row',

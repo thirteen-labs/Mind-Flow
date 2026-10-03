@@ -1,150 +1,92 @@
-import { Image, Pressable, View, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
-import { IconSearch, IconSettings2 } from '@tabler/icons-react-native';
-import {
-  Tabs,
-  TabList,
-  TabTrigger,
-  TabSlot,
-  TabTriggerSlotProps,
-  TabListProps,
-} from 'expo-router/ui';
+import { Pressable, StyleSheet } from 'react-native';
+import { TabList, Tabs, TabSlot, TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui';
 
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
-import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/constants/theme';
+import { PRIMARY_DESTINATIONS } from '@/navigation/destinations';
 
-const tabs = [
-  { name: 'home', label: 'Home', sf: 'house', md: 'home' },
-  { name: 'writer', label: 'Writer', sf: 'square.and.pencil', md: 'edit' },
-  { name: 'planner', label: 'Planner', sf: 'square.grid.2x2', md: 'dashboard' },
-  { name: 'library', label: 'Library', sf: 'books.vertical', md: 'library_books' },
-] as const;
+const segments = PRIMARY_DESTINATIONS.map((d) => ({
+  key: d.key,
+  label: d.shortLabel,
+  href: d.href as '/(tabs)/home' | '/(tabs)/writer' | '/(tabs)/library',
+}));
 
+/**
+ * Web variant of the top-bar switcher.
+ *
+ * On web there is no safe-area inset and no thumb reach problem, so the same
+ * segmented switcher is rendered inline at the top of the document rather
+ * than pinned to the bottom of the viewport.
+ */
 export default function AppTabs() {
   return (
     <Tabs>
-      <TabSlot style={{ height: '100%' }} />
-      <TabList asChild>
-        <CustomTabList>
-          {tabs.map((tab) => (
-            <TabTrigger key={tab.name} name={tab.name} href={`/(tabs)/${tab.name}`} asChild>
-              <TabButton>{tab.label}</TabButton>
+      <TabSlot style={styles.slot} />
+      <TabList style={styles.list} aria-label="Main sections">
+        <ThemedView type="backgroundElement" style={styles.track}>
+          {segments.map((segment) => (
+            <TabTrigger key={segment.key} name={segment.key} href={segment.href} asChild>
+              <Segment label={segment.label} />
             </TabTrigger>
           ))}
-        </CustomTabList>
+        </ThemedView>
       </TabList>
     </Tabs>
   );
 }
 
-function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+/**
+ * Receives its navigation from the parent `TabTrigger` via slot props —
+ * `onPress` switches the tab and `isFocused` drives the highlight. These
+ * must be forwarded to the underlying Pressable; a previous version dropped
+ * them and the web tabs did nothing when pressed.
+ */
+function Segment({ label, isFocused, href, ...props }: TabTriggerSlotProps & { label: string }) {
+  void href;
+  const active = !!isFocused;
   return (
     <Pressable
       {...props}
       accessibilityRole="tab"
-      accessibilityState={{ selected: !!isFocused }}
-      accessibilityLabel={typeof children === 'string' ? children : undefined}
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={label}
       hitSlop={8}
-      style={({ pressed }) => pressed && styles.pressed}
+      style={({ pressed }) => [
+        styles.segment,
+        active && { backgroundColor: 'rgba(128, 128, 128, 0.18)' },
+        pressed && { opacity: 0.7 },
+      ]}
     >
-      <ThemedView
-        type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
-          {children}
-        </ThemedText>
-      </ThemedView>
+      <ThemedText type="small" themeColor={active ? 'text' : 'textSecondary'}>
+        {label}
+      </ThemedText>
     </Pressable>
   );
 }
 
-function CustomTabList(props: TabListProps) {
-  const theme = useTheme();
-  const logoSource = theme.isDark
-    ? require('@/assets/images/name-white.png')
-    : require('@/assets/images/name-black.png');
-
-  return (
-    <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <Image source={logoSource} style={styles.logo} resizeMode="contain" />
-
-        {props.children}
-
-        <View style={styles.actions}>
-          <Pressable
-            onPress={() => router.push('/search')}
-            accessibilityRole="button"
-            accessibilityLabel="Search"
-            accessibilityHint="Open search"
-            hitSlop={8}
-            style={styles.actionButton}
-          >
-            <IconSearch size={18} color={theme.textSecondary} />
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/settings')}
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-            accessibilityHint="Open settings"
-            hitSlop={8}
-            style={styles.actionButton}
-          >
-            <IconSettings2 size={18} color={theme.textSecondary} />
-          </Pressable>
-        </View>
-      </ThemedView>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  tabListContainer: {
-    position: 'absolute',
-    width: '100%',
-    padding: Spacing.three,
-    justifyContent: 'center',
-    alignItems: 'center',
+  slot: {
+    height: '100%',
+  },
+  list: {
     flexDirection: 'row',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
   },
-  innerContainer: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
+  track: {
     flexDirection: 'row',
-    alignItems: 'center',
-    flexGrow: 1,
-    gap: Spacing.two,
-    maxWidth: MaxContentWidth,
+    borderRadius: 999,
+    padding: 2,
+    gap: 2,
+    marginHorizontal: 'auto',
   },
-  logo: {
-    height: 20,
-    marginRight: 'auto',
-    opacity: 0.9,
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    marginLeft: Spacing.two,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  tabButtonView: {
-    paddingVertical: Spacing.two,
+  segment: {
     paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  actionButton: {
-    minWidth: 44,
-    minHeight: 44,
+    minHeight: 40,
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 999,
   },
 });

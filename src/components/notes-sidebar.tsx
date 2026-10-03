@@ -10,10 +10,13 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  IconBulb,
+  IconBrain,
+  IconCalendarEvent,
   IconDots,
   IconEdit,
   IconEye,
@@ -21,11 +24,9 @@ import {
   IconFileText,
   IconPencil,
   IconPin,
+  IconPlus,
   IconTrash,
   IconX,
-  IconBulb,
-  IconCalendarEvent,
-  IconBrain,
   type Icon,
 } from '@tabler/icons-react-native';
 import Animated, {
@@ -40,8 +41,9 @@ import * as Haptics from 'expo-haptics';
 import { ThemedText } from '@/components/themed-text';
 import { contrastText, Spacing, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { getNoteName, JournalService, type JournalEntry, type JournalEntryType } from '@/services/journal-service';
 import { openJournal } from '@/services/journal-nav';
+import { getNoteName, JournalService, type JournalEntry, type JournalEntryType } from '@/services/journal-service';
+import { activeDestinationKey, ALL_DESTINATIONS, PRIMARY_DESTINATIONS } from '@/navigation/destinations';
 import { useActiveNoteId } from '@/store/sidebar';
 
 type Section = { title: string; data: JournalEntry[] };
@@ -61,6 +63,10 @@ const TYPE_ICON: Record<JournalEntryType, Icon> = {
   thought: IconBrain,
 };
 
+const SECONDARY = ALL_DESTINATIONS.filter(
+  (d) => !PRIMARY_DESTINATIONS.some((p) => p.key === d.key)
+);
+
 function typeColor(type: JournalEntryType, theme: ReturnType<typeof useTheme>): string {
   switch (type) {
     case 'idea':
@@ -74,13 +80,21 @@ function typeColor(type: JournalEntryType, theme: ReturnType<typeof useTheme>): 
   }
 }
 
+/**
+ * Slide-over sidebar.
+ *
+ * Absorbs the navigation that used to live in the floating bottom bar:
+ * the three primary sections plus the secondary screens (calendar, insights,
+ * daily notes, templates), followed by the notes list grouped by state.
+ */
 export default function NotesSidebar({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const theme = useTheme();
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const activeNoteId = useActiveNoteId();
   const { width } = useWindowDimensions();
-  const panelWidth = Math.min(Math.round(width * 0.85), 340);
+  const panelWidth = Math.min(Math.round(width * 0.86), 360);
 
   const [notes, setNotes] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -89,6 +103,7 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
   const [renameValue, setRenameValue] = useState('');
 
   const progress = useSharedValue(0);
+  const activeDestination = activeDestinationKey(pathname);
 
   useEffect(() => {
     progress.value = visible ? withSpring(1, { damping: 22, stiffness: 240 }) : withTiming(0, { duration: 180 });
@@ -139,48 +154,67 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
   const closeSheet = useCallback(() => setMenuEntry(null), []);
   const closeRename = useCallback(() => setRenameEntry(null), []);
 
-  const openViewer = useCallback((entry: JournalEntry) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    closeSheet();
-    onClose();
-    router.push(`/reading?id=${entry.id}`);
-  }, [closeSheet, onClose]);
+  /** Navigate to a destination and dismiss the sidebar. */
+  const goTo = useCallback(
+    (href: string) => {
+      onClose();
+      router.navigate(href as never);
+    },
+    [onClose]
+  );
 
-  const openEditor = useCallback((entry: JournalEntry) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    closeSheet();
-    openJournal({ entryId: entry.id });
-  }, [closeSheet]);
+  const openViewer = useCallback(
+    (entry: JournalEntry) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      closeSheet();
+      goTo(`/reading?id=${entry.id}`);
+    },
+    [closeSheet, goTo]
+  );
 
-  const handleTogglePin = useCallback(async (entry: JournalEntry) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      const newValue = await JournalService.togglePin(db, entry.id);
-      setMenuEntry((prev) => (prev ? { ...prev, is_pinned: newValue ? 1 : 0 } : prev));
-      await load();
-    } catch {
-      Alert.alert('Error', 'Could not update pin');
-    }
-  }, [db, load]);
+  const openEditor = useCallback(
+    (entry: JournalEntry) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      closeSheet();
+      onClose();
+      openJournal({ entryId: entry.id });
+    },
+    [closeSheet, onClose]
+  );
 
-  const handleToggleHidden = useCallback(async (entry: JournalEntry) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      const newValue = !entry.is_hidden;
-      await JournalService.setHidden(db, entry.id, newValue);
-      setMenuEntry((prev) => (prev ? { ...prev, is_hidden: newValue ? 1 : 0 } : prev));
-      await load();
-    } catch {
-      Alert.alert('Error', 'Could not update note');
-    }
-  }, [db, load]);
+  const handleTogglePin = useCallback(
+    async (entry: JournalEntry) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      try {
+        const newValue = await JournalService.togglePin(db, entry.id);
+        setMenuEntry((prev) => (prev ? { ...prev, is_pinned: newValue ? 1 : 0 } : prev));
+        await load();
+      } catch {
+        Alert.alert('Error', 'Could not update pin');
+      }
+    },
+    [db, load]
+  );
 
-  const handleDelete = useCallback((entry: JournalEntry) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    Alert.alert(
-      'Delete Note',
-      `Delete "${getNoteName(entry)}"? This cannot be undone.`,
-      [
+  const handleToggleHidden = useCallback(
+    async (entry: JournalEntry) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      try {
+        const newValue = !entry.is_hidden;
+        await JournalService.setHidden(db, entry.id, newValue);
+        setMenuEntry((prev) => (prev ? { ...prev, is_hidden: newValue ? 1 : 0 } : prev));
+        await load();
+      } catch {
+        Alert.alert('Error', 'Could not update note');
+      }
+    },
+    [db, load]
+  );
+
+  const handleDelete = useCallback(
+    (entry: JournalEntry) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      Alert.alert('Delete Note', `Delete "${getNoteName(entry)}"? This cannot be undone.`, [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
@@ -195,9 +229,10 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
             }
           },
         },
-      ]
-    );
-  }, [db, load, closeSheet]);
+      ]);
+    },
+    [db, load, closeSheet]
+  );
 
   const handleRenameSave = useCallback(async () => {
     if (!renameEntry) return;
@@ -262,56 +297,96 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
       ]
     : [];
 
-  const renderRow = useCallback(({ item }: { item: JournalEntry }) => {
-    const name = getNoteName(item);
-    const IconEl = TYPE_ICON[item.entry_type ?? 'note'];
-    const isActive = item.id === activeNoteId;
-    return (
-      <View
-        style={[
-          styles.row,
-          isActive && { backgroundColor: withAlpha(theme.tint, 0.1) },
-        ]}
-      >
+  const renderRow = useCallback(
+    ({ item }: { item: JournalEntry }) => {
+      const name = getNoteName(item);
+      const IconEl = TYPE_ICON[item.entry_type ?? 'note'];
+      const isActive = item.id === activeNoteId;
+      const accent = typeColor(item.entry_type ?? 'note', theme);
+      return (
+        <View style={[styles.row, isActive && { backgroundColor: withAlpha(theme.tint, 0.1) }]}>
+          <Pressable
+            onPress={() => openViewer(item)}
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${name}`}
+            accessibilityHint="Opens the note"
+            hitSlop={8}
+            style={({ pressed }) => [styles.rowMain, pressed && { opacity: 0.7 }]}
+          >
+            <View style={[styles.rowIcon, { backgroundColor: withAlpha(accent, 0.14) }]}>
+              <IconEl size={15} color={accent} />
+            </View>
+            <ThemedText type="default" numberOfLines={1} style={styles.rowName}>
+              {name}
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setMenuEntry(item);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`More options for ${name}`}
+            hitSlop={10}
+            style={({ pressed }) => [styles.rowDots, pressed && { backgroundColor: theme.backgroundSelected }]}
+          >
+            <IconDots size={18} color={theme.textMuted} />
+          </Pressable>
+        </View>
+      );
+    },
+    [theme, activeNoteId, openViewer]
+  );
+
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: Section }) => (
+      <ThemedText type="smallBold" themeColor="textMuted" style={styles.sectionHeader}>
+        {section.title}
+      </ThemedText>
+    ),
+    []
+  );
+
+  const renderDestinations = useCallback(
+    (item: (typeof ALL_DESTINATIONS)[number]) => {
+      const active = item.key === activeDestination;
+      const IconEl = active ? item.iconActive : item.icon;
+      return (
         <Pressable
-          onPress={() => openViewer(item)}
+          onPress={() => goTo(item.href)}
           accessibilityRole="button"
-          accessibilityLabel={`Open ${name}`}
-          accessibilityHint="Opens the note"
-          hitSlop={8}
+          accessibilityLabel={item.label}
+          accessibilityState={{ selected: active }}
+          accessibilityHint={`Opens ${item.label}`}
+          hitSlop={6}
           style={({ pressed }) => [
-            styles.rowMain,
-            pressed && { opacity: 0.7 },
+            styles.navRow,
+            active && { backgroundColor: withAlpha(theme.primary, 0.14) },
+            pressed && { backgroundColor: theme.backgroundSelected },
           ]}
         >
-          <View style={[styles.rowIcon, { backgroundColor: withAlpha(typeColor(item.entry_type ?? 'note', theme), 0.14) }]}>
-            <IconEl size={15} color={typeColor(item.entry_type ?? 'note', theme)} />
+          <View
+            style={[
+              styles.navIcon,
+              active
+                ? { backgroundColor: withAlpha(theme.primary, 0.2) }
+                : { backgroundColor: theme.backgroundElement },
+            ]}
+          >
+            <IconEl size={16} color={active ? theme.primary : theme.textSecondary} />
           </View>
-          <ThemedText type="default" numberOfLines={1} style={styles.rowName}>
-            {name}
+          <ThemedText
+            type="default"
+            numberOfLines={1}
+            style={[styles.navLabel, active && { color: theme.text, fontWeight: '600' }]}
+          >
+            {item.label}
           </ThemedText>
         </Pressable>
-        <Pressable
-          onPress={() => {
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setMenuEntry(item);
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={`More options for ${name}`}
-          hitSlop={10}
-          style={({ pressed }) => [styles.rowDots, pressed && { backgroundColor: theme.backgroundSelected }]}
-        >
-          <IconDots size={18} color={theme.textMuted} />
-        </Pressable>
-      </View>
-    );
-  }, [theme, activeNoteId, openViewer]);
-
-  const renderSectionHeader = useCallback(({ section }: { section: Section }) => (
-    <ThemedText type="smallBold" themeColor="textMuted" style={styles.sectionHeader}>
-      {section.title}
-    </ThemedText>
-  ), []);
+      );
+    },
+    [activeDestination, goTo, theme]
+  );
 
   return (
     <View
@@ -319,27 +394,35 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
       pointerEvents={visible ? 'auto' : 'none'}
       accessibilityViewIsModal={visible}
     >
-      <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, { backgroundColor: 'rgba(0, 0, 0, 0.45)' }, backdropStyle]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <Animated.View
+        style={[StyleSheet.absoluteFill, styles.backdrop, { backgroundColor: 'rgba(0, 0, 0, 0.45)' }, backdropStyle]}
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close sidebar" />
       </Animated.View>
 
-      <Animated.View style={[styles.panel, { width: panelWidth, backgroundColor: theme.background, borderRightColor: theme.border }, panelStyle]}>
-        {/* Header */}
-        <View style={[styles.header, { borderBottomColor: theme.border, paddingTop: insets.top + Spacing.three }]}>
+      <Animated.View
+        style={[
+          styles.panel,
+          { width: panelWidth, backgroundColor: theme.background, borderRightColor: theme.border },
+          panelStyle,
+        ]}
+      >
+        <View style={[styles.header, { borderBottomColor: theme.border, paddingTop: insets.top + Spacing.two }]}>
           <View style={styles.headerTitleRow}>
             <View style={[styles.headerIcon, { backgroundColor: withAlpha(theme.primary, 0.14) }]}>
               <IconFileText size={16} color={theme.primary} />
             </View>
-            <View>
-              <ThemedText type="default" style={styles.headerTitle}>All Notes</ThemedText>
-              <ThemedText type="small" themeColor="textMuted">{notes.length} {notes.length === 1 ? 'note' : 'notes'}</ThemedText>
+            <View style={styles.headerText}>
+              <ThemedText type="default" style={styles.headerTitle}>
+                MindFlow
+              </ThemedText>
+              <ThemedText type="small" themeColor="textMuted">
+                {notes.length} {notes.length === 1 ? 'note' : 'notes'}
+              </ThemedText>
             </View>
           </View>
           <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onClose();
-            }}
+            onPress={onClose}
             accessibilityRole="button"
             accessibilityLabel="Close sidebar"
             hitSlop={8}
@@ -349,47 +432,98 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
           </Pressable>
         </View>
 
-        {/* List */}
-        {loading && notes.length === 0 ? (
-          <View style={styles.centered} accessibilityLiveRegion="polite" accessibilityLabel="Loading notes">
-            <ActivityIndicator color={theme.textMuted} />
-            <ThemedText type="small" themeColor="textMuted">Loading notes…</ThemedText>
-          </View>
-        ) : notes.length === 0 ? (
-          <View style={styles.centered} accessibilityLiveRegion="polite">
-            <ThemedText type="small" themeColor="textMuted">No notes yet</ThemedText>
-            <ThemedText type="small" themeColor="textMuted">Write your first note to see it here</ThemedText>
-          </View>
-        ) : (
-          <SectionList
-            sections={sections}
-            renderItem={renderRow}
-            renderSectionHeader={renderSectionHeader}
-            keyExtractor={(item) => item.id}
-            stickySectionHeadersEnabled={false}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          />
-        )}
+        {/* New note — the primary action, pinned above navigation */}
+        <View style={styles.actionRow}>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              onClose();
+              router.navigate('/(tabs)/writer' as never);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="New note"
+            accessibilityHint="Opens the writer to start a new note"
+            style={({ pressed }) => [
+              styles.newNote,
+              { backgroundColor: theme.primary },
+              pressed && { opacity: 0.88 },
+            ]}
+          >
+            <IconPlus size={18} color={contrastText(theme.primary)} />
+            <ThemedText
+              type="default"
+              style={[styles.newNoteLabel, { color: contrastText(theme.primary) }]}
+            >
+              New note
+            </ThemedText>
+          </Pressable>
+        </View>
+
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          renderItem={renderRow}
+          renderSectionHeader={renderSectionHeader}
+          stickySectionHeadersEnabled={false}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={
+            <View>
+              <ThemedText type="smallBold" themeColor="textMuted" style={styles.sectionHeader}>
+                Go to
+              </ThemedText>
+              <View style={styles.navGrid}>
+                {PRIMARY_DESTINATIONS.map((d) => (
+                  <View key={d.key} style={styles.navCell}>
+                    {renderDestinations(d)}
+                  </View>
+                ))}
+              </View>
+              <ThemedText type="smallBold" themeColor="textMuted" style={styles.sectionHeader}>
+                Explore
+              </ThemedText>
+              <View style={styles.navGrid}>
+                {SECONDARY.map((d) => (
+                  <View key={d.key} style={styles.navCell}>
+                    {renderDestinations(d)}
+                  </View>
+                ))}
+              </View>
+            </View>
+          }
+          ListEmptyComponent={
+            loading ? (
+              <View style={styles.centered} accessibilityLiveRegion="polite">
+                <ActivityIndicator color={theme.textMuted} />
+                <ThemedText type="small" themeColor="textMuted">
+                  Loading notes…
+                </ThemedText>
+              </View>
+            ) : (
+              <View style={styles.emptyNotes} accessibilityLiveRegion="polite">
+                <ThemedText type="small" themeColor="textMuted">
+                  No notes yet
+                </ThemedText>
+                <ThemedText type="small" themeColor="textMuted">
+                  Tap New note to start writing
+                </ThemedText>
+              </View>
+            )
+          }
+        />
       </Animated.View>
 
       {/* Note action sheet */}
       <Modal visible={!!menuEntry} transparent animationType="fade" onRequestClose={closeSheet} accessibilityViewIsModal>
-        <Pressable style={styles.sheetBackdrop} onPress={closeSheet} accessibilityRole="button" accessibilityLabel="Dismiss options">
+        <Pressable style={styles.sheetBackdrop} onPress={closeSheet} accessibilityLabel="Dismiss options">
           <Pressable style={[styles.sheet, { backgroundColor: theme.surface }]}>
             <Animated.View entering={FadeInDown.springify()}>
               <View style={[styles.sheetHeader, { borderBottomColor: theme.border }]}>
                 <ThemedText type="default" numberOfLines={1} style={styles.sheetTitle}>
                   {menuEntry ? getNoteName(menuEntry) : ''}
                 </ThemedText>
-                <Pressable
-                  onPress={closeSheet}
-                  accessibilityRole="button"
-                  accessibilityLabel="Close options"
-                  hitSlop={8}
-                  style={styles.sheetClose}
-                >
+                <Pressable onPress={closeSheet} accessibilityRole="button" accessibilityLabel="Close options" hitSlop={8} style={styles.sheetClose}>
                   <IconX size={16} color={theme.textMuted} />
                 </Pressable>
               </View>
@@ -403,10 +537,7 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
                   style={({ pressed }) => [styles.sheetAction, pressed && { backgroundColor: theme.backgroundElement }]}
                 >
                   <action.icon size={19} color={action.color} />
-                  <ThemedText
-                    type="default"
-                    style={[styles.sheetActionLabel, action.key === 'delete' && { color: theme.error }]}
-                  >
+                  <ThemedText type="default" style={[styles.sheetActionLabel, action.key === 'delete' && { color: theme.error }]}>
                     {action.label}
                   </ThemedText>
                 </Pressable>
@@ -418,10 +549,12 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
 
       {/* Rename modal */}
       <Modal visible={!!renameEntry} transparent animationType="fade" onRequestClose={closeRename} accessibilityViewIsModal>
-        <Pressable style={styles.renameBackdrop} onPress={closeRename} accessibilityRole="button" accessibilityLabel="Dismiss rename">
+        <Pressable style={styles.renameBackdrop} onPress={closeRename} accessibilityLabel="Dismiss rename">
           <Pressable style={[styles.renameCard, { backgroundColor: theme.surface }]}>
             <Animated.View entering={FadeInDown.springify()}>
-              <ThemedText type="default" style={styles.renameTitle}>Rename Note</ThemedText>
+              <ThemedText type="default" style={styles.renameTitle}>
+                Rename Note
+              </ThemedText>
               <TextInput
                 autoFocus
                 value={renameValue}
@@ -436,14 +569,10 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
                 style={[styles.renameInput, { color: theme.text, backgroundColor: theme.backgroundElement, fontFamily: theme.fontFamily }]}
               />
               <View style={styles.renameActions}>
-                <Pressable
-                  onPress={closeRename}
-                  accessibilityRole="button"
-                  accessibilityLabel="Cancel rename"
-                  hitSlop={8}
-                  style={({ pressed }) => [styles.renameButton, pressed && { opacity: 0.7 }]}
-                >
-                  <ThemedText type="default" themeColor="textMuted">Cancel</ThemedText>
+                <Pressable onPress={closeRename} accessibilityRole="button" accessibilityLabel="Cancel rename" hitSlop={8} style={({ pressed }) => [styles.renameButton, pressed && { opacity: 0.7 }]}>
+                  <ThemedText type="default" themeColor="textMuted">
+                    Cancel
+                  </ThemedText>
                 </Pressable>
                 <Pressable
                   onPress={handleRenameSave}
@@ -452,7 +581,9 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
                   hitSlop={8}
                   style={({ pressed }) => [styles.renameButton, styles.renameSave, { backgroundColor: theme.primary }, pressed && { opacity: 0.85 }]}
                 >
-                  <ThemedText type="default" style={[styles.renameSaveText, { color: contrastText(theme.primary) }]}>Save</ThemedText>
+                  <ThemedText type="default" style={[styles.renameSaveText, { color: contrastText(theme.primary) }]}>
+                    Save
+                  </ThemedText>
                 </Pressable>
               </View>
             </Animated.View>
@@ -464,12 +595,8 @@ export default function NotesSidebar({ visible, onClose }: { visible: boolean; o
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    zIndex: 100,
-  },
-  backdrop: {
-    flex: 1,
-  },
+  overlay: { zIndex: 100 },
+  backdrop: { flex: 1 },
   panel: {
     position: 'absolute',
     top: 0,
@@ -481,14 +608,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.three,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+    flexShrink: 1,
   },
   headerIcon: {
     width: 34,
@@ -497,9 +625,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    fontWeight: '700',
-  },
+  headerText: { flexShrink: 1 },
+  headerTitle: { fontWeight: '700' },
   closeButton: {
     width: 44,
     height: 44,
@@ -507,25 +634,71 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  actionRow: {
+    paddingHorizontal: Spacing.two,
+    paddingTop: Spacing.three,
+  },
+  newNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    minHeight: 46,
+    borderRadius: 999,
+  },
+  newNoteLabel: {
+    fontWeight: '600',
+  },
   listContent: {
     paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.two,
     paddingBottom: Spacing.six,
   },
   sectionHeader: {
     paddingHorizontal: Spacing.two,
     paddingTop: Spacing.three,
-    paddingBottom: Spacing.one,
+    paddingBottom: Spacing.two,
+    // Labels sit inside the panel, so offset them to align with the note rows
+    // beneath rather than the outer panel padding.
+    marginLeft: Spacing.one,
     textTransform: 'uppercase',
-    fontSize: 12,
-    letterSpacing: 0.5,
+    fontSize: 11,
+    letterSpacing: 0.6,
+  },
+  navGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.one,
+  },
+  navCell: {
+    // Two-up grid with a 4px gutter reads as a compact launcher.
+    width: '48.5%',
+  },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.two,
+    borderRadius: 999,
+    minHeight: 44,
+  },
+  navIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navLabel: {
+    flex: 1,
+    fontWeight: '500',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
     paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing.one,
     borderRadius: Spacing.two,
   },
   rowMain: {
@@ -541,10 +714,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowName: {
-    flex: 1,
-    fontWeight: '500',
-  },
+  rowName: { flex: 1, fontWeight: '500' },
   rowDots: {
     width: 44,
     height: 44,
@@ -553,11 +723,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   centered: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.one,
-    padding: Spacing.four,
+    paddingVertical: Spacing.four,
+  },
+  emptyNotes: {
+    alignItems: 'center',
+    gap: Spacing.one,
+    paddingVertical: Spacing.four,
   },
   sheetBackdrop: {
     flex: 1,
@@ -579,10 +753,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     marginBottom: Spacing.one,
   },
-  sheetTitle: {
-    flex: 1,
-    fontWeight: '600',
-  },
+  sheetTitle: { flex: 1, fontWeight: '600' },
   sheetClose: {
     width: 44,
     height: 44,
@@ -598,9 +769,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     borderRadius: Spacing.two,
   },
-  sheetActionLabel: {
-    fontWeight: '500',
-  },
+  sheetActionLabel: { fontWeight: '500' },
   renameCard: {
     marginHorizontal: Spacing.four,
     borderRadius: Spacing.three,
@@ -612,9 +781,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'center',
   },
-  renameTitle: {
-    fontWeight: '700',
-  },
+  renameTitle: { fontWeight: '700' },
   renameInput: {
     fontSize: 16,
     padding: Spacing.three,
@@ -634,10 +801,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  renameSave: {
-    minWidth: 88,
-    alignItems: 'center',
-  },
-  renameSaveText: {
-    fontWeight: '600',
-  },});
+  renameSave: { minWidth: 88, alignItems: 'center' },
+  renameSaveText: { fontWeight: '600' },
+});

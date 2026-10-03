@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { IconChevronLeft, IconMoodHappy, IconPencil, IconCheck, IconBrain, IconBulb, IconCalendarEvent, IconFileText, IconMenu2, type Icon } from '@tabler/icons-react-native';
+import { IconChevronLeft, IconMoodHappy, IconPencil, IconCheck, IconBrain, IconBulb, IconCalendarEvent, IconFileText, type Icon } from '@tabler/icons-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { MarkdownEditor } from '@/components/editor/markdown-editor';
@@ -14,7 +14,7 @@ import { useJournal, type UseJournalOptions } from '@/hooks/use-journal';
 import { useTemplate } from '@/hooks/use-template';
 import { insertImage } from '@/components/editor/formatting';
 import { consumeJournalParams, type JournalEntryType, type JournalNavParams, type WriterMode } from '@/services/journal-nav';
-import { setActiveNoteId, openSidebar } from '@/store/sidebar';
+import { setActiveNoteId } from '@/store/sidebar';
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -195,28 +195,15 @@ export default function WriterScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
       {/* Header */}
-      <ThemedView style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            openSidebar();
-          }}
-          hitSlop={8}
-          style={({ pressed }) => [styles.headerAction, pressed && { backgroundColor: theme.backgroundElement }]}
-          accessibilityRole="button"
-          accessibilityLabel="Open notes sidebar"
-        >
-          <IconMenu2 size={20} color={theme.tint} />
-        </Pressable>
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable
           onPress={handleBack}
-          style={styles.headerAction}
+          hitSlop={8}
+          style={({ pressed }) => [styles.headerAction, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
           accessibilityLabel="Go back"
-          hitSlop={8}
         >
           <IconChevronLeft size={20} color={theme.tint} />
-          <ThemedText type="default" themeColor="tint">Back</ThemedText>
         </Pressable>
         <View style={styles.headerCenter}>
           <TextInput
@@ -227,6 +214,7 @@ export default function WriterScreen() {
             editable={!readOnly}
             selectTextOnFocus
             maxLength={80}
+            accessibilityLabel="Entry title"
             style={[styles.titleInput, { color: theme.text, fontFamily: theme.fontFamily }]}
           />
           <View style={styles.headerMeta}>
@@ -245,9 +233,14 @@ export default function WriterScreen() {
         <View style={styles.headerActions}>
           <Pressable
             onPress={handleSaveToggle}
-            style={[styles.headerIconButton, readOnly && { backgroundColor: theme.backgroundElement }]}
+            style={({ pressed }) => [
+              styles.headerIconButton,
+              readOnly && { backgroundColor: theme.backgroundElement },
+              pressed && { opacity: 0.7 },
+            ]}
             accessibilityRole="button"
             accessibilityLabel={readOnly ? 'Edit entry' : 'Save entry'}
+            accessibilityState={{ selected: !readOnly }}
             hitSlop={8}
           >
             {readOnly
@@ -261,16 +254,21 @@ export default function WriterScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setShowMoodPicker(!showMoodPicker);
               }}
-              style={styles.headerIconButton}
+              style={({ pressed }) => [
+                styles.headerIconButton,
+                showMoodPicker && { backgroundColor: theme.backgroundElement },
+                pressed && { opacity: 0.7 },
+              ]}
               accessibilityRole="button"
               accessibilityLabel={selectedMood ? `Change mood, current ${selectedMood}` : 'Select mood'}
+              accessibilityState={{ expanded: showMoodPicker }}
               hitSlop={8}
             >
               <IconMoodHappy size={20} color={selectedMood ? theme.primary : theme.tint} />
             </Pressable>
           )}
         </View>
-      </ThemedView>
+      </View>
 
       {/* Mood Picker */}
       {showMoodPicker && !isTemplate && (
@@ -308,18 +306,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.two,
   },
   headerAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
+    minWidth: 44,
     minHeight: 44,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.two,
   },
   headerCenter: {
     flex: 1,

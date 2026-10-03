@@ -4,6 +4,7 @@ import {
   Alert,
   Pressable,
   StyleSheet,
+  Text,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -12,6 +13,8 @@ import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import {
   IconCamera,
+  IconFile,
+  IconFileTypePdf,
   IconMusic,
   IconPhoto,
   IconPlayerPlay,
@@ -24,6 +27,8 @@ import {
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { AudioPlayer } from '@/components/media/audio-player';
+import { VideoPlayer } from '@/components/media/video-player';
 import { CustomModal } from '@/components/ui/modal';
 import { Spacing } from '@/constants/theme';
 import type { Media } from '@/constants/media';
@@ -32,12 +37,13 @@ import { MediaService, scanAllMedia } from '@/services/media-service';
 
 const COLUMNS = 3;
 const GAP = Spacing.two;
+const GRID_PADDING = Spacing.three;
 
 export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { width: screenWidth } = useWindowDimensions();
-  const CELL_SIZE = (screenWidth - Spacing.four * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
+  const CELL_SIZE = (screenWidth - GRID_PADDING * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
   const [items, setItems] = useState<Media[]>([]);
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<Media | null>(null);
@@ -92,42 +98,55 @@ export default function LibraryScreen() {
   const renderItem = useCallback(
     ({ item }: { item: Media[] }) => (
       <View style={styles.row}>
-        {item.map((media) => (
-          <Pressable
-            key={media.id}
-            onPress={() => setPreview(media)}
-            onLongPress={() => handleDelete(media)}
-            accessibilityRole="button"
-            accessibilityLabel={`${media.type} ${media.id}`}
-            accessibilityHint="Tap to preview, long press to delete"
-            hitSlop={8}
-            style={[styles.cell, { width: CELL_SIZE, height: CELL_SIZE }]}
-          >
-            {media.type === 'image' ? (
-              <Image
-                source={{ uri: media.uri }}
-                style={styles.thumb}
-                contentFit="cover"
-                transition={200}
-              />
-            ) : (
-              <ThemedView type="backgroundElement" style={styles.placeholder}>
-                {media.type === 'video' ? (
-                  <IconPlayerPlay size={24} color={theme.textSecondary} />
-                ) : (
-                  <IconMusic size={24} color={theme.textSecondary} />
-                )}
-              </ThemedView>
-            )}
-            {media.type !== 'image' && (
-              <ThemedView type="surface" style={styles.typeBadge}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {media.type === 'video' ? 'VIDEO' : 'AUDIO'}
-                </ThemedText>
-              </ThemedView>
-            )}
-          </Pressable>
-        ))}
+        {item.map((media) => {
+          // Non-media attachments (documents, archives, code) get a generic
+          // placeholder instead of being force-rendered as a broken image.
+          const previewable = media.type === 'image' || media.type === 'video' || media.type === 'audio';
+          const label = media.filename ?? `${media.type} file`;
+          return (
+            <Pressable
+              key={media.uri}
+              onPress={() => setPreview(media)}
+              onLongPress={() => handleDelete(media)}
+              accessibilityRole="button"
+              accessibilityLabel={`${media.type}: ${label}`}
+              accessibilityHint="Tap to preview, long press to delete"
+              hitSlop={8}
+              style={[styles.cell, { width: CELL_SIZE, height: CELL_SIZE }]}
+            >
+              {media.type === 'image' ? (
+                <Image
+                  source={{ uri: media.uri }}
+                  style={styles.thumb}
+                  contentFit="cover"
+                  transition={200}
+                />
+              ) : (
+                <View style={[styles.placeholder, { backgroundColor: theme.backgroundElement }]}>
+                  {media.type === 'video' ? (
+                    <IconPlayerPlay size={24} color={theme.textSecondary} />
+                  ) : media.type === 'audio' ? (
+                    <IconMusic size={24} color={theme.textSecondary} />
+                  ) : media.type === 'pdf' ? (
+                    <IconFileTypePdf size={24} color={theme.textSecondary} />
+                  ) : (
+                    <IconFile size={24} color={theme.textSecondary} />
+                  )}
+                </View>
+              )}
+              {!previewable && (
+                <View style={[styles.typeBadge, { backgroundColor: theme.surface }]}>
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.typeBadgeText, { color: theme.textSecondary }]}
+                  >
+                    {(media.filename?.split('.').pop() ?? media.type).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          );
+        })}
       </View>
     ),
     [theme, handleDelete, CELL_SIZE]
@@ -143,23 +162,32 @@ export default function LibraryScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedView style={styles.header}>
-        <ThemedView style={styles.headerRow}>
-          <ThemedText style={styles.pageTitle}>Library</ThemedText>
-          <Pressable onPress={() => setShowImport(true)} style={[styles.importBtn, { backgroundColor: theme.primary }]}>
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+        <View style={styles.headerRow}>
+          <View>
+            <ThemedText style={styles.pageTitle}>Library</ThemedText>
+            <ThemedText type="small" themeColor="textMuted">
+              {items.length} {items.length === 1 ? 'item' : 'items'}
+            </ThemedText>
+          </View>
+          <Pressable
+            onPress={() => setShowImport(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Import media"
+            accessibilityHint="Choose media to add to your library"
+            hitSlop={8}
+            style={({ pressed }) => [styles.importBtn, { backgroundColor: theme.primary }, pressed && { opacity: 0.85 }]}
+          >
             <IconPlus size={18} color="#FFFFFF" />
           </Pressable>
-        </ThemedView>
-        <ThemedText type="small" themeColor="textSecondary">
-          {items.length} {items.length === 1 ? 'item' : 'items'}
-        </ThemedText>
-      </ThemedView>
+        </View>
+      </View>
 
       <FlashList
         data={rows}
-        keyExtractor={(row, index) => row[0]?.id ?? `row-${index}`}
+        keyExtractor={(row, index) => row[0]?.uri ?? `row-${index}`}
         renderItem={renderItem}
-        contentContainerStyle={styles.grid}
+        contentContainerStyle={[styles.grid, { paddingBottom: Spacing.five + insets.bottom }]}
         ItemSeparatorComponent={() => <View style={styles.rowSeparator} />}
         onRefresh={refresh}
         refreshing={loading}
@@ -199,28 +227,36 @@ export default function LibraryScreen() {
           )}
 
           {preview?.type === 'video' && (
-            <ThemedView style={styles.previewInfo}>
-              <IconPlayerPlay size={48} color={theme.text} />
-              <ThemedText type="title">Video</ThemedText>
-              <ThemedText type="default" themeColor="textSecondary" style={styles.previewUri}>
-                {preview.uri.split('/').pop()}
+            <View style={[styles.previewMedia, { width: screenWidth - Spacing.four * 2 }]}>
+              <VideoPlayer uri={preview.uri} />
+              <ThemedText type="small" themeColor="textSecondary" style={styles.previewUri}>
+                {preview.filename ?? preview.uri.split('/').pop()}
               </ThemedText>
-            </ThemedView>
+            </View>
           )}
 
           {preview?.type === 'audio' && (
-            <ThemedView style={styles.previewInfo}>
-              <IconMusic size={48} color={theme.text} />
-              <ThemedText type="title">Audio</ThemedText>
-              <ThemedText type="default" themeColor="textSecondary" style={styles.previewUri}>
-                {preview.uri.split('/').pop()}
-              </ThemedText>
-            </ThemedView>
+            <View style={[styles.previewMedia, { width: screenWidth - Spacing.four * 2 }]}>
+              <AudioPlayer uri={preview.uri} title={preview.filename ?? undefined} />
+            </View>
+          )}
+
+          {preview && !['image', 'video', 'audio'].includes(preview.type) && (
+            <View style={[styles.previewInfo, { top: insets.top + Spacing.four * 2 }]} pointerEvents="none">
+              {preview.type === 'pdf' ? (
+                <IconFileTypePdf size={48} color={theme.text} />
+              ) : (
+                <IconFile size={48} color={theme.text} />
+              )}
+              <ThemedText type="title">{preview.filename ?? 'Attachment'}</ThemedText>
+            </View>
           )}
 
           {preview && (
             <Pressable
               onPress={() => handleDelete(preview)}
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${preview.filename ?? 'this attachment'}`}
               style={[styles.deleteButton, { backgroundColor: theme.error, bottom: insets.bottom + Spacing.four }]}
             >
               <IconTrash size={16} color="#FFFFFF" />
@@ -287,9 +323,9 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
-    paddingBottom: Spacing.two,
-    gap: Spacing.half,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.three,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerRow: {
     flexDirection: 'row',
@@ -309,8 +345,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   grid: {
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.four,
+    paddingHorizontal: GRID_PADDING,
+    paddingBottom: Spacing.five,
   },
   row: {
     flexDirection: 'row',
@@ -337,9 +373,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: Spacing.one,
     left: Spacing.one,
+    maxWidth: '80%',
     paddingHorizontal: Spacing.one,
     paddingVertical: Spacing.half,
     borderRadius: Spacing.one,
+  },
+  typeBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   empty: {
     alignItems: 'center',
@@ -379,6 +421,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three,
     padding: Spacing.four,
+  },
+  previewMedia: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: Spacing.two,
   },
   previewUri: {
     textAlign: 'center',

@@ -2,9 +2,27 @@ import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import { Spacing, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { AudioPlayer } from '@/components/media/audio-player';
+import { FileAttachment } from '@/components/media/file-attachment';
 import { ImageViewer } from '@/components/media/image-viewer';
 import { VideoPlayer } from '@/components/media/video-player';
-import { AudioPlayer } from '@/components/media/audio-player';
+
+/**
+ * True for URIs that point at a file on this device rather than a web page.
+ * These must never be handed to `Linking.openURL`.
+ */
+function isLocalUri(url: string): boolean {
+  return (
+    url.startsWith('file://') ||
+    url.startsWith('content://') ||
+    url.startsWith('ph://') ||
+    url.startsWith('/') ||
+    url.startsWith('data:') ||
+    url.startsWith('blob:')
+  );
+}
+
+
 
 interface MarkdownRendererProps {
   content: string;
@@ -276,19 +294,33 @@ function InlineContent({ nodes, theme }: { nodes: InlineNode[]; theme: any }) {
             );
           case 'color':
             return <Text key={i} style={{ color: node.color }}>{node.text}</Text>;
-          case 'link':
+          case 'link': {
+            // A link to a file on this device is an attachment, not a web link.
+            // `Linking.openURL` silently fails on file:// URIs, so render a
+            // tappable card that opens/shares the file instead.
+            if (isLocalUri(node.url)) {
+              // Covers media attached without the dedicated syntax too — the
+              // card previews images and opens everything else via the
+              // platform viewer.
+              return <FileAttachment key={i} uri={node.url} label={node.text} />;
+            }
             return (
               <Text
                 key={i}
-                style={{ color: theme.primary }}
+                style={{ color: theme.primary, textDecorationLine: 'underline' }}
                 accessibilityRole="link"
                 accessibilityLabel={`Link: ${node.text}`}
                 accessibilityHint={`Opens ${node.url}`}
-                onPress={() => Linking.openURL(node.url).catch(() => {})}
+                onPress={() => {
+                  Linking.openURL(node.url).catch(() =>
+                    Linking.openURL(`https://${node.url}`).catch(() => {})
+                  );
+                }}
               >
                 {node.text}
               </Text>
             );
+          }
           case 'image':
             return <ImageViewer key={i} uri={node.url} />;
           case 'video':

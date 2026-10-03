@@ -164,9 +164,22 @@ export function insertLink(text: string, start: number, end: number, url?: strin
   };
 }
 
+/**
+ * Escapes markdown link text so filenames containing brackets or parentheses
+ * (e.g. `notes (draft) [v2].md`) do not break the link syntax.
+ */
+function escapeLinkLabel(label: string): string {
+  return label.replace(/([[\]])/g, '\\$1');
+}
+
+/** Escapes a URL for use inside `(...)` — spaces and parens break the link. */
+function encodeUrl(uri: string): string {
+  return uri.replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
+}
+
 export function insertFile(text: string, start: number, end: number, uri: string, name?: string): FormatResult {
-  const label = name || 'file';
-  const markdown = `\n[${label}](${uri})\n`;
+  const label = escapeLinkLabel(name || 'file');
+  const markdown = `\n[${label}](${encodeUrl(uri)})\n`;
   return {
     text: replaceRange(text, start, end, markdown),
     cursor: start + markdown.length,

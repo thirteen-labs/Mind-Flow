@@ -14,8 +14,21 @@ function LayoutContent() {
   const { isOpen, close } = useSidebar();
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
+    <View
+      style={[
+        styles.root,
+        {
+          backgroundColor: theme.background,
+          paddingTop: insets.top,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+    >
       <TopBar />
+      {/* No bottom inset padding: the floating tab bar is gone, so content
+          runs to the physical bottom edge and each screen owns its own
+          bottom spacing. */}
       <AppTabs />
       <NotesSidebar visible={isOpen} onClose={close} />
     </View>
