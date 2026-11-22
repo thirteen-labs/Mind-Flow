@@ -5,7 +5,6 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { IconChevronLeft, IconEye, IconPencil, IconStar, IconPin, IconShare, IconFileText, IconCopy, IconTrash, IconFileExport, IconCheck } from '@tabler/icons-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MarkdownRenderer } from '@/components/markdown-renderer';
 import { ThemedText } from '@/components/themed-text';
@@ -20,7 +19,6 @@ type ViewMode = 'reader' | 'editor' | 'export';
 export default function NoteViewerScreen() {
   const theme = useTheme();
   const db = useSQLiteContext();
-  const insets = useSafeAreaInsets();
   const { date } = useLocalSearchParams<{ date?: string }>();
   const [entry, setEntry] = useState<JournalEntry | null>(null);
   const [loading, setLoading] = useState(true);

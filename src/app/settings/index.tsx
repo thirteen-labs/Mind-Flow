@@ -16,7 +16,6 @@ import {
   IconCheck,
   IconChevronLeft,
   IconChevronRight,
-  IconCloud,
   IconContrast,
   IconDeviceFloppy,
   IconFileText,
@@ -604,20 +603,6 @@ export default function SettingsScreen() {
             Export your journal database as a SQLite file for safekeeping
           </ThemedText>
 
-          <SectionHeader label="Cloud Sync" />
-
-          <ThemedView style={[styles.settingsGroup, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <SettingRow
-              icon={<IconCloud size={18} color={theme.tint} />}
-              label="Google Drive backup"
-              description="Coming soon — automatic cloud backup"
-            >
-              <View style={[styles.badge, { backgroundColor: theme.surfaceVariant }]}>
-                <ThemedText type="small" themeColor="textMuted">Soon</ThemedText>
-              </View>
-            </SettingRow>
-          </ThemedView>
-
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -763,28 +748,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.one,
     marginTop: Spacing.one,
   },
-  recoveryCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.three,
-    padding: Spacing.three,
-    borderRadius: Spacing.three,
-    borderWidth: 1,
-    borderCurve: 'continuous',
-  },
-  recoveryPhrase: {
-    fontFamily: 'JetBrains Mono',
-    fontSize: 14,
-    lineHeight: 22,
-    marginTop: Spacing.one,
-  },
-  intervalChip: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.two,
-    borderRadius: Spacing.two,
-    borderWidth: 1,
-    borderCurve: 'continuous',
-  },
   // Template styles
   templateCard: {
     padding: Spacing.three,
@@ -884,10 +847,5 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     borderWidth: 1,
     borderCurve: 'continuous',
-  },
-  badge: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.half,
-    borderRadius: Spacing.two,
   },
 });

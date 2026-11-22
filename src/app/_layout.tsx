@@ -1,4 +1,4 @@
-import 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { Component, Suspense, useEffect, useState, type ErrorInfo, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View, Pressable } from 'react-native';
@@ -6,7 +6,6 @@ import { Stack } from 'expo-router/stack';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppLockGate } from '@/components/app-lock-gate';
@@ -145,10 +144,6 @@ function AppStack() {
           <Stack.Screen
             name="note-viewer"
             options={{ animation: 'slide_from_right', presentation: 'card' }}
-          />
-          <Stack.Screen
-            name="backup-restore"
-            options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
           />
           <Stack.Screen
             name="insights"

@@ -73,8 +73,7 @@
         }
       ],
       "./plugins/with-mindflow-widget",
-      "expo-sharing",
-      "expo-web-browser"
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -27,11 +27,6 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function formatTime(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-}
-
 function estimateReadingTime(words: number): string {
   const minutes = Math.max(1, Math.round(words / 200));
   return `${minutes} min read`;

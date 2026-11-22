@@ -5,7 +5,6 @@ import { IconX } from '@tabler/icons-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
-import { Spacing } from '@/constants/theme';
 
 export interface ModalHeaderProps {
   title: string;
